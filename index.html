@@ -584,6 +584,7 @@
   <button class="tab-btn" data-tab="ordenancas" onclick="switchTab('ordenancas')">🕊️ Ordenanças</button>
     <button class="tab-btn" data-tab="membros" onclick="switchTab('membros')">👥 Membros</button>
     <button class="tab-btn" data-tab="notas" onclick="switchTab('notas')">📝 Notas</button>
+    <button class="tab-btn" data-tab="sacramental" onclick="switchTab('sacramental')">🕊️ Sacramental</button>
     <button class="tab-btn" data-tab="como-usar" onclick="switchTab('como-usar')">ℹ️ Como Usar</button>
 </div>
 
@@ -601,6 +602,7 @@
     <option value="calendario">📆 Calendário</option>
     <option value="membros">👥 Membros</option>
     <option value="notas">📝 Notas</option>
+    <option value="sacramental">🕊️ Sacramental</option>
     <option value="como-usar">ℹ️ Como Usar</option>
   <option value="ordenancas">🕊️ Ordenanças</option>
   </select>
@@ -2031,6 +2033,60 @@
 
 </div><!-- fim panel-ordenancas -->
 
+<!-- ========== PLANEJADOR DE SACRAMENTAIS ========== -->
+<div class="panel" id="panel-sacramental">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div>
+      <h2 style="font-size:18px;color:#e8d080">🕊️ Planejador de Sacramentais</h2>
+      <p style="font-size:12px;color:#8eacc8;margin-top:4px">Discursos, hinos e programação dos domingos</p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn-sm" onclick="mudarMesSac(-1)" style="background:rgba(232,208,128,.15);color:#e8d080;border:1px solid rgba(232,208,128,.3);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px">‹</button>
+      <span id="sac-mes-titulo" style="color:#e8d080;font-size:14px;font-weight:600;min-width:120px;text-align:center"></span>
+      <button class="btn-sm" onclick="mudarMesSac(1)" style="background:rgba(232,208,128,.15);color:#e8d080;border:1px solid rgba(232,208,128,.3);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px">›</button>
+    </div>
+  </div>
+
+  <!-- Banco de Oradores -->
+  <details style="margin-bottom:16px;background:rgba(232,208,128,.08);border:1px solid rgba(232,208,128,.15);border-radius:12px;padding:12px">
+    <summary style="color:#e8d080;font-weight:600;cursor:pointer;font-size:13px">📋 Banco de Oradores em Potencial</summary>
+    <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px" id="banco-oradores">
+      <div style="flex:1;min-width:140px">
+        <div style="color:#a78bfa;font-size:11px;font-weight:600;margin-bottom:4px">QUÓRUM</div>
+        <div id="banco-quorum" style="font-size:12px;color:#c8d8e8;line-height:1.8"></div>
+      </div>
+      <div style="flex:1;min-width:140px">
+        <div style="color:#f472b6;font-size:11px;font-weight:600;margin-bottom:4px">SOC. SOCORRO</div>
+        <div id="banco-socsoc" style="font-size:12px;color:#c8d8e8;line-height:1.8"></div>
+      </div>
+      <div style="flex:1;min-width:140px">
+        <div style="color:#34d399;font-size:11px;font-weight:600;margin-bottom:4px">JOVENS</div>
+        <div id="banco-jovens" style="font-size:12px;color:#c8d8e8;line-height:1.8"></div>
+      </div>
+      <div style="flex:1;min-width:140px">
+        <div style="color:#60a5fa;font-size:11px;font-weight:600;margin-bottom:4px">OUTROS</div>
+        <div id="banco-outros" style="font-size:12px;color:#c8d8e8;line-height:1.8"></div>
+      </div>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+      <input type="text" class="form-input" id="novo-orador-nome" placeholder="Nome do orador" style="flex:1;min-width:120px;font-size:12px;padding:6px 10px">
+      <select class="form-select" id="novo-orador-grupo" style="width:auto;font-size:12px;padding:6px 8px">
+        <option value="quorum">Quórum</option>
+        <option value="socsoc">Soc. Socorro</option>
+        <option value="jovens">Jovens</option>
+        <option value="outros">Outros</option>
+      </select>
+      <button onclick="adicionarOrador()" style="background:#e8d080;color:#0d1b2a;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:600">+ Adicionar</button>
+    </div>
+  </details>
+
+  <!-- Lista de Domingos -->
+  <div id="lista-sacramentais"><div class="loading">Carregando…</div></div>
+</div>
+
+<!-- Modal Sacramental -->
+<div class="modal-overlay" id="modal-sacramental"><div class="modal-box" id="modal-sacramental-content"></div></div>
+
 <div class="panel" id="panel-como-usar">
   <div style="text-align:center;margin-bottom:20px">
     <h2 style="color:#c9a84c;font-size:18px">ℹ️ Como Usar o Painel</h2>
@@ -2072,6 +2128,16 @@
     <div class="como-usar-item">Visualize os eventos da Ala e da Estaca mês a mês.</div>
     <div class="como-usar-item">Toque em qualquer dia para ver os detalhes dos eventos.</div>
     <div class="como-usar-item">Adicione eventos próprios da ala com o botão <strong>+</strong>.</div>
+  </div>
+
+  <div class="como-usar-section">
+    <div class="como-usar-titulo" style="color:#e8d080">🕊️ Planejador de Sacramentais</div>
+    <div class="como-usar-item">Programe cada domingo com oradores, temas e hinos da reunião sacramental.</div>
+    <div class="como-usar-item">Navegue entre os meses usando as setas <strong>‹</strong> e <strong>›</strong>. Cada card mostra um domingo.</div>
+    <div class="como-usar-item">Toque em um domingo para preencher: 4 hinos (Primeiro, Sacramental, Especial, Final), 3 oradores com seus temas, e observações.</div>
+    <div class="como-usar-item">Use o <strong>Banco de Oradores</strong> para manter uma lista de potenciais discursantes organizados por grupo (Quórum, Soc. Socorro, Jovens, Outros).</div>
+    <div class="como-usar-item">Ao preencher oradores no modal, nomes do banco aparecem como sugestão automática.</div>
+    <div class="como-usar-item">Domingos programados mostram um <span style="color:#34d399">ponto verde</span>. Não programados mostram <span style="color:#e05555">ponto vermelho</span>.</div>
   </div>
 
   <div class="como-usar-section">
@@ -2162,6 +2228,7 @@ const API_AGENDA    = '/api/agenda';
 const API_REUNIOES  = '/api/reunioes';
 const API_DESIG     = '/api/designacoes';
 const API_EVENTOS   = '/api/eventos_extras';
+const API_SAC       = '/api/sacramentais';
 
 const USUARIOS = [
   {id:'bispo',   nome:'Bispo Juan',   role:'Bispo',              cor:'#c9a84c', bg:'rgba(201,168,76,.2)'},
@@ -2171,7 +2238,7 @@ const USUARIOS = [
 ];
 
 let USER = null;
-let DADOS = { agenda:[], reunioes:[], designacoes:[], eventos_extras:[] };
+let DADOS = { agenda:[], reunioes:[], designacoes:[], eventos_extras:[], sacramentais:[] };
 let filAgenda = 'ativas', filDesig = 'ativas';
 let calMes = new Date().getMonth(), calAno = new Date().getFullYear();
 
@@ -2333,10 +2400,17 @@ async function loadEventos() {
   } catch(e) { renderCalendario(); }
 }
 
+async function loadSacramentais() {
+  try {
+    const data = await apiFetch(API_SAC);
+    if (Array.isArray(data)) { DADOS.sacramentais = data; sacCarregado = true; renderSacramentais(); }
+  } catch(e) { if (sacCarregado) renderSacramentais(); }
+}
+
 async function carregarDados() {
   setSyncStatus('syncing');
   try {
-    await Promise.all([loadAgenda(), loadReunioes(), loadDesignacoes(), loadEventos()]);
+    await Promise.all([loadAgenda(), loadReunioes(), loadDesignacoes(), loadEventos(), loadSacramentais()]);
     atualizarUltimaSinc();
     setSyncStatus('ok');
   } catch(e) {
@@ -2349,7 +2423,7 @@ async function sincronizarManual() {
   limparCacheApp(); // limpa cache do app durante sync manual
   try {
     await enviarFilaPendente();
-    await Promise.all([loadAgenda(), loadReunioes(), loadDesignacoes(), loadEventos()]);
+    await Promise.all([loadAgenda(), loadReunioes(), loadDesignacoes(), loadEventos(), loadSacramentais()]);
     atualizarUltimaSinc();
     setSyncStatus('ok');
   } catch(e) {
@@ -3163,7 +3237,7 @@ let fabTab = '';
 function onTabChange(tab) {
   fabTab = tab;
   const fab = document.getElementById('main-fab');
-  const fabsComBotao = ['agenda','reuniao','designacoes','calendario'];
+  const fabsComBotao = ['agenda','reuniao','designacoes','calendario','sacramental'];
   if (fab) fab.classList.toggle('visible', fabsComBotao.includes(tab));
 }
 
@@ -3176,6 +3250,7 @@ document.getElementById('main-fab')?.addEventListener('click', () => {
   else if (fabTab==='reuniao') abrirModalReuniao('');
   else if (fabTab==='designacoes') abrirModalDesig('');
   else if (fabTab==='calendario') abrirModalEvento();
+  else if (fabTab==='sacramental') { const dk = formatDateKey(new Date()); abrirModalSac(dk); }
 });
 
 // Sobrescreve switchTab para integrar onTabChange e select responsivo
@@ -4107,7 +4182,318 @@ const origSwitchTab = switchTab;
 switchTab = function(tab) {
   origSwitchTab(tab);
   if (tab === 'notas') { carregarNotasCompartilhadas(); }
+  if (tab === 'sacramental' && !sacCarregado) { carregarSacramentais(); }
 };
+
+// =============================================
+// PLANEJADOR DE SACRAMENTAIS
+// =============================================
+let sacCarregado = false;
+let sacMes = new Date().getMonth();
+let sacAno = new Date().getFullYear();
+
+// Banco de oradores (localStorage)
+const SAC_BANCO_KEY = 'sac_banco_oradores';
+function getBancoOradores() {
+  try { return JSON.parse(localStorage.getItem(SAC_BANCO_KEY)) || {quorum:[],socsoc:[],jovens:[],outros:[]}; }
+  catch { return {quorum:[],socsoc:[],jovens:[],outros:[]}; }
+}
+function saveBancoOradores(banco) { localStorage.setItem(SAC_BANCO_KEY, JSON.stringify(banco)); }
+
+function renderBancoOradores() {
+  const banco = getBancoOradores();
+  const groups = {quorum:'banco-quorum',socsoc:'banco-socsoc',jovens:'banco-jovens',outros:'banco-outros'};
+  for (const [key, elId] of Object.entries(groups)) {
+    const el = document.getElementById(elId);
+    if (!el) continue;
+    const nomes = banco[key] || [];
+    el.innerHTML = nomes.length
+      ? nomes.map((n,i) => `<div style="display:flex;align-items:center;gap:4px"><span>${n}</span><span onclick="removerOrador('${key}',${i})" style="cursor:pointer;color:#e05555;font-size:10px;opacity:.6" title="Remover">✕</span></div>`).join('')
+      : '<span style="opacity:.4">—</span>';
+  }
+}
+
+function adicionarOrador() {
+  const nome = document.getElementById('novo-orador-nome').value.trim();
+  const grupo = document.getElementById('novo-orador-grupo').value;
+  if (!nome) return;
+  const banco = getBancoOradores();
+  if (!banco[grupo]) banco[grupo] = [];
+  banco[grupo].push(nome);
+  saveBancoOradores(banco);
+  document.getElementById('novo-orador-nome').value = '';
+  renderBancoOradores();
+}
+
+function removerOrador(grupo, idx) {
+  const banco = getBancoOradores();
+  if (banco[grupo]) banco[grupo].splice(idx, 1);
+  saveBancoOradores(banco);
+  renderBancoOradores();
+}
+
+// Gerar domingos do mês
+function getDomingosMes(mes, ano) {
+  const domingos = [];
+  const d = new Date(ano, mes, 1);
+  while (d.getMonth() === mes) {
+    if (d.getDay() === 0) domingos.push(new Date(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return domingos;
+}
+
+function formatDateSac(d) {
+  const dias = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+  const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  return `${d.getDate()} de ${meses[d.getMonth()]}`;
+}
+
+function formatDateKey(d) {
+  return d.toISOString().split('T')[0];
+}
+
+const MESES_NOME = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+function mudarMesSac(dir) {
+  sacMes += dir;
+  if (sacMes > 11) { sacMes = 0; sacAno++; }
+  if (sacMes < 0) { sacMes = 11; sacAno--; }
+  renderSacramentais();
+}
+
+async function carregarSacramentais() {
+  try {
+    const data = await apiFetch(API_SAC);
+    if (Array.isArray(data)) DADOS.sacramentais = data;
+  } catch { }
+  sacCarregado = true;
+  renderBancoOradores();
+  renderSacramentais();
+}
+
+function getSacPorData(dataKey) {
+  if (!DADOS.sacramentais) DADOS.sacramentais = [];
+  return DADOS.sacramentais.find(s => s.data === dataKey);
+}
+
+function renderSacramentais() {
+  const el = document.getElementById('lista-sacramentais');
+  const tit = document.getElementById('sac-mes-titulo');
+  if (tit) tit.textContent = `${MESES_NOME[sacMes]} ${sacAno}`;
+
+  const domingos = getDomingosMes(sacMes, sacAno);
+  if (!domingos.length) { el.innerHTML = '<div style="text-align:center;color:#4a6a8a;padding:40px">Nenhum domingo neste mês</div>'; return; }
+
+  const hoje = formatDateKey(new Date());
+
+  el.innerHTML = domingos.map(dom => {
+    const dk = formatDateKey(dom);
+    const sac = getSacPorData(dk);
+    const isHoje = dk === hoje;
+    const isPast = dk < hoje;
+
+    const borderColor = isHoje ? '#e8d080' : isPast ? 'rgba(74,106,138,.3)' : 'rgba(232,208,128,.2)';
+    const opacity = isPast ? 'opacity:.7' : '';
+
+    const primeiroHino = sac?.primeiroHino || '';
+    const hinoSacramental = sac?.hinoSacramental || '';
+    const hinoEspecial = sac?.hinoEspecial || '';
+    const hinoFinal = sac?.hinoFinal || '';
+    const orador1 = sac?.orador1 || '';
+    const tema1 = sac?.tema1 || '';
+    const orador2 = sac?.orador2 || '';
+    const tema2 = sac?.tema2 || '';
+    const orador3 = sac?.orador3 || '';
+    const tema3 = sac?.tema3 || '';
+    const obs = sac?.observacoes || '';
+
+    const preenchido = orador1 || orador2 || orador3 || primeiroHino;
+    const statusDot = preenchido
+      ? '<span style="width:6px;height:6px;border-radius:50%;background:#34d399;display:inline-block;margin-right:6px" title="Programado"></span>'
+      : '<span style="width:6px;height:6px;border-radius:50%;background:#e05555;display:inline-block;margin-right:6px" title="Não programado"></span>';
+
+    const escNome = (s) => s.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+    return `
+    <div class="card" style="border-color:${borderColor};${opacity};margin-bottom:12px;cursor:pointer" onclick="abrirModalSac('${dk}')">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="display:flex;align-items:center">
+          ${statusDot}
+          <span style="color:#e8d080;font-weight:700;font-size:14px">${formatDateSac(dom)}</span>
+          ${isHoje ? '<span style="background:#e8d080;color:#0d1b2a;font-size:9px;padding:1px 6px;border-radius:8px;margin-left:8px;font-weight:700">HOJE</span>' : ''}
+        </div>
+        <span style="color:#4a6a8a;font-size:11px">${sacAno}</span>
+      </div>
+
+      ${preenchido ? `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:12px">
+        ${primeiroHino ? `<div><span style="color:#5b9bd5;font-size:10px">1° Hino</span><div style="color:#c8d8e8">${escNome(primeiroHino)}</div></div>` : ''}
+        ${hinoSacramental ? `<div><span style="color:#5b9bd5;font-size:10px">Hino Sacramental</span><div style="color:#c8d8e8">${escNome(hinoSacramental)}</div></div>` : ''}
+        ${orador1 ? `<div><span style="color:#34d399;font-size:10px">1° Orador</span><div style="color:#c8d8e8">${escNome(orador1)}${tema1 ? ` <span style="color:#4a6a8a">· ${escNome(tema1)}</span>` : ''}</div></div>` : ''}
+        ${orador2 ? `<div><span style="color:#a78bfa;font-size:10px">2° Orador</span><div style="color:#c8d8e8">${escNome(orador2)}${tema2 ? ` <span style="color:#4a6a8a">· ${escNome(tema2)}</span>` : ''}</div></div>` : ''}
+        ${hinoEspecial ? `<div><span style="color:#f472b6;font-size:10px">Hino Especial</span><div style="color:#c8d8e8">${escNome(hinoEspecial)}</div></div>` : ''}
+        ${orador3 ? `<div><span style="color:#e8b040;font-size:10px">3° Orador</span><div style="color:#c8d8e8">${escNome(orador3)}${tema3 ? ` <span style="color:#4a6a8a">· ${escNome(tema3)}</span>` : ''}</div></div>` : ''}
+        ${hinoFinal ? `<div><span style="color:#5b9bd5;font-size:10px">Hino Final</span><div style="color:#c8d8e8">${escNome(hinoFinal)}</div></div>` : ''}
+      </div>
+      ${obs ? `<div style="margin-top:6px;font-size:11px;color:#8eacc8;border-top:1px solid rgba(74,106,138,.2);padding-top:6px">📝 ${escNome(obs)}</div>` : ''}
+      ` : `
+      <div style="text-align:center;color:#4a6a8a;font-size:12px;padding:8px 0">Toque para programar este domingo</div>
+      `}
+    </div>`;
+  }).join('');
+}
+
+function abrirModalSac(dataKey) {
+  const sac = getSacPorData(dataKey) || {};
+  const d = new Date(dataKey + 'T12:00:00');
+  const titulo = formatDateSac(d) + ' de ' + d.getFullYear();
+
+  const esc = (s) => (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  const banco = getBancoOradores();
+  const todosOradores = [...(banco.quorum||[]),...(banco.socsoc||[]),...(banco.jovens||[]),...(banco.outros||[])];
+  const datalist = todosOradores.length ? `<datalist id="dl-oradores">${todosOradores.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>` : '';
+
+  const listAttr = todosOradores.length ? ' list="dl-oradores"' : '';
+
+  document.getElementById('modal-sacramental-content').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="color:#e8d080;font-size:16px">🕊️ ${titulo}</h3>
+      <span onclick="fecharModal('modal-sacramental')" style="cursor:pointer;color:#4a6a8a;font-size:20px">✕</span>
+    </div>
+
+    ${datalist}
+
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="background:rgba(91,155,213,.08);border-radius:10px;padding:12px">
+        <div style="color:#5b9bd5;font-size:11px;font-weight:700;margin-bottom:8px">🎵 HINOS</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label style="color:#8eacc8;font-size:10px">Primeiro Hino</label>
+            <input type="text" class="form-input" id="sac-hino1" value="${esc(sac.primeiroHino)}" placeholder="Ex: Hino 2" style="font-size:12px;padding:6px 10px">
+          </div>
+          <div>
+            <label style="color:#8eacc8;font-size:10px">Hino Sacramental</label>
+            <input type="text" class="form-input" id="sac-hino-sac" value="${esc(sac.hinoSacramental)}" placeholder="Ex: Hino 178" style="font-size:12px;padding:6px 10px">
+          </div>
+          <div>
+            <label style="color:#8eacc8;font-size:10px">Hino/Número Especial</label>
+            <input type="text" class="form-input" id="sac-hino-esp" value="${esc(sac.hinoEspecial)}" placeholder="Ex: Solo - Maria" style="font-size:12px;padding:6px 10px">
+          </div>
+          <div>
+            <label style="color:#8eacc8;font-size:10px">Hino Final</label>
+            <input type="text" class="form-input" id="sac-hino-final" value="${esc(sac.hinoFinal)}" placeholder="Ex: Hino 68" style="font-size:12px;padding:6px 10px">
+          </div>
+        </div>
+      </div>
+
+      <div style="background:rgba(52,211,153,.08);border-radius:10px;padding:12px">
+        <div style="color:#34d399;font-size:11px;font-weight:700;margin-bottom:8px">🎤 1° ORADOR</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label style="color:#8eacc8;font-size:10px">Nome</label>
+            <input type="text" class="form-input" id="sac-orador1" value="${esc(sac.orador1)}" placeholder="Nome"${listAttr} style="font-size:12px;padding:6px 10px">
+          </div>
+          <div>
+            <label style="color:#8eacc8;font-size:10px">Tema</label>
+            <input type="text" class="form-input" id="sac-tema1" value="${esc(sac.tema1)}" placeholder="Tema do discurso" style="font-size:12px;padding:6px 10px">
+          </div>
+        </div>
+      </div>
+
+      <div style="background:rgba(167,139,250,.08);border-radius:10px;padding:12px">
+        <div style="color:#a78bfa;font-size:11px;font-weight:700;margin-bottom:8px">🎤 2° ORADOR</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label style="color:#8eacc8;font-size:10px">Nome</label>
+            <input type="text" class="form-input" id="sac-orador2" value="${esc(sac.orador2)}" placeholder="Nome"${listAttr} style="font-size:12px;padding:6px 10px">
+          </div>
+          <div>
+            <label style="color:#8eacc8;font-size:10px">Tema</label>
+            <input type="text" class="form-input" id="sac-tema2" value="${esc(sac.tema2)}" placeholder="Tema do discurso" style="font-size:12px;padding:6px 10px">
+          </div>
+        </div>
+      </div>
+
+      <div style="background:rgba(232,176,64,.08);border-radius:10px;padding:12px">
+        <div style="color:#e8b040;font-size:11px;font-weight:700;margin-bottom:8px">🎤 3° ORADOR</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label style="color:#8eacc8;font-size:10px">Nome</label>
+            <input type="text" class="form-input" id="sac-orador3" value="${esc(sac.orador3)}" placeholder="Nome"${listAttr} style="font-size:12px;padding:6px 10px">
+          </div>
+          <div>
+            <label style="color:#8eacc8;font-size:10px">Tema</label>
+            <input type="text" class="form-input" id="sac-tema3" value="${esc(sac.tema3)}" placeholder="Tema do discurso" style="font-size:12px;padding:6px 10px">
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label style="color:#8eacc8;font-size:10px">Observações</label>
+        <textarea class="form-input" id="sac-obs" rows="2" placeholder="Ex: Testemunho, Conferência de Estaca, etc." style="font-size:12px;padding:6px 10px;resize:vertical">${esc(sac.observacoes)}</textarea>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="salvarSac('${dataKey}')" style="flex:1;background:#e8d080;color:#0d1b2a;border:none;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">Salvar</button>
+      ${sac.id ? `<button onclick="excluirSac('${sac.id}')" style="background:rgba(224,85,85,.15);color:#e05555;border:1px solid rgba(224,85,85,.3);border-radius:10px;padding:10px 16px;cursor:pointer;font-size:13px">Excluir</button>` : ''}
+      <button onclick="fecharModal('modal-sacramental')" style="background:rgba(74,106,138,.2);color:#8eacc8;border:none;border-radius:10px;padding:10px 16px;cursor:pointer;font-size:13px">Cancelar</button>
+    </div>
+  `;
+  abrirModal('modal-sacramental');
+}
+
+async function salvarSac(dataKey) {
+  const obj = {
+    data: dataKey,
+    primeiroHino: document.getElementById('sac-hino1').value.trim(),
+    hinoSacramental: document.getElementById('sac-hino-sac').value.trim(),
+    hinoEspecial: document.getElementById('sac-hino-esp').value.trim(),
+    hinoFinal: document.getElementById('sac-hino-final').value.trim(),
+    orador1: document.getElementById('sac-orador1').value.trim(),
+    tema1: document.getElementById('sac-tema1').value.trim(),
+    orador2: document.getElementById('sac-orador2').value.trim(),
+    tema2: document.getElementById('sac-tema2').value.trim(),
+    orador3: document.getElementById('sac-orador3').value.trim(),
+    tema3: document.getElementById('sac-tema3').value.trim(),
+    observacoes: document.getElementById('sac-obs').value.trim(),
+  };
+
+  if (!DADOS.sacramentais) DADOS.sacramentais = [];
+  const existente = DADOS.sacramentais.find(s => s.data === dataKey);
+
+  try {
+    if (existente) {
+      const updated = await apiFetch(API_SAC + '?id=' + existente.id, 'PUT', obj);
+      const idx = DADOS.sacramentais.findIndex(s => s.id === existente.id);
+      if (idx !== -1) DADOS.sacramentais[idx] = { ...existente, ...updated };
+    } else {
+      const created = await apiFetch(API_SAC, 'POST', obj);
+      DADOS.sacramentais.push(created);
+    }
+  } catch {
+    // offline — salvar localmente
+    if (existente) {
+      Object.assign(existente, obj);
+    } else {
+      obj.id = Date.now().toString();
+      DADOS.sacramentais.push(obj);
+    }
+  }
+
+  fecharModal('modal-sacramental');
+  renderSacramentais();
+}
+
+async function excluirSac(id) {
+  if (!confirm('Excluir esta programação?')) return;
+  try { await apiFetch(API_SAC + '?id=' + id, 'DELETE'); } catch {}
+  if (DADOS.sacramentais) DADOS.sacramentais = DADOS.sacramentais.filter(s => s.id !== id);
+  fecharModal('modal-sacramental');
+  renderSacramentais();
+}
 
 </script>
 
