@@ -1,0 +1,11 @@
+# Dependências
+node_modules/
+dist/
+
+# Arquivos temporários
+*.log
+*.tmp
+*.swp
+
+# Diretório do Claude Code (worktrees e configs locais)
+.claude/
