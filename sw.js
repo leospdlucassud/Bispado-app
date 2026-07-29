@@ -1,4 +1,4 @@
-const CACHE = 'bispado-app-v4.4.0';
+const CACHE = 'bispado-app-v4.6.0';
 const ASSETS = ['/', '/index.html'];
 
 self.addEventListener('install', e => {
