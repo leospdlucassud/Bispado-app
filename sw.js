@@ -1,5 +1,31 @@
-const CACHE = 'bispado-app-v4.6.0';
-const ASSETS = ['/', '/index.html'];
+const CACHE = 'bispado-app-v5.2.0';
+const ASSETS = [
+  '/',
+  '/index.html',
+  '/css/style.css',
+  '/js/acompanhamento.js',
+  '/js/agenda.js',
+  '/js/api.js',
+  '/js/app.js',
+  '/js/busca.js',
+  '/js/calendario.js',
+  '/js/config.js',
+  '/js/dados-membros.js',
+  '/js/designacoes.js',
+  '/js/dialogo.js',
+  '/js/manual.js',
+  '/js/membros-import.js',
+  '/js/membros.js',
+  '/js/notas.js',
+  '/js/offline-pwa.js',
+  '/js/pdf.js',
+  '/js/reunioes.js',
+  '/js/sacramental.js',
+  '/js/tema.js',
+  '/js/ui.js',
+  '/js/usuario.js',
+  '/js/utils.js',
+];
 
 self.addEventListener('install', e => {
   e.waitUntil(

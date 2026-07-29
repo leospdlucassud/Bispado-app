@@ -53,3 +53,5 @@ export default async (req) => {
 
   return new Response("Method not allowed", { status: 405, headers: CORS });
 };
+
+export const config = { path: "/api/membros" };
