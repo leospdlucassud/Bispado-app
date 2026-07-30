@@ -1,7 +1,7 @@
 // =============================================
 // AGENDA DE ENTREVISTAS
 // =============================================
-const TIPOS_ENTREVISTA = [
+export const TIPOS_ENTREVISTA = [
   // Recomendações
   'Recomendação para o Templo (Batismos Vicários)',
   'Recomendação para o Templo (Investidura)',
@@ -39,7 +39,7 @@ const TIPOS_ENTREVISTA = [
   'Outro',
 ];
 
-function renderAgenda() {
+export function renderAgenda() {
   const el = document.getElementById('lista-agenda');
   if (!el) return;
   const busca = (document.getElementById('busca-membro')?.value || '').toLowerCase();
@@ -117,7 +117,7 @@ function renderAgenda() {
 }
 
 // Liga/desliga acompanhar ou sigiloso direto no card, depois de criada a entrevista
-async function toggleFlagEntrevista(id, campo) {
+export async function toggleFlagEntrevista(id, campo) {
   const e = DADOS.agenda.find(x => x.id === id);
   if (!e) return;
   const novo = !e[campo];
@@ -141,14 +141,14 @@ async function toggleFlagEntrevista(id, campo) {
 // =============================================
 // CONVITE POR WHATSAPP + CONFIRMAÇÃO DO MEMBRO
 // =============================================
-function telefoneDoMembro(nome) {
+export function telefoneDoMembro(nome) {
   if (!nome) return '';
   const m = MEMBROS.find(x => norm(x.name) === norm(nome));
   return m ? (m.telefone || '') : '';
 }
 
 // wa.me exige só dígitos com código do país
-function digitosTelefone(t) {
+export function digitosTelefone(t) {
   let d = (t || '').replace(/\D/g, '');
   if (!d) return '';
   if (d.length <= 11) d = '55' + d;
@@ -156,16 +156,16 @@ function digitosTelefone(t) {
 }
 
 // "Sobrenome, Nome" → primeiro nome
-function primeiroNome(nome) {
+export function primeiroNome(nome) {
   const dep = (nome || '').split(',')[1];
   return ((dep || nome || '').trim().split(/\s+/)[0]) || nome || '';
 }
 
-function linkConfirmacao(id) {
+export function linkConfirmacao(id) {
   return location.origin + location.pathname + '?confirmar=' + encodeURIComponent(id);
 }
 
-function botaoWhatsApp(e) {
+export function botaoWhatsApp(e) {
   const tel = digitosTelefone(e.telefone || telefoneDoMembro(e.membro));
   if (!tel) return '';
   const quando = e.data
@@ -181,7 +181,7 @@ function botaoWhatsApp(e) {
             style="text-decoration:none;color:#25d366;border-color:#25d366">💬 Convidar</a>`;
 }
 
-function selosConfirmacao(e) {
+export function selosConfirmacao(e) {
   if (!e.confirmacao) return '';
   const sel = {
     confirmado: ['#34d399', '✅ Confirmou'],
@@ -194,7 +194,7 @@ function selosConfirmacao(e) {
 }
 
 // --- Tela que o membro vê ao abrir o link do WhatsApp ---
-async function abrirTelaConfirmacao(id) {
+export async function abrirTelaConfirmacao(id) {
   document.body.innerHTML = `
     <div id="conf-wrap" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px">
       <div style="max-width:420px;width:100%;background:#152233;border:1px solid #2a4060;border-radius:18px;padding:28px;text-align:center">
@@ -246,7 +246,7 @@ async function abrirTelaConfirmacao(id) {
     ${e.confirmacao ? `<p style="color:#4a6a8a;font-size:11px;margin-top:14px">Você já respondeu antes. Pode alterar se precisar.</p>` : ''}`;
 }
 
-async function responderConvite(id, resposta) {
+export async function responderConvite(id, resposta) {
   const caixa = document.querySelector('#conf-wrap > div');
   caixa.innerHTML = '<div class="loading">Enviando…</div>';
   let ok = true;
@@ -275,14 +275,14 @@ async function responderConvite(id, resposta) {
        <p style="color:#8eacc8;font-size:13px;line-height:1.6">Verifique sua conexão e tente de novo, ou responda direto ao bispado pelo WhatsApp.</p>`;
 }
 
-function setFilAgenda(val, btn) {
+export function setFilAgenda(val, btn) {
   filAgenda = val;
   document.querySelectorAll('#filtros-agenda .filtro-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   renderAgenda();
 }
 
-function abrirModalAgenda(id) {
+export function abrirModalAgenda(id) {
   const e = id ? DADOS.agenda.find(x=>x.id===id) : null;
   const membrosOptions = MEMBROS.map(m=>`<option value="${m.name}" ${e?.membro===m.name?'selected':''}>${m.name}</option>`).join('');
   const tiposOptions = TIPOS_ENTREVISTA.map(t=>`<option value="${t}" ${e?.tipo===t?'selected':''}>${t}</option>`).join('');
@@ -350,7 +350,7 @@ function abrirModalAgenda(id) {
   abrirModal('modal-agenda');
 }
 
-async function salvarEntrevista(id) {
+export async function salvarEntrevista(id) {
   const membro = document.getElementById('ag-membro').value.trim();
   if (!membro) return toast('Selecione um membro');
   const payload = {
@@ -384,7 +384,7 @@ async function salvarEntrevista(id) {
   renderAgenda();
 }
 
-async function marcarRealizada(id) {
+export async function marcarRealizada(id) {
   const r = await pedirTexto('Concluir entrevista', [
     { id: 'obs', label: 'Observação ao concluir (opcional)', tipo: 'textarea' },
   ], { okLabel: 'Concluir' });
@@ -400,7 +400,7 @@ async function marcarRealizada(id) {
   renderAgenda();
 }
 
-async function naoRealizada(id) {
+export async function naoRealizada(id) {
   const r = await pedirTexto('Não realizada', [
     { id: 'motivo', label: 'Motivo', tipo: 'textarea', obrigatorio: true },
   ], { okLabel: 'Registrar' });
@@ -416,7 +416,7 @@ async function naoRealizada(id) {
   renderAgenda();
 }
 
-async function reagendarEntrevista(id) {
+export async function reagendarEntrevista(id) {
   const atualEnt = DADOS.agenda.find(e => e.id === id) || {};
   const r = await pedirTexto('Reagendar entrevista', [
     { id: 'data', label: 'Nova data', tipo: 'date', valor: atualEnt.data || '', obrigatorio: true },
@@ -435,7 +435,7 @@ async function reagendarEntrevista(id) {
   renderAgenda();
 }
 
-async function excluirEntrevista(id) {
+export async function excluirEntrevista(id) {
   if (!await confirmar('Excluir esta entrevista?', { perigo: true, okLabel: 'Excluir' })) return;
   try {
     await apiFetch(`${API_AGENDA}?id=${id}`, 'DELETE');

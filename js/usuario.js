@@ -3,22 +3,22 @@
 // Sem senha — vale a integridade de quem usa. Serve para atribuir registros
 // e para esconder assuntos sigilosos de quem não é o bispo.
 // =============================================
-const CARGO_KEY = 'cargo_atual';
-const ICONE_CARGO = { 'Bispo':'⚜️', '1º Conselheiro':'🔵', '2º Conselheiro':'🟢', 'Secretário':'📝', 'Secretário Executivo':'🗓️' };
-let USUARIO = localStorage.getItem(CARGO_KEY) || '';
+export const CARGO_KEY = 'cargo_atual';
+export const ICONE_CARGO = { 'Bispo':'⚜️', '1º Conselheiro':'🔵', '2º Conselheiro':'🟢', 'Secretário':'📝', 'Secretário Executivo':'🗓️' };
+export let USUARIO = localStorage.getItem(CARGO_KEY) || '';
 
-const ehBispo = () => USUARIO === 'Bispo';
+export const ehBispo = () => USUARIO === 'Bispo';
 
 // Um item sigiloso só aparece para o bispo
-const podeVer = item => !item.sigiloso || ehBispo();
+export const podeVer = item => !item.sigiloso || ehBispo();
 
-function renderQuemBadge() {
+export function renderQuemBadge() {
   const b = document.getElementById('quem-badge');
   if (!b) return;
   b.innerHTML = USUARIO ? `${ICONE_CARGO[USUARIO] || '👤'} ${USUARIO}` : '👤 Identificar-se';
 }
 
-function abrirEscolhaCargo() {
+export function abrirEscolhaCargo() {
   const cx = document.getElementById('quem-opcoes');
   cx.innerHTML = CARGOS.map(c => `
     <div class="quem-opt" onclick="definirCargo('${c}')">
@@ -29,7 +29,7 @@ function abrirEscolhaCargo() {
   document.getElementById('quem-modal').style.display = 'flex';
 }
 
-function definirCargo(cargo) {
+export function definirCargo(cargo) {
   USUARIO = cargo;
   localStorage.setItem(CARGO_KEY, cargo);
   document.getElementById('quem-modal').style.display = 'none';
@@ -39,13 +39,13 @@ function definirCargo(cargo) {
   if (typeof renderAcompanhamentos === 'function') renderAcompanhamentos();
 }
 
-function initUsuario() {
+export function initUsuario() {
   renderQuemBadge();
   if (!USUARIO) abrirEscolhaCargo();
 }
 
 // Aviso curto no rodapé da tela
-function toast(msg) {
+export function toast(msg) {
   let t = document.getElementById('app-toast');
   if (!t) {
     t = document.createElement('div');

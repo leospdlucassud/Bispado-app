@@ -1,9 +1,9 @@
 // ── FILA OFFLINE (IndexedDB) ──
-const DB_NAME = 'bispado-offline';
-const STORE_Q = 'fila-pendente';
-let dbInstance = null;
+export const DB_NAME = 'bispado-offline';
+export const STORE_Q = 'fila-pendente';
+export let dbInstance = null;
 
-function abrirDB() {
+export function abrirDB() {
   return new Promise((resolve, reject) => {
     if (dbInstance) return resolve(dbInstance);
     const req = indexedDB.open(DB_NAME, 1);
@@ -13,7 +13,7 @@ function abrirDB() {
   });
 }
 
-async function salvarNaFila(chave, dados) {
+export async function salvarNaFila(chave, dados) {
   try {
     const db = await abrirDB();
     return new Promise((resolve, reject) => {
@@ -25,7 +25,7 @@ async function salvarNaFila(chave, dados) {
   } catch(e) {}
 }
 
-async function lerFila() {
+export async function lerFila() {
   try {
     const db = await abrirDB();
     return new Promise((resolve, reject) => {
@@ -36,7 +36,7 @@ async function lerFila() {
   } catch(e) { return []; }
 }
 
-async function removerDaFila(id) {
+export async function removerDaFila(id) {
   try {
     const db = await abrirDB();
     return new Promise((resolve, reject) => {
@@ -48,7 +48,7 @@ async function removerDaFila(id) {
   } catch(e) {}
 }
 
-async function enviarFilaPendente() {
+export async function enviarFilaPendente() {
   const fila = await lerFila();
   if (!fila.length) return;
   const btn = document.getElementById('sync-btn');
@@ -74,8 +74,8 @@ async function enviarFilaPendente() {
 abrirDB().catch(() => {});
 
 // ── PWA — Service Worker externo + detecção de nova versão ──
-let swRegistration = null;
-let isOnline = navigator.onLine;
+export let swRegistration = null;
+export let isOnline = navigator.onLine;
 
 window.addEventListener('online',  () => {
   isOnline = true;
@@ -134,7 +134,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-async function verificarAtualizacaoSilenciosa(reg) {
+export async function verificarAtualizacaoSilenciosa(reg) {
   if (!isOnline) return;
   try {
     await reg.update();
@@ -146,7 +146,7 @@ async function verificarAtualizacaoSilenciosa(reg) {
 }
 
 // Envia mensagem ao SW para limpar e regenerar cache do app
-function limparCacheApp() {
+export function limparCacheApp() {
   if (!swRegistration || !swRegistration.active) return;
   swRegistration.active.postMessage({ type: 'CLEAR_AND_REFRESH_CACHE' });
 }
@@ -171,8 +171,8 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-let dp=null;
-const banner=document.createElement('div');
+export let dp=null;
+export const banner=document.createElement('div');
 banner.innerHTML=`<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span style="font-size:22px">📱</span><div style="flex:1;min-width:160px"><div style="font-weight:700;font-size:14px">Instalar como App</div><div style="font-size:12px;color:#aac0d8;margin-top:2px">Acesse offline, sem precisar do link</div></div><button id="pwa-install" style="background:#c9a84c;color:#0d1b2a;border:none;padding:8px 18px;border-radius:20px;font-weight:700;cursor:pointer;font-size:13px">Instalar</button><button id="pwa-dismiss" style="background:transparent;color:#8eacc8;border:none;padding:8px;cursor:pointer;font-size:18px">✕</button></div>`;
 Object.assign(banner.style,{display:'none',position:'fixed',bottom:'0',left:'0',right:'0',background:'#1a2d42',borderTop:'2px solid #c9a84c',padding:'14px 18px',zIndex:'9999',boxShadow:'0 -4px 20px rgba(0,0,0,.5)'});
 document.body.appendChild(banner);
@@ -184,7 +184,7 @@ window.addEventListener('beforeinstallprompt', e => {
   if (btnH) btnH.classList.add('visivel');
 });
 // Dispara o instalador nativo. Usada pelo banner e pelo botão do cabeçalho.
-async function installPWA() {
+export async function installPWA() {
   if (!dp) { toast('Use o menu do navegador para instalar (Adicionar à tela inicial).'); return; }
   dp.prompt();
   await dp.userChoice;

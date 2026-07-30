@@ -1,8 +1,8 @@
 // =============================================
 // ABA NOTAS — Privadas (localStorage) + Compartilhadas (Blobs)
 // =============================================
-const API_NOTAS = '/api/notas';
-const NOTAS_PRIV_KEY = 'notas_privadas';
+export const API_NOTAS = '/api/notas';
+export const NOTAS_PRIV_KEY = 'notas_privadas';
 
 // Migração única: versões antigas guardavam sob "notas_privadas_anon"
 (function migrarNotasAntigas() {
@@ -13,22 +13,22 @@ const NOTAS_PRIV_KEY = 'notas_privadas';
   }
 })();
 
-let NOTAS_PRIVADAS = JSON.parse(localStorage.getItem(NOTAS_PRIV_KEY) || '[]');
-let NOTAS_COMPARTILHADAS = [];
-let filNotas = 'todas';
+export let NOTAS_PRIVADAS = JSON.parse(localStorage.getItem(NOTAS_PRIV_KEY) || '[]');
+export let NOTAS_COMPARTILHADAS = [];
+export let filNotas = 'todas';
 
-function salvarNotasPrivadas() {
+export function salvarNotasPrivadas() {
   localStorage.setItem(NOTAS_PRIV_KEY, JSON.stringify(NOTAS_PRIVADAS));
 }
 
-function setFilNotas(val, btn) {
+export function setFilNotas(val, btn) {
   filNotas = val;
   document.querySelectorAll('#filtros-notas .filtro-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderNotas();
 }
 
-async function carregarNotasCompartilhadas() {
+export async function carregarNotasCompartilhadas() {
   try {
     const res = await fetch(API_NOTAS);
     if (res.ok) { const data = await res.json(); if (Array.isArray(data)) NOTAS_COMPARTILHADAS = data; }
@@ -36,7 +36,7 @@ async function carregarNotasCompartilhadas() {
   renderNotas();
 }
 
-function renderNotas() {
+export function renderNotas() {
   const el = document.getElementById('lista-notas');
   if (!el) return;
 
@@ -69,7 +69,7 @@ function renderNotas() {
   `).join('');
 }
 
-async function novaNota(scope) {
+export async function novaNota(scope) {
   const r = await pedirTexto(scope === 'privada' ? '🔒 Nova nota privada' : '🌐 Nova nota compartilhada', [
     { id: 'titulo', label: 'Título (opcional)' },
     { id: 'texto', label: 'Texto', tipo: 'textarea', obrigatorio: true },
@@ -94,7 +94,7 @@ async function novaNota(scope) {
   toast('Nota adicionada');
 }
 
-async function editarNota(id, scope) {
+export async function editarNota(id, scope) {
   const arr = scope === 'privada' ? NOTAS_PRIVADAS : NOTAS_COMPARTILHADAS;
   const nota = arr.find(n => n.id === id);
   if (!nota) return;
@@ -113,7 +113,7 @@ async function editarNota(id, scope) {
   renderNotas();
 }
 
-async function excluirNota(id, scope) {
+export async function excluirNota(id, scope) {
   if (!await confirmar('Excluir esta nota?', { perigo: true, okLabel: 'Excluir' })) return;
   if (scope === 'privada') {
     NOTAS_PRIVADAS = NOTAS_PRIVADAS.filter(n => n.id !== id);

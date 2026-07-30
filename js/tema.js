@@ -1,7 +1,7 @@
 // =============================================
 // TEMA ESCURO/CLARO + TAMANHO DA FONTE
 // =============================================
-function toggleTheme() {
+export function toggleTheme() {
   const html = document.documentElement;
   const current = html.getAttribute('data-theme') || 'dark';
   const next = current === 'dark' ? 'light' : 'dark';
@@ -13,9 +13,9 @@ function toggleTheme() {
 
 // Quase todo o app usa tamanhos fixos em px, então mexer só no font-size do body
 // não teria efeito visível. A escala aplica zoom no conteúdo inteiro.
-let escalaFonte = parseFloat(localStorage.getItem('escalaFonte')) || 1;
+export let escalaFonte = parseFloat(localStorage.getItem('escalaFonte')) || 1;
 
-function aplicarEscalaFonte() {
+export function aplicarEscalaFonte() {
   document.body.style.zoom = escalaFonte;
   // medidas em vh ignoram o zoom — a variável compensa
   document.documentElement.style.setProperty('--zoom', escalaFonte);
@@ -26,7 +26,7 @@ function aplicarEscalaFonte() {
   [btnMenos, btnMais].forEach(b => { if (b) b.style.opacity = b.disabled ? '.4' : ''; });
 }
 
-function changeFontSize(delta) {
+export function changeFontSize(delta) {
   const antes = escalaFonte;
   escalaFonte = Math.max(0.8, Math.min(1.5, +(escalaFonte + delta * 0.1).toFixed(2)));
   if (escalaFonte === antes) return;

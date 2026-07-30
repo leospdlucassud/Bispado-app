@@ -2,7 +2,7 @@
 // REUNIÕES
 // =============================================
 // Tipos de reunião administrados pelo bispado — fonte única para filtros e formulário
-const TIPOS_REUNIAO = [
+export const TIPOS_REUNIAO = [
   { k:'conselho',   r:'Conselho da Ala',              c:'#a78bfa' },
   { k:'bispado',    r:'Reunião do Bispado',           c:'#c9a84c' },
   { k:'jovens',     r:'Conselho de Jovens',           c:'#f472b6' },
@@ -11,16 +11,16 @@ const TIPOS_REUNIAO = [
   { k:'bemestar',   r:'Bem-Estar e Autossuficiência', c:'#2dd4bf' },
   { k:'outro',      r:'Outro',                        c:'#94a3b8' },
 ];
-const tipoReuniao = k => TIPOS_REUNIAO.find(t => t.k === k) || { r: k || 'Reunião', c: '#94a3b8' };
+export const tipoReuniao = k => TIPOS_REUNIAO.find(t => t.k === k) || { r: k || 'Reunião', c: '#94a3b8' };
 
-let filReuniao = '';
+export let filReuniao = '';
 
-function setFilReuniao(val) {
+export function setFilReuniao(val) {
   filReuniao = val;
   renderReunioes();
 }
 
-function renderReunioes() {
+export function renderReunioes() {
   const el = document.getElementById('lista-reunioes');
   if (!el) return;
 
@@ -97,7 +97,7 @@ function renderReunioes() {
   }).join('');
 }
 
-async function toggleItem(reuniaoId, itemIdx) {
+export async function toggleItem(reuniaoId, itemIdx) {
   const reuniao = DADOS.reunioes.find(r => r.id === reuniaoId);
   if (!reuniao) return;
   const itens = [...(reuniao.itens||[])];
@@ -112,7 +112,7 @@ async function toggleItem(reuniaoId, itemIdx) {
   renderReunioes();
 }
 
-function abrirModalReuniao(id) {
+export function abrirModalReuniao(id) {
   const r = id ? DADOS.reunioes.find(x=>x.id===id) : null;
   const itensVal = r?.itens?.map(i=>i.texto).join('\n') || '';
   const partsVal = r?.participantes?.join(', ') || '';
@@ -147,7 +147,7 @@ function abrirModalReuniao(id) {
   abrirModal('modal-reuniao');
 }
 
-async function salvarReuniao(id) {
+export async function salvarReuniao(id) {
   const data = document.getElementById('re-data').value;
   if (!data) return toast('Informe a data');
   const itensTexto = document.getElementById('re-itens').value.split('\n').map(s=>s.trim()).filter(Boolean);
@@ -176,11 +176,11 @@ async function salvarReuniao(id) {
   renderReunioes();
 }
 
-async function excluirReuniao(id) {
+export async function excluirReuniao(id) {
   if (!await confirmar('Excluir esta reunião?', { perigo: true, okLabel: 'Excluir' })) return;
   try { await apiFetch(`${API_REUNIOES}?id=${id}`, 'DELETE'); atualizarUltimaSinc(); setSyncStatus('ok'); } catch(e) {}
   DADOS.reunioes = DADOS.reunioes.filter(r => r.id !== id);
   renderReunioes();
 }
 
-function editarReuniao(id) { abrirModalReuniao(id); }
+export function editarReuniao(id) { abrirModalReuniao(id); }

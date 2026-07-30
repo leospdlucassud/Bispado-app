@@ -1,19 +1,19 @@
 // =============================================
 // PLANEJADOR DE SACRAMENTAIS
 // =============================================
-let sacCarregado = false;
-let sacMes = new Date().getMonth();
-let sacAno = new Date().getFullYear();
+export let sacCarregado = false;
+export let sacMes = new Date().getMonth();
+export let sacAno = new Date().getFullYear();
 
 // Banco de oradores (localStorage)
-const SAC_BANCO_KEY = 'sac_banco_oradores';
-function getBancoOradores() {
+export const SAC_BANCO_KEY = 'sac_banco_oradores';
+export function getBancoOradores() {
   try { return JSON.parse(localStorage.getItem(SAC_BANCO_KEY)) || {quorum:[],socsoc:[],jovens:[],outros:[]}; }
   catch { return {quorum:[],socsoc:[],jovens:[],outros:[]}; }
 }
-function saveBancoOradores(banco) { localStorage.setItem(SAC_BANCO_KEY, JSON.stringify(banco)); }
+export function saveBancoOradores(banco) { localStorage.setItem(SAC_BANCO_KEY, JSON.stringify(banco)); }
 
-function renderBancoOradores() {
+export function renderBancoOradores() {
   const banco = getBancoOradores();
   const groups = {quorum:'banco-quorum',socsoc:'banco-socsoc',jovens:'banco-jovens',outros:'banco-outros'};
   for (const [key, elId] of Object.entries(groups)) {
@@ -26,7 +26,7 @@ function renderBancoOradores() {
   }
 }
 
-function adicionarOrador() {
+export function adicionarOrador() {
   const nome = document.getElementById('novo-orador-nome').value.trim();
   const grupo = document.getElementById('novo-orador-grupo').value;
   if (!nome) return;
@@ -38,7 +38,7 @@ function adicionarOrador() {
   renderBancoOradores();
 }
 
-function removerOrador(grupo, idx) {
+export function removerOrador(grupo, idx) {
   const banco = getBancoOradores();
   if (banco[grupo]) banco[grupo].splice(idx, 1);
   saveBancoOradores(banco);
@@ -46,7 +46,7 @@ function removerOrador(grupo, idx) {
 }
 
 // Gerar domingos do mês
-function getDomingosMes(mes, ano) {
+export function getDomingosMes(mes, ano) {
   const domingos = [];
   const d = new Date(ano, mes, 1);
   while (d.getMonth() === mes) {
@@ -56,26 +56,26 @@ function getDomingosMes(mes, ano) {
   return domingos;
 }
 
-function formatDateSac(d) {
+export function formatDateSac(d) {
   const dias = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
   const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   return `${d.getDate()} de ${meses[d.getMonth()]}`;
 }
 
-function formatDateKey(d) {
+export function formatDateKey(d) {
   return d.toISOString().split('T')[0];
 }
 
-const MESES_NOME = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+export const MESES_NOME = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-function mudarMesSac(dir) {
+export function mudarMesSac(dir) {
   sacMes += dir;
   if (sacMes > 11) { sacMes = 0; sacAno++; }
   if (sacMes < 0) { sacMes = 11; sacAno--; }
   renderSacramentais();
 }
 
-async function carregarSacramentais() {
+export async function carregarSacramentais() {
   try {
     const data = await apiFetch(API_SAC);
     if (Array.isArray(data)) DADOS.sacramentais = data;
@@ -85,14 +85,14 @@ async function carregarSacramentais() {
   renderSacramentais();
 }
 
-function getSacPorData(dataKey) {
+export function getSacPorData(dataKey) {
   if (!DADOS.sacramentais) DADOS.sacramentais = [];
   return DADOS.sacramentais.find(s => s.data === dataKey);
 }
 
 // Campos da ata, na ordem em que a reunião acontece.
 // 'hinoEspecial' era o nome antigo do hino intermediário — lido como reserva.
-const ATA_ORDEM = [
+export const ATA_ORDEM = [
   { k:'presidida',        r:'Presidida por' },
   { k:'dirigida',         r:'Dirigida por' },
   { k:'regente',          r:'Regente' },
@@ -112,13 +112,13 @@ const ATA_ORDEM = [
 ];
 
 // Lê um campo aceitando os nomes antigos
-function campoAta(sac, k) {
+export function campoAta(sac, k) {
   if (!sac) return '';
   if (k === 'hinoIntermediario') return sac.hinoIntermediario ?? sac.hinoEspecial ?? '';
   return sac[k] ?? '';
 }
 
-function renderSacramentais() {
+export function renderSacramentais() {
   const el = document.getElementById('lista-sacramentais');
   const tit = document.getElementById('sac-mes-titulo');
   if (tit) tit.textContent = `${MESES_NOME[sacMes]} ${sacAno}`;
@@ -188,7 +188,7 @@ function renderSacramentais() {
   }).join('');
 }
 
-function abrirModalSac(dataKey) {
+export function abrirModalSac(dataKey) {
   const sac = getSacPorData(dataKey) || {};
   const d = new Date(dataKey + 'T12:00:00');
   const titulo = formatDateSac(d) + ' de ' + d.getFullYear();
@@ -271,7 +271,7 @@ function abrirModalSac(dataKey) {
   abrirModal('modal-sacramental');
 }
 
-async function salvarSac(dataKey) {
+export async function salvarSac(dataKey) {
   const v = id => (document.getElementById(id)?.value || '').trim();
 
   const obj = { data: dataKey, frequencia: v('ata-frequencia'), visitantes: v('ata-visitantes') };
@@ -301,7 +301,7 @@ async function salvarSac(dataKey) {
   renderSacramentais();
 }
 
-async function excluirSac(id) {
+export async function excluirSac(id) {
   if (!await confirmar('Excluir esta programação?', { perigo: true, okLabel: 'Excluir' })) return;
   try { await apiFetch(API_SAC + '?id=' + id, 'DELETE'); } catch {}
   if (DADOS.sacramentais) DADOS.sacramentais = DADOS.sacramentais.filter(s => s.id !== id);

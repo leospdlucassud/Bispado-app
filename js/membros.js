@@ -1,15 +1,15 @@
 // =============================================
 // ABA MEMBROS — Entrada/Saída + Histórico
 // =============================================
-const API_MEMBROS = '/api/membros';
-const MOTIVOS_ENTRADA = [
+export const API_MEMBROS = '/api/membros';
+export const MOTIVOS_ENTRADA = [
   'Batismo e Confirmação',
   'Criança Abençoada (Registro de Nascimento)',
   'Transferência Recebida (Mudança para a Ala)',
   'Membro Encontrado',
   'Readmissão por Batismo'
 ];
-const MOTIVOS_SAIDA = [
+export const MOTIVOS_SAIDA = [
   'Transferência Enviada (Mudança de Ala)',
   'Membro Não Encontrado (Endereço Desconhecido)',
   'Falecimento',
@@ -17,12 +17,12 @@ const MOTIVOS_SAIDA = [
   'Retirada de Condição de Membro (Conselho)'
 ];
 
-let MOVIMENTACOES = [];
-let MEMBROS_SAIDOS = []; // IDs dos membros que saíram
-let filMembros = 'ativos';
-let ROSTER_ATUALIZADO = null; // quando o quadro veio de um PDF importado
+export let MOVIMENTACOES = [];
+export let MEMBROS_SAIDOS = []; // IDs dos membros que saíram
+export let filMembros = 'ativos';
+export let ROSTER_ATUALIZADO = null; // quando o quadro veio de um PDF importado
 
-async function carregarMovimentacoes() {
+export async function carregarMovimentacoes() {
   try {
     const res = await fetch(API_MEMBROS);
     if (res.ok) {
@@ -45,7 +45,7 @@ async function carregarMovimentacoes() {
   renderMembros();
 }
 
-async function salvarDadosMembros() {
+export async function salvarDadosMembros() {
   const adicionados = MEMBROS.filter(m => m.id > 900000);
   // sem 'roster' no corpo, o servidor mantém o quadro já gravado
   const payload = { movimentacoes: MOVIMENTACOES, saidos: MEMBROS_SAIDOS, adicionados };
@@ -54,14 +54,14 @@ async function salvarDadosMembros() {
   } catch(e) {}
 }
 
-function setFilMembros(val, btn) {
+export function setFilMembros(val, btn) {
   filMembros = val;
   document.querySelectorAll('#filtros-membros .filtro-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderMembros();
 }
 
-function renderMembros() {
+export function renderMembros() {
   const el = document.getElementById('lista-membros-tab');
   if (!el) return;
   const busca = (document.getElementById('busca-membros')?.value || '').toLowerCase();
@@ -116,7 +116,7 @@ function renderMembros() {
     }).join('');
 }
 
-function renderHistorico(el, busca) {
+export function renderHistorico(el, busca) {
   let movs = [...MOVIMENTACOES].sort((a,b) => (b.data||'').localeCompare(a.data||''));
   if (busca) movs = movs.filter(m => (m.nome||'').toLowerCase().includes(busca) || (m.motivo||'').toLowerCase().includes(busca));
 
@@ -137,7 +137,7 @@ function renderHistorico(el, busca) {
   }).join('');
 }
 
-function abrirModalEntrada() {
+export function abrirModalEntrada() {
   const motivosOpts = MOTIVOS_ENTRADA.map(m => `<option value="${m}">${m}</option>`).join('');
   document.getElementById('modal-agenda-content').innerHTML = `
     <h3>➕ Registrar Entrada de Membro <button class="modal-close" onclick="fecharModal('modal-agenda')">✕</button></h3>
@@ -156,7 +156,7 @@ function abrirModalEntrada() {
   abrirModal('modal-agenda');
 }
 
-async function salvarEntrada() {
+export async function salvarEntrada() {
   const nome = document.getElementById('me-nome').value.trim();
   if (!nome) return toast('Informe o nome do membro');
   const novoId = 900000 + Date.now() % 100000;
@@ -181,7 +181,7 @@ async function salvarEntrada() {
   renderMembros();
 }
 
-function abrirModalSaida() {
+export function abrirModalSaida() {
   const motivosOpts = MOTIVOS_SAIDA.map(m => `<option value="${m}">${m}</option>`).join('');
   const membrosAtivos = MEMBROS.filter(m => !MEMBROS_SAIDOS.includes(m.id)).sort((a,b) => a.name.localeCompare(b.name));
   const membrosOpts = membrosAtivos.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
@@ -201,12 +201,12 @@ function abrirModalSaida() {
   abrirModal('modal-agenda');
 }
 
-function buscarMembroSaida(nome) {
+export function buscarMembroSaida(nome) {
   const m = MEMBROS.find(x => x.name === nome);
   document.getElementById('ms-membro-id').value = m ? m.id : '';
 }
 
-async function salvarSaida() {
+export async function salvarSaida() {
   const nome = document.getElementById('ms-membro-nome').value.trim();
   const membro = MEMBROS.find(x => x.name === nome);
   if (!membro) return toast('Membro não encontrado. Selecione da lista.');

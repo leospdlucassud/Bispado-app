@@ -2,7 +2,7 @@
 // IMPRESSÃO DE ATA EM PDF (jsPDF)
 // =============================================
 // Ata da reunião sacramental em PDF, na mesma ordem do formulário
-function imprimirAtaSacramental(dataKey) {
+export function imprimirAtaSacramental(dataKey) {
   if (!window.jspdf) return toast('O gerador de PDF não carregou. Recarregue o app.');
   const sac = getSacPorData(dataKey);
   if (!sac) return toast('Este domingo ainda não foi programado');
@@ -91,7 +91,7 @@ function imprimirAtaSacramental(dataKey) {
   doc.save('ata-sacramental-' + dataKey + '.pdf');
 }
 
-function imprimirAtaPDF(id) {
+export function imprimirAtaPDF(id) {
   if (!window.jspdf) return toast('O gerador de PDF não carregou. Recarregue o app.');
   const r = DADOS.reunioes.find(x => x.id === id);
   if (!r) return toast('Reunião não encontrada');

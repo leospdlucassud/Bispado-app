@@ -2,16 +2,16 @@
 // APP — botão flutuante e inicialização
 // Carregado por último: depende de todos os demais módulos.
 // =============================================
-let fabTab = '';
+export let fabTab = '';
 
-function onTabChange(tab) {
+export function onTabChange(tab) {
   fabTab = tab;
   const fab = document.getElementById('main-fab');
   const comBotao = ['agenda', 'reuniao', 'designacoes', 'calendario', 'sacramental', 'acompanhamento'];
   if (fab) fab.classList.toggle('visible', comBotao.includes(tab));
 }
 
-function reativarAbaAtual() {
+export function reativarAbaAtual() {
   if (fabTab) switchTab(fabTab);
 }
 
@@ -24,17 +24,17 @@ document.getElementById('main-fab')?.addEventListener('click', () => {
   else if (fabTab === 'acompanhamento') abrirModalAcomp();
 });
 
-// switchTab passa a avisar o FAB e a sincronizar o select das telas estreitas
-const _switchTabBase = switchTab;
-window.switchTab = function (t) {
-  _switchTabBase(t);
+// switchTab completo: troca a aba (ativarAba, do ui.js), avisa o FAB, sincroniza
+// o select das telas estreitas e faz o lazy-load de abas que carregam sob demanda.
+export function switchTab(t) {
+  ativarAba(t);
   onTabChange(t);
   const sel = document.getElementById('tabs-select');
   if (sel) sel.value = t;
   if (t === 'notas') carregarNotasCompartilhadas();
   if (t === 'membros') carregarMovimentacoes();
   if (t === 'sacramental' && !sacCarregado) carregarSacramentais();
-};
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   // Link do convite de entrevista: mostra só a tela de resposta

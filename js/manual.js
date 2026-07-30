@@ -1,9 +1,9 @@
 // =============================================
 // MANUAL & LINKS OFICIAIS
 // =============================================
-const MG = 'https://www.churchofjesuschrist.org/study/manual/general-handbook/';
+export const MG = 'https://www.churchofjesuschrist.org/study/manual/general-handbook/';
 
-const CAPITULOS_MANUAL = [
+export const CAPITULOS_MANUAL = [
   { n:'7',  t:'O Bispado',                     u:MG+'7?lang=por' },
   { n:'9',  t:'Sociedade de Socorro',          u:MG+'9-relief-society?lang=por' },
   { n:'10', t:'Sacerdócio Aarônico',           u:MG+'10-aaronic-priesthood?lang=por' },
@@ -28,7 +28,7 @@ const CAPITULOS_MANUAL = [
   { n:'38', t:'Normas e Diretrizes',           u:MG+'38-church-policies-and-guidelines?lang=por' },
 ];
 
-const SITES_OFICIAIS = [
+export const SITES_OFICIAIS = [
   { i:'🗂️', t:'LCR — Líderes e Secretários', d:'Registros, relatórios e finanças', u:'https://lcr.churchofjesuschrist.org' },
   { i:'📚', t:'Biblioteca do Evangelho',      d:'Manuais, revistas e mídia',        u:'https://www.churchofjesuschrist.org/study/lib?lang=por' },
   { i:'📖', t:'Escrituras',                   d:'Bíblia, Livro de Mórmon, D&C',     u:'https://www.churchofjesuschrist.org/study/scriptures?lang=por' },
@@ -38,7 +38,7 @@ const SITES_OFICIAIS = [
   { i:'🏠', t:'ChurchofJesusChrist.org',      d:'Site oficial da Igreja',           u:'https://www.churchofjesuschrist.org/?lang=por' },
 ];
 
-function linkCard(href, icone, titulo, sub, cor) {
+export function linkCard(href, icone, titulo, sub, cor) {
   return `<a class="link-card" style="--lc:${cor}" href="${href}" target="_blank" rel="noopener">
     <span class="lc-ico">${icone}</span>
     <span class="lc-txt">
@@ -48,7 +48,7 @@ function linkCard(href, icone, titulo, sub, cor) {
   </a>`;
 }
 
-function renderManual(filtro) {
+export function renderManual(filtro) {
   const q = (filtro || '').trim().toLowerCase();
   const caps = document.getElementById('lista-capitulos');
   const sites = document.getElementById('lista-sites');
@@ -72,7 +72,7 @@ function renderManual(filtro) {
   }
 }
 
-function filtrarManual(v) { renderManual(v); }
+export function filtrarManual(v) { renderManual(v); }
 
 // =============================================
 // ROTEIROS DE ENTREVISTA
@@ -80,9 +80,9 @@ function filtrarManual(v) { renderManual(v); }
 // O texto das perguntas não é reproduzido aqui: é material da Intellectual
 // Reserve. O campo de anotações permite guardar a versão que a ala usa.
 // =============================================
-const MG26 = 'https://www.churchofjesuschrist.org/study/manual/general-handbook/26-temple-recommends?lang=por';
+export const MG26 = 'https://www.churchofjesuschrist.org/study/manual/general-handbook/26-temple-recommends?lang=por';
 
-const ROTEIROS = [
+export const ROTEIROS = [
   {
     id: 'recom-renovacao', icone: '🏛️', cor: '#c9a84c',
     titulo: 'Renovação de Recomendação para o Templo',
@@ -207,9 +207,9 @@ const ROTEIROS = [
   },
 ];
 
-const chaveNotaRoteiro = id => 'roteiro_notas_' + id;
+export const chaveNotaRoteiro = id => 'roteiro_notas_' + id;
 
-function renderRoteiros() {
+export function renderRoteiros() {
   const el = document.getElementById('lista-roteiros');
   if (!el) return;
 
@@ -245,7 +245,7 @@ function renderRoteiros() {
   }).join('');
 }
 
-function salvarNotaRoteiro(id, texto) {
+export function salvarNotaRoteiro(id, texto) {
   const t = (texto || '').trim();
   if (t) localStorage.setItem(chaveNotaRoteiro(id), t);
   else localStorage.removeItem(chaveNotaRoteiro(id));

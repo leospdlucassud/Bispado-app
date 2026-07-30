@@ -1,9 +1,9 @@
 // =============================================
 // STATUS / SYNC UI
 // =============================================
-function showSync(msg) {}  // mantido por compatibilidade
+export function showSync(msg) {}  // mantido por compatibilidade
 
-function setSyncStatus(status) {
+export function setSyncStatus(status) {
   const btn  = document.getElementById('sync-btn');
   const icon = document.getElementById('sync-icone');
   if (!btn || !icon) return;
@@ -39,7 +39,7 @@ function setSyncStatus(status) {
   }
 }
 
-function atualizarUltimaSinc() {
+export function atualizarUltimaSinc() {
   const el = document.getElementById('sync-ultima');
   if (!el) return;
   const n = new Date();
@@ -52,7 +52,7 @@ function atualizarUltimaSinc() {
 // =============================================
 // API — fetch com fallback para fila offline
 // =============================================
-async function apiFetch(url, method = 'GET', body = null) {
+export async function apiFetch(url, method = 'GET', body = null) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
   if (!isOnline) {
@@ -72,42 +72,42 @@ async function apiFetch(url, method = 'GET', body = null) {
 // =============================================
 // LOAD / SAVE por recurso
 // =============================================
-async function loadAgenda() {
+export async function loadAgenda() {
   try {
     const data = await apiFetch(API_AGENDA);
     if (Array.isArray(data)) { DADOS.agenda = data; renderAgenda(); }
   } catch(e) { renderAgenda(); }
 }
 
-async function loadReunioes() {
+export async function loadReunioes() {
   try {
     const data = await apiFetch(API_REUNIOES);
     if (Array.isArray(data)) { DADOS.reunioes = data; renderReunioes(); }
   } catch(e) { renderReunioes(); }
 }
 
-async function loadDesignacoes() {
+export async function loadDesignacoes() {
   try {
     const data = await apiFetch(API_DESIG);
     if (Array.isArray(data)) { DADOS.designacoes = data; renderDesignacoes(); }
   } catch(e) { renderDesignacoes(); }
 }
 
-async function loadEventos() {
+export async function loadEventos() {
   try {
     const data = await apiFetch(API_EVENTOS);
     if (Array.isArray(data)) { DADOS.eventos_extras = data; renderCalendario(); }
   } catch(e) { renderCalendario(); }
 }
 
-async function loadSacramentais() {
+export async function loadSacramentais() {
   try {
     const data = await apiFetch(API_SAC);
     if (Array.isArray(data)) { DADOS.sacramentais = data; sacCarregado = true; renderSacramentais(); }
   } catch(e) { if (sacCarregado) renderSacramentais(); }
 }
 
-async function carregarDados() {
+export async function carregarDados() {
   setSyncStatus('syncing');
   try {
     await Promise.all([loadAgenda(), loadReunioes(), loadDesignacoes(), loadEventos(), loadSacramentais(), loadAcompanhamentos()]);
@@ -118,7 +118,7 @@ async function carregarDados() {
   }
 }
 
-async function sincronizarManual() {
+export async function sincronizarManual() {
   setSyncStatus('syncing');
   limparCacheApp(); // limpa cache do app durante sync manual
   try {

@@ -3,13 +3,13 @@
 // Ambos retornam Promise; usar com await.
 // =============================================
 
-function _fecharDialogo() {
+export function _fecharDialogo() {
   document.getElementById('modal-dialogo').classList.remove('open');
   document.getElementById('modal-dialogo-content').innerHTML = '';
 }
 
 // confirmar('Excluir?') -> Promise<boolean>
-function confirmar(mensagem, { perigo = false, okLabel = 'Confirmar' } = {}) {
+export function confirmar(mensagem, { perigo = false, okLabel = 'Confirmar' } = {}) {
   return new Promise(resolve => {
     const overlay = document.getElementById('modal-dialogo');
     const box = document.getElementById('modal-dialogo-content');
@@ -29,7 +29,7 @@ function confirmar(mensagem, { perigo = false, okLabel = 'Confirmar' } = {}) {
 
 // pedirTexto('Título', [{id,label,tipo,valor,placeholder,obrigatorio}]) -> Promise<{id: valor}|null>
 // Aceita também uma string simples como campos, virando um único campo de texto.
-function pedirTexto(titulo, campos, { okLabel = 'Salvar' } = {}) {
+export function pedirTexto(titulo, campos, { okLabel = 'Salvar' } = {}) {
   if (typeof campos === 'string') campos = [{ id: 'valor', label: campos }];
   return new Promise(resolve => {
     const overlay = document.getElementById('modal-dialogo');

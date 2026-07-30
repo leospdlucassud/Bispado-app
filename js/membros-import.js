@@ -1,10 +1,10 @@
 // =============================================
 // IMPORTAÇÃO DO PDF DE MEMBROS (LCR)
 // =============================================
-const PDFJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+export const PDFJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+export const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-function carregarPdfJs() {
+export function carregarPdfJs() {
   if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
   return new Promise((ok, erro) => {
     const s = document.createElement('script');
@@ -15,11 +15,11 @@ function carregarPdfJs() {
   });
 }
 
-const norm = s => (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+export const norm = s => (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
 
 // Agrupa os trechos do PDF em linhas (por Y). Guarda a largura para saber
 // quando dois trechos vizinhos formam a mesma palavra (acentos vêm separados).
-function extrairLinhas(itens) {
+export function extrairLinhas(itens) {
   const linhas = [];
   itens.forEach(it => {
     if (!it.str || !it.str.trim()) return;
@@ -33,13 +33,13 @@ function extrairLinhas(itens) {
   return linhas.sort((a,b) => b.y - a.y);
 }
 
-const RE_LIXO   = /lista de membros|somente para uso da igreja|intellectual reserve|direitos reservados|^nome$|^sexo$|^idade$|^data de$|^nascimento$|^n[úu]mero de$|^telefone$|^e-?mail$/i;
+export const RE_LIXO   = /lista de membros|somente para uso da igreja|intellectual reserve|direitos reservados|^nome$|^sexo$|^idade$|^data de$|^nascimento$|^n[úu]mero de$|^telefone$|^e-?mail$/i;
 
 // Acentos vêm como trechos separados. Sem width, estima-se a largura pelo corpo
 // da fonte para decidir se dois trechos vizinhos têm um espaço entre eles.
-const RE_ACENTO = /^[áàâãäéèêëíìîïóòôõöúùûüçñÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ]$/;
+export const RE_ACENTO = /^[áàâãäéèêëíìîïóòôõöúùûüçñÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ]$/;
 
-function juntarNome(partes) {
+export function juntarNome(partes) {
   let out = '';
   partes.forEach((p, i) => {
     if (i > 0 && !RE_ACENTO.test(p.txt)) {   // acento sempre cola na letra anterior
@@ -52,9 +52,9 @@ function juntarNome(partes) {
   return out.replace(/\s+/g, ' ').trim();
 }
 
-const MESES_PT = { jan:0, fev:1, mar:2, abr:3, mai:4, jun:5, jul:6, ago:7, set:8, out:9, nov:10, dez:11 };
+export const MESES_PT = { jan:0, fev:1, mar:2, abr:3, mai:4, jun:5, jul:6, ago:7, set:8, out:9, nov:10, dez:11 };
 
-function idadeDeNascimento(nasc) {
+export function idadeDeNascimento(nasc) {
   const m = /^(\d{1,2})\s+([a-zç]{3})\.?\s+(\d{4})$/i.exec(nasc || '');
   if (!m) return 0;
   const mes = MESES_PT[m[2].toLowerCase()];
@@ -67,21 +67,21 @@ function idadeDeNascimento(nasc) {
   return (anos >= 0 && anos < 130) ? anos : 0;
 }
 
-function formatarTelefone(t) {
+export function formatarTelefone(t) {
   const d = (t || '').replace(/\D/g, '');
   if (d.length === 11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
   if (d.length === 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
   return d.length >= 8 ? (t || '').trim() : '';
 }
-const RE_DATA   = /^\d{1,2}\s+[a-zç]{3}\.?\s+\d{4}$/i;
-const RE_TEL    = /^\(?\d{2}\)?\s*\d{4,5}-?\d{4}$/;
-const RE_EMAIL  = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+export const RE_DATA   = /^\d{1,2}\s+[a-zç]{3}\.?\s+\d{4}$/i;
+export const RE_TEL    = /^\(?\d{2}\)?\s*\d{4,5}-?\d{4}$/;
+export const RE_EMAIL  = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
 // O nome ocupa uma caixa de texto que pode quebrar em várias linhas, enquanto as
 // demais colunas ficam centralizadas verticalmente. Por isso os pedaços do nome
 // aparecem acima E abaixo da linha que traz o sexo. Cada pedaço é associado à
 // linha-âncora verticalmente mais próxima.
-function parsearPdfMembros(paginas) {
+export function parsearPdfMembros(paginas) {
   const registros = [];
 
   paginas.forEach(itens => {
@@ -161,7 +161,7 @@ function parsearPdfMembros(paginas) {
   return [...porNome.values()];
 }
 
-function detectarAlaNoPdf(paginas) {
+export function detectarAlaNoPdf(paginas) {
   for (const itens of paginas) {
     const txt = itens.map(i => i.str).join(' ');
     const m = txt.match(/Lista de Membros\s*(.+?)\s*\((\d+)\)/);
@@ -170,7 +170,7 @@ function detectarAlaNoPdf(paginas) {
   return null;
 }
 
-async function importarPdfMembros(input) {
+export async function importarPdfMembros(input) {
   const arquivo = input.files && input.files[0];
   input.value = '';
   if (!arquivo) return;
@@ -204,9 +204,9 @@ async function importarPdfMembros(input) {
   }
 }
 
-let IMPORT_PENDENTE = null;
+export let IMPORT_PENDENTE = null;
 
-function mostrarPreviaImportacao(lidos, ala, nPaginas) {
+export function mostrarPreviaImportacao(lidos, ala, nPaginas) {
   const atuais = new Map(MEMBROS.map(m => [norm(m.name), m]));
   const vistos = new Set();
 
@@ -261,7 +261,7 @@ function mostrarPreviaImportacao(lidos, ala, nPaginas) {
     </div>`;
 }
 
-async function aplicarImportacao() {
+export async function aplicarImportacao() {
   if (!IMPORT_PENDENTE) return;
   const { lidos, ala } = IMPORT_PENDENTE;
 

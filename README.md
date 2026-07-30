@@ -63,12 +63,17 @@ os primeiros definem o que os seguintes usam, e `app.js` fecha a inicialização
 | `busca.js` | Busca global |
 | `app.js` | Botão flutuante e inicialização |
 
-### Por que scripts clássicos e não módulos ES
+### Migração para ES Modules (em andamento)
 
-A marcação usa `onclick="..."` em muitos lugares, e esses atributos só
-enxergam funções no escopo global. Com `type="module"` cada arquivo teria
-escopo próprio e todos esses gatilhos parariam de funcionar. Migrar para
-módulos exige, antes, trocar os `onclick` por `addEventListener`.
+Desde a v5.3.0 o app carrega como **ES Modules**: `index.html` tem uma única
+tag `<script type="module" src="js/main.js">`, e `main.js` importa o grafo de
+módulos. Cada arquivo `js/` usa `export` nos seus símbolos.
+
+**Ponte temporária:** como o HTML ainda usa `onclick="..."` (que só enxerga o
+escopo global), `main.js` copia todos os `export` de cada módulo para o `window`.
+Isso mantém os handlers inline funcionando. A ponte será removida por fases,
+trocando os `onclick` por `addEventListener` (delegação de evento) área por área.
+Até lá, ao adicionar uma função chamada por `onclick`, garanta que ela tem `export`.
 
 ## Pontos de atenção
 

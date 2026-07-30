@@ -905,32 +905,11 @@
   Bispado <span data-ala></span> · A Igreja de Jesus Cristo dos Santos dos Últimos Dias<br>
   Consulte o <a href="https://www.churchofjesuschrist.org/study/manual/general-handbook?lang=por" target="_blank">Manual Geral</a> na aba 📖 Manual<br>
   <span style="color:#4a6a8a;margin-top:4px;display:inline-block">© 2025 Léo Lucas · Todos os direitos reservados</span><br>
-  <span style="color:#2a4060;font-size:10px;margin-top:6px;display:inline-block">v5.2.0 · 29/07/2026</span>
+  <span style="color:#2a4060;font-size:10px;margin-top:6px;display:inline-block">v5.3.0 · 11/11/2026</span>
 </footer>
 
-<!-- Scripts em ordem de dependência: config e utilitários primeiro, app por último -->
-<script src="js/dados-membros.js"></script>         <!-- Quadro de membros (substituído ao importar o PDF do LCR) -->
-<script src="js/config.js"></script>                <!-- Constantes, estado global e nome da ala -->
-<script src="js/utils.js"></script>                 <!-- Funções de uso geral -->
-<script src="js/ui.js"></script>                    <!-- Navegação entre abas e modais -->
-<script src="js/dialogo.js"></script>               <!-- Diálogos (confirmar / pedir texto) -->
-<script src="js/usuario.js"></script>               <!-- Identificação por cargo e regra de sigilo -->
-<script src="js/api.js"></script>                   <!-- Chamadas ao servidor, sincronização e carga inicial -->
-<script src="js/offline-pwa.js"></script>           <!-- Fila offline (IndexedDB), service worker e instalação -->
-<script src="js/tema.js"></script>                  <!-- Tema claro/escuro e tamanho da fonte -->
-<script src="js/agenda.js"></script>                <!-- Agenda de entrevistas, WhatsApp e confirmação -->
-<script src="js/acompanhamento.js"></script>        <!-- Aba Acompanhamento -->
-<script src="js/reunioes.js"></script>              <!-- Reuniões administrativas -->
-<script src="js/designacoes.js"></script>           <!-- Designações do bispado -->
-<script src="js/calendario.js"></script>            <!-- Calendário da ala e da estaca -->
-<script src="js/sacramental.js"></script>           <!-- Planejador e ata da reunião sacramental -->
-<script src="js/membros.js"></script>               <!-- Aba Membros — entradas, saídas e histórico -->
-<script src="js/membros-import.js"></script>        <!-- Importação do PDF de membros do LCR -->
-<script src="js/notas.js"></script>                 <!-- Notas privadas e compartilhadas -->
-<script src="js/manual.js"></script>                <!-- Manual Geral, links oficiais e roteiros de entrevista -->
-<script src="js/pdf.js"></script>                   <!-- Geração de atas em PDF -->
-<script src="js/busca.js"></script>                 <!-- Busca global -->
-<script src="js/app.js"></script>                   <!-- Botão flutuante e inicialização -->
+<!-- ES Modules: main.js importa o grafo de módulos (js/) na ordem de dependência -->
+<script type="module" src="js/main.js"></script>
 
 </body>
 </html>

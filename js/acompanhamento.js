@@ -3,17 +3,17 @@
 // A lista junta duas origens: entrevistas marcadas para acompanhar (aba Agenda)
 // e acompanhamentos avulsos criados aqui. Itens sigilosos só aparecem ao bispo.
 // =============================================
-const API_ACOMP = '/api/acompanhamentos';
-let filAcomp = 'abertos';
+export const API_ACOMP = '/api/acompanhamentos';
+export let filAcomp = 'abertos';
 
-function setFilAcomp(val, btn) {
+export function setFilAcomp(val, btn) {
   filAcomp = val;
   document.querySelectorAll('#filtros-acomp .filtro-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   renderAcompanhamentos();
 }
 
-async function loadAcompanhamentos() {
+export async function loadAcompanhamentos() {
   try {
     const data = await apiFetch(API_ACOMP);
     if (Array.isArray(data)) DADOS.acompanhamentos = data;
@@ -22,7 +22,7 @@ async function loadAcompanhamentos() {
 }
 
 // Unifica entrevistas marcadas e itens avulsos num formato só
-function listaAcompanhamentos() {
+export function listaAcompanhamentos() {
   const daAgenda = (DADOS.agenda || [])
     .filter(e => e.acompanhar)
     .map(e => ({
@@ -39,7 +39,7 @@ function listaAcompanhamentos() {
   return [...daAgenda, ...avulsos].filter(podeVer);
 }
 
-function renderAcompanhamentos() {
+export function renderAcompanhamentos() {
   const el = document.getElementById('lista-acomp');
   if (!el) return;
   const busca = (document.getElementById('busca-acomp')?.value || '').toLowerCase();
@@ -106,20 +106,20 @@ function renderAcompanhamentos() {
   }).join('');
 }
 
-function acharAcomp(origem, id) {
+export function acharAcomp(origem, id) {
   return origem === 'entrevista'
     ? (DADOS.agenda || []).find(e => e.id === id)
     : (DADOS.acompanhamentos || []).find(a => a.id === id);
 }
 
-async function salvarAcomp(origem, item) {
+export async function salvarAcomp(origem, item) {
   const url = origem === 'entrevista' ? `${API_AGENDA}?id=${item.id}` : `${API_ACOMP}?id=${item.id}`;
   try { await apiFetch(url, 'PUT', item); setSyncStatus('ok'); } catch {}
   renderAcompanhamentos();
   if (origem === 'entrevista') renderAgenda();
 }
 
-async function abrirRegistroAcomp(origem, id) {
+export async function abrirRegistroAcomp(origem, id) {
   const item = acharAcomp(origem, id);
   if (!item) return;
   const r = await pedirTexto('Novo registro', [
@@ -136,7 +136,7 @@ async function abrirRegistroAcomp(origem, id) {
   toast('Registro adicionado');
 }
 
-function alternarSituacaoAcomp(origem, id) {
+export function alternarSituacaoAcomp(origem, id) {
   const item = acharAcomp(origem, id);
   if (!item) return;
   const campo = origem === 'entrevista' ? 'situacaoAcomp' : 'situacao';
@@ -146,7 +146,7 @@ function alternarSituacaoAcomp(origem, id) {
 
 // Liga/desliga o sigilo depois de criado. Em item vindo de entrevista, atualiza
 // a própria entrevista (a fonte do campo sigiloso).
-function toggleSigiloAcomp(origem, id) {
+export function toggleSigiloAcomp(origem, id) {
   const item = acharAcomp(origem, id);
   if (!item) return;
   item.sigiloso = !item.sigiloso;
@@ -154,14 +154,14 @@ function toggleSigiloAcomp(origem, id) {
   toast(item.sigiloso ? '🔒 Marcado como sigiloso' : 'Sigilo removido');
 }
 
-async function excluirAcomp(id) {
+export async function excluirAcomp(id) {
   if (!await confirmar('Excluir este acompanhamento e seus registros?', { perigo: true, okLabel: 'Excluir' })) return;
   try { await apiFetch(`${API_ACOMP}?id=${id}`, 'DELETE'); } catch {}
   DADOS.acompanhamentos = (DADOS.acompanhamentos || []).filter(a => a.id !== id);
   renderAcompanhamentos();
 }
 
-function abrirModalAcomp() {
+export function abrirModalAcomp() {
   document.getElementById('modal-acomp-content').innerHTML = `
     <h3>🧭 Novo Acompanhamento <button class="modal-close" onclick="fecharModal('modal-acomp')">✕</button></h3>
     <div class="form-group">
@@ -197,7 +197,7 @@ function abrirModalAcomp() {
   abrirModal('modal-acomp');
 }
 
-async function salvarNovoAcomp() {
+export async function salvarNovoAcomp() {
   const titulo = document.getElementById('ac-titulo').value.trim();
   if (!titulo) return toast('Informe a pessoa ou a situação');
   const primeiro = document.getElementById('ac-registro').value.trim();

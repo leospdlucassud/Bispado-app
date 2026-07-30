@@ -1,11 +1,11 @@
 // ===== BUSCADOR =====
-function highlight(text, query){
+export function highlight(text, query){
   if(!query) return text;
   const escaped = query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   return text.replace(new RegExp('('+escaped+')', 'gi'), '<mark>$1</mark>');
 }
 
-function doSearch(val){
+export function doSearch(val){
   const q = val.trim().toLowerCase();
   const clearBtn = document.getElementById('search-clear');
   const resultsDiv = document.getElementById('search-results');
@@ -180,7 +180,7 @@ function doSearch(val){
   hitsDiv.innerHTML = html;
 }
 
-function clearSearch(){
+export function clearSearch(){
   const input = document.getElementById('search-input');
   input.value = '';
   doSearch('');

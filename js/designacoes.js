@@ -1,7 +1,7 @@
 // =============================================
 // DESIGNAÇÕES
 // =============================================
-function renderDesignacoes() {
+export function renderDesignacoes() {
   const el = document.getElementById('lista-designacoes');
   if (!el) return;
   const resp = document.getElementById('fil-desig-resp')?.value||'';
@@ -56,14 +56,14 @@ function renderDesignacoes() {
   }).join('');
 }
 
-function setFilDesig(val,btn){
+export function setFilDesig(val,btn){
   filDesig=val;
   document.querySelectorAll('.filtros .filtro-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   renderDesignacoes();
 }
 
-function abrirModalDesig(id){
+export function abrirModalDesig(id){
   const d = id?DADOS.designacoes.find(x=>x.id===id):null;
   const resps = d ? (Array.isArray(d.responsaveis) ? d.responsaveis : [d.responsavel||'']) : [];
   const isPerm = d?.tipo === 'permanente';
@@ -104,16 +104,16 @@ function abrirModalDesig(id){
   abrirModal('modal-desig');
 }
 
-function toggleDesigTipo() {
+export function toggleDesigTipo() {
   const isPerm = document.getElementById('de-tipo').value === 'permanente';
   document.getElementById('de-prazo-wrap').style.display = isPerm ? 'none' : '';
   document.getElementById('de-status-wrap').style.display = isPerm ? 'none' : '';
 }
-function toggleDesigAlarme() {
+export function toggleDesigAlarme() {
   document.getElementById('de-alarme-wrap').style.display = document.getElementById('de-alarme').checked ? '' : 'none';
 }
 
-async function salvarDesig(id) {
+export async function salvarDesig(id) {
   const tarefa = document.getElementById('de-tarefa').value.trim();
   if (!tarefa) return toast('Informe a tarefa');
   const resps = [...document.querySelectorAll('.de-resp-check:checked')].map(c=>c.value);
@@ -147,7 +147,7 @@ async function salvarDesig(id) {
   renderDesignacoes();
 }
 
-async function avancarDesig(id) {
+export async function avancarDesig(id) {
   const prox = { pendente:'andamento', andamento:'concluido' };
   const atual = DADOS.designacoes.find(d => d.id===id);
   if (!atual) return;
@@ -172,14 +172,14 @@ async function avancarDesig(id) {
   renderDesignacoes();
 }
 
-async function excluirDesig(id) {
+export async function excluirDesig(id) {
   if (!await confirmar('Excluir esta designação?', { perigo: true, okLabel: 'Excluir' })) return;
   try { await apiFetch(`${API_DESIG}?id=${id}`, 'DELETE'); atualizarUltimaSinc(); setSyncStatus('ok'); } catch(e) {}
   DADOS.designacoes = DADOS.designacoes.filter(d => d.id !== id);
   renderDesignacoes();
 }
-function editarDesig(id){abrirModalDesig(id);}
-async function togglePermDesig(id) {
+export function editarDesig(id){abrirModalDesig(id);}
+export async function togglePermDesig(id) {
   const atual = DADOS.designacoes.find(d => d.id===id);
   if (!atual) return;
   const novoStatus = atual.status === 'inativa' ? 'ativa' : 'inativa';
@@ -194,7 +194,7 @@ async function togglePermDesig(id) {
 }
 
 // === ALARMES DE DESIGNAÇÕES ===
-function verificarAlarmesDesig() {
+export function verificarAlarmesDesig() {
   if (!('Notification' in window)) return;
   if (Notification.permission === 'default') Notification.requestPermission();
   const agora = new Date();

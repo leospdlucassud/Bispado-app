@@ -1,12 +1,12 @@
 // =============================================
 // CALENDÁRIO
 // =============================================
-const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+export const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+export const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
 // Eventos do calendário da estaca 2026. O marcador {ALA} é trocado pelo nome
 // informado no cabeçalho em tempo de renderização (ver comAla).
-const EVENTOS_FIXOS = [
+export const EVENTOS_FIXOS = [
   // JANEIRO
   {data:'2026-01-01',txt:'Confraternização Universal',cor:'#60a5fa',tipo:'feriado'},
   {data:'2026-01-11',txt:'Encontro On-Line Primária 17h',cor:'#34d399',tipo:'ala'},
@@ -106,7 +106,7 @@ const EVENTOS_FIXOS = [
   {data:'2026-12-31',txt:'Véspera de Ano Novo',cor:'#60a5fa',tipo:'feriado'},
 ];
 
-function renderCalendario() {
+export function renderCalendario() {
   const grid = document.getElementById('cal-grid');
   if (!grid) return;
   document.getElementById('cal-titulo-mes').textContent = `${MESES[calMes]} ${calAno}`;
@@ -141,7 +141,7 @@ function renderCalendario() {
   document.getElementById('cal-detalhe')?.classList.remove('open');
 }
 
-function verDia(dataStr) {
+export function verDia(dataStr) {
   const todosEventos = [...EVENTOS_FIXOS, ...DADOS.eventos_extras.map(e=>({...e,extra:true}))];
   const evs = todosEventos.filter(e=>e.data===dataStr);
   const det = document.getElementById('cal-detalhe');
@@ -163,14 +163,14 @@ function verDia(dataStr) {
   det.classList.add('open');
 }
 
-function mudarMes(dir) {
+export function mudarMes(dir) {
   calMes += dir;
   if (calMes > 11) { calMes=0; calAno++; }
   if (calMes < 0)  { calMes=11; calAno--; }
   renderCalendario();
 }
 
-function abrirModalEvento() {
+export function abrirModalEvento() {
   document.getElementById('modal-evento-content').innerHTML = `
     <h3>➕ Novo Evento <button class="modal-close" onclick="fecharModal('modal-evento')">✕</button></h3>
     <div class="form-group"><label>Data</label><input type="date" class="form-input" id="ev-data" value="${calAno}-${String(calMes+1).padStart(2,'0')}-01"></div>
@@ -189,7 +189,7 @@ function abrirModalEvento() {
   abrirModal('modal-evento');
 }
 
-async function salvarEvento() {
+export async function salvarEvento() {
   const txt = document.getElementById('ev-txt').value.trim();
   const data = document.getElementById('ev-data').value;
   if (!txt||!data) return toast('Preencha todos os campos');
@@ -206,7 +206,7 @@ async function salvarEvento() {
   renderCalendario();
 }
 
-async function excluirEvento(id) {
+export async function excluirEvento(id) {
   if (!await confirmar('Excluir evento?', { perigo: true, okLabel: 'Excluir' })) return;
   try { await apiFetch(`${API_EVENTOS}?id=${id}`, 'DELETE'); atualizarUltimaSinc(); setSyncStatus('ok'); } catch(e) {}
   DADOS.eventos_extras = DADOS.eventos_extras.filter(e => e.id !== id);
