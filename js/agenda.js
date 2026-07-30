@@ -104,13 +104,13 @@ export function renderAgenda() {
       <div class="ent-actions">
         ${e.status==='pendente'||e.status==='agendada'?`
           ${botaoWhatsApp(e)}
-          <button class="btn-secondary" onclick="marcarRealizada('${e.id}')">✓ Realizada</button>
-          <button class="btn-secondary" onclick="reagendarEntrevista('${e.id}')">🔄 Reagendar</button>
-          <button class="btn-secondary" onclick="naoRealizada('${e.id}')">✗ Não Realizada</button>
+          <button class="btn-secondary" data-act="realizada" data-id="${e.id}">✓ Realizada</button>
+          <button class="btn-secondary" data-act="reagendar" data-id="${e.id}">🔄 Reagendar</button>
+          <button class="btn-secondary" data-act="naorealizada" data-id="${e.id}">✗ Não Realizada</button>
         `:''}
-        <button class="btn-secondary" title="Precisa de acompanhamento" onclick="toggleFlagEntrevista('${e.id}','acompanhar')" style="${e.acompanhar?'color:#fbbf24;border-color:#fbbf24':''}">🧭 ${e.acompanhar?'Acompanhando':'Acompanhar'}</button>
-        <button class="btn-secondary" title="Assunto sigiloso" onclick="toggleFlagEntrevista('${e.id}','sigiloso')" style="${e.sigiloso?'color:#e05555;border-color:#e05555':''}">${e.sigiloso?'🔒 Sigiloso':'🔓 Sigilo'}</button>
-        <button class="btn-danger" onclick="excluirEntrevista('${e.id}')">🗑</button>
+        <button class="btn-secondary" title="Precisa de acompanhamento" data-act="toggle" data-id="${e.id}" data-campo="acompanhar" style="${e.acompanhar?'color:#fbbf24;border-color:#fbbf24':''}">🧭 ${e.acompanhar?'Acompanhando':'Acompanhar'}</button>
+        <button class="btn-secondary" title="Assunto sigiloso" data-act="toggle" data-id="${e.id}" data-campo="sigiloso" style="${e.sigiloso?'color:#e05555;border-color:#e05555':''}">${e.sigiloso?'🔒 Sigiloso':'🔓 Sigilo'}</button>
+        <button class="btn-danger" data-act="excluir" data-id="${e.id}">🗑</button>
       </div>
     </div>
   `).join('');
@@ -240,10 +240,13 @@ export async function abrirTelaConfirmacao(id) {
     <p style="color:#8eacc8;font-size:13px;margin-bottom:14px">Você pode comparecer?</p>
     <div style="display:flex;flex-direction:column;gap:8px">
       ${opcoes.map(([v, r, c]) => `
-        <button onclick="responderConvite('${e.id}','${v}')"
+        <button data-resp="${v}"
           style="background:transparent;border:1px solid ${c};color:${c};border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">${r}</button>`).join('')}
     </div>
     ${e.confirmacao ? `<p style="color:#4a6a8a;font-size:11px;margin-top:14px">Você já respondeu antes. Pode alterar se precisar.</p>` : ''}`;
+
+  caixa.querySelectorAll('button[data-resp]').forEach(btn =>
+    btn.addEventListener('click', () => responderConvite(e.id, btn.dataset.resp)));
 }
 
 export async function responderConvite(id, resposta) {
@@ -288,7 +291,7 @@ export function abrirModalAgenda(id) {
   const tiposOptions = TIPOS_ENTREVISTA.map(t=>`<option value="${t}" ${e?.tipo===t?'selected':''}>${t}</option>`).join('');
 
   document.getElementById('modal-agenda-content').innerHTML = `
-    <h3>${e?'✏️ Editar':'➕ Nova'} Entrevista <button class="modal-close" onclick="fecharModal('modal-agenda')">✕</button></h3>
+    <h3>${e?'✏️ Editar':'➕ Nova'} Entrevista <button class="modal-close" data-act="fechar">✕</button></h3>
     <div class="form-group">
       <label>Membro</label>
       <input list="lista-membros-dl" class="form-input" id="ag-membro" placeholder="Digite o nome…" value="${e?.membro||''}">
@@ -345,7 +348,7 @@ export function abrirModalAgenda(id) {
         🔒 Assunto sigiloso — somente o bispo visualiza
       </label>
     </div>
-    <button class="btn-primary" onclick="salvarEntrevista('${id||''}')">💾 Salvar</button>
+    <button class="btn-primary" data-act="salvar" data-id="${id||''}">💾 Salvar</button>
   `;
   abrirModal('modal-agenda');
 }
@@ -444,3 +447,35 @@ export async function excluirEntrevista(id) {
   DADOS.agenda = DADOS.agenda.filter(e => e.id !== id);
   renderAgenda();
 }
+
+// Fase 3 da migração ESM: liga os handlers da aba Agenda por delegação,
+// no lugar dos onclick/oninput inline (busca, filtros, cards e modal).
+function ligarAgenda() {
+  document.getElementById('busca-membro')?.addEventListener('input', renderAgenda);
+
+  document.getElementById('filtros-agenda')?.addEventListener('click', e => {
+    const btn = e.target.closest('.filtro-btn');
+    if (btn?.dataset.fil) setFilAgenda(btn.dataset.fil, btn);
+  });
+
+  document.getElementById('lista-agenda')?.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    switch (btn.dataset.act) {
+      case 'realizada':     marcarRealizada(id); break;
+      case 'reagendar':     reagendarEntrevista(id); break;
+      case 'naorealizada':  naoRealizada(id); break;
+      case 'excluir':       excluirEntrevista(id); break;
+      case 'toggle':        toggleFlagEntrevista(id, btn.dataset.campo); break;
+    }
+  });
+
+  document.getElementById('modal-agenda')?.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    if (btn.dataset.act === 'fechar') fecharModal('modal-agenda');
+    else if (btn.dataset.act === 'salvar') salvarEntrevista(btn.dataset.id);
+  });
+}
+ligarAgenda();
