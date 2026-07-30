@@ -91,10 +91,10 @@ export function renderAcompanhamentos() {
           </div>
         </div>
         <div style="display:flex;gap:5px;flex-shrink:0">
-          <button class="btn-secondary" style="font-size:11px;padding:4px 9px" onclick="abrirRegistroAcomp('${a.origem}','${a.id}')">✚ Registro</button>
-          <button class="btn-secondary" style="font-size:11px;padding:4px 9px" onclick="alternarSituacaoAcomp('${a.origem}','${a.id}')">${a.situacao==='concluido'?'↩':'✓'}</button>
-          <button class="btn-secondary" title="Assunto sigiloso" style="font-size:11px;padding:4px 9px${a.sigiloso?';color:#e05555;border-color:#e05555':''}" onclick="toggleSigiloAcomp('${a.origem}','${a.id}')">${a.sigiloso?'🔒':'🔓'}</button>
-          ${a.origem === 'avulso' ? `<button class="btn-danger" onclick="excluirAcomp('${a.id}')">🗑</button>` : ''}
+          <button class="btn-secondary" style="font-size:11px;padding:4px 9px" data-act="registro" data-origem="${a.origem}" data-id="${a.id}">✚ Registro</button>
+          <button class="btn-secondary" style="font-size:11px;padding:4px 9px" data-act="situacao" data-origem="${a.origem}" data-id="${a.id}">${a.situacao==='concluido'?'↩':'✓'}</button>
+          <button class="btn-secondary" title="Assunto sigiloso" style="font-size:11px;padding:4px 9px${a.sigiloso?';color:#e05555;border-color:#e05555':''}" data-act="sigilo" data-origem="${a.origem}" data-id="${a.id}">${a.sigiloso?'🔒':'🔓'}</button>
+          ${a.origem === 'avulso' ? `<button class="btn-danger" data-act="excluir" data-id="${a.id}">🗑</button>` : ''}
         </div>
       </div>
       ${ultimos.length ? ultimos.map(reg => `
@@ -163,7 +163,7 @@ export async function excluirAcomp(id) {
 
 export function abrirModalAcomp() {
   document.getElementById('modal-acomp-content').innerHTML = `
-    <h3>🧭 Novo Acompanhamento <button class="modal-close" onclick="fecharModal('modal-acomp')">✕</button></h3>
+    <h3>🧭 Novo Acompanhamento <button class="modal-close" data-act="fechar">✕</button></h3>
     <div class="form-group">
       <label>Pessoa ou situação</label>
       <input list="lista-membros-dl2" class="form-input" id="ac-titulo" placeholder="Nome do membro ou descrição…">
@@ -193,7 +193,7 @@ export function abrirModalAcomp() {
         🔒 Assunto sigiloso — somente o bispo visualiza
       </label>
     </div>
-    <button class="btn-primary" onclick="salvarNovoAcomp()">💾 Salvar</button>`;
+    <button class="btn-primary" data-act="salvar">💾 Salvar</button>`;
   abrirModal('modal-acomp');
 }
 
@@ -221,3 +221,34 @@ export async function salvarNovoAcomp() {
   renderAcompanhamentos();
   toast('Acompanhamento criado');
 }
+
+// Fase 4 da migração ESM: liga a aba Acompanhamento por delegação,
+// no lugar dos onclick/oninput inline (busca, filtros, cards e modal).
+function ligarAcompanhamento() {
+  document.getElementById('busca-acomp')?.addEventListener('input', renderAcompanhamentos);
+
+  document.getElementById('filtros-acomp')?.addEventListener('click', e => {
+    const btn = e.target.closest('.filtro-btn');
+    if (btn?.dataset.fil) setFilAcomp(btn.dataset.fil, btn);
+  });
+
+  document.getElementById('lista-acomp')?.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const { act, origem, id } = btn.dataset;
+    switch (act) {
+      case 'registro': abrirRegistroAcomp(origem, id); break;
+      case 'situacao': alternarSituacaoAcomp(origem, id); break;
+      case 'sigilo':   toggleSigiloAcomp(origem, id); break;
+      case 'excluir':  excluirAcomp(id); break;
+    }
+  });
+
+  document.getElementById('modal-acomp')?.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    if (btn.dataset.act === 'fechar') fecharModal('modal-acomp');
+    else if (btn.dataset.act === 'salvar') salvarNovoAcomp();
+  });
+}
+ligarAcompanhamento();
