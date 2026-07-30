@@ -61,33 +61,33 @@
   <div class="church-logo">Igreja de Jesus Cristo dos Santos dos Últimos Dias</div>
   <h1>Bispado <span data-ala></span></h1>
   <p>Ferramentas para o Bispado</p>
-  <div style="margin-top:10px"><button class="quem-badge" id="quem-badge" onclick="abrirEscolhaCargo()">👤 Identificar-se</button></div>
-  <button id="btn-instalar-header" onclick="installPWA()" title="Instalar como app">📲 Instalar como App</button>
+  <div style="margin-top:10px"><button class="quem-badge" id="quem-badge">👤 Identificar-se</button></div>
+  <button id="btn-instalar-header" title="Instalar como app">📲 Instalar como App</button>
 
   <div class="theme-controls">
-    <button onclick="toggleTheme()" id="btn-theme" title="Alternar tema">🌙 Escuro</button>
-    <button onclick="changeFontSize(-1)" title="Diminuir fonte">A-</button>
-    <button onclick="changeFontSize(1)" title="Aumentar fonte">A+</button>
+    <button id="btn-theme" data-action="tema" title="Alternar tema">🌙 Escuro</button>
+    <button data-action="fonte-menos" title="Diminuir fonte">A-</button>
+    <button data-action="fonte-mais" title="Aumentar fonte">A+</button>
   </div>
 </header>
 
 <div class="tabs">
-  <button class="tab-btn active" data-tab="agenda" onclick="switchTab('agenda')">🗓️ Agenda de Entrevistas</button>
-  <button class="tab-btn" data-tab="acompanhamento" onclick="switchTab('acompanhamento')">🧭 Acompanhamento</button>
-  <button class="tab-btn" data-tab="designacoes" onclick="switchTab('designacoes')">✅ Designações</button>
-  <button class="tab-btn" data-tab="reuniao" onclick="switchTab('reuniao')">📋 Reuniões</button>
-  <button class="tab-btn" data-tab="calendario" onclick="switchTab('calendario')">📆 Calendário</button>
-  <button class="tab-btn" data-tab="sacramental" onclick="switchTab('sacramental')">🕊️ Sacramental</button>
-  <button class="tab-btn" data-tab="membros" onclick="switchTab('membros')">👥 Membros</button>
-  <button class="tab-btn" data-tab="notas" onclick="switchTab('notas')">📝 Notas</button>
-  <button class="tab-btn" data-tab="ordenancas" onclick="switchTab('ordenancas')">🕊️ Ordenanças</button>
-  <button class="tab-btn" data-tab="manual" onclick="switchTab('manual')">📖 Manual</button>
-  <button class="tab-btn" data-tab="como-usar" onclick="switchTab('como-usar')">ℹ️ Como Usar</button>
+  <button class="tab-btn active" data-tab="agenda">🗓️ Agenda de Entrevistas</button>
+  <button class="tab-btn" data-tab="acompanhamento">🧭 Acompanhamento</button>
+  <button class="tab-btn" data-tab="designacoes">✅ Designações</button>
+  <button class="tab-btn" data-tab="reuniao">📋 Reuniões</button>
+  <button class="tab-btn" data-tab="calendario">📆 Calendário</button>
+  <button class="tab-btn" data-tab="sacramental">🕊️ Sacramental</button>
+  <button class="tab-btn" data-tab="membros">👥 Membros</button>
+  <button class="tab-btn" data-tab="notas">📝 Notas</button>
+  <button class="tab-btn" data-tab="ordenancas">🕊️ Ordenanças</button>
+  <button class="tab-btn" data-tab="manual">📖 Manual</button>
+  <button class="tab-btn" data-tab="como-usar">ℹ️ Como Usar</button>
 </div>
 
 <!-- SELECT RESPONSIVO (telas pequenas) -->
 <div class="tabs-select-wrap">
-  <select class="tabs-select" id="tabs-select" onchange="switchTab(this.value)">
+  <select class="tabs-select" id="tabs-select">
     <option value="agenda">🗓️ Agenda de Entrevistas</option>
     <option value="acompanhamento">🧭 Acompanhamento</option>
     <option value="designacoes">✅ Designações</option>
@@ -105,7 +105,7 @@
 <!-- BARRA DE SINCRONIZAÇÃO -->
 <div class="sync-bar">
   <span class="ultima" id="sync-ultima">Toque em sincronizar para carregar os dados</span>
-  <button class="sync-btn" id="sync-btn" onclick="sincronizarManual()" title="Sincronizar dados com o servidor">
+  <button class="sync-btn" id="sync-btn" title="Sincronizar dados com o servidor">
     <span class="sync-icone" id="sync-icone">⟳</span><span class="sync-label"> Sincronizar</span>
   </button>
 </div>
@@ -114,8 +114,8 @@
 <div class="search-wrap">
   <div class="search-box">
     <span>🔍</span>
-    <input type="text" id="search-input" placeholder="Buscar entrevista, designação, ata, nota, ordenança…" oninput="doSearch(this.value)" autocomplete="off">
-    <button class="search-clear" id="search-clear" onclick="clearSearch()">✕</button>
+    <input type="text" id="search-input" placeholder="Buscar entrevista, designação, ata, nota, ordenança…" autocomplete="off">
+    <button class="search-clear" id="search-clear">✕</button>
   </div>
 </div>
 
@@ -905,7 +905,7 @@
   Bispado <span data-ala></span> · A Igreja de Jesus Cristo dos Santos dos Últimos Dias<br>
   Consulte o <a href="https://www.churchofjesuschrist.org/study/manual/general-handbook?lang=por" target="_blank">Manual Geral</a> na aba 📖 Manual<br>
   <span style="color:#4a6a8a;margin-top:4px;display:inline-block">© 2025 Léo Lucas · Todos os direitos reservados</span><br>
-  <span style="color:#2a4060;font-size:10px;margin-top:6px;display:inline-block">v5.3.0 · 11/11/2026</span>
+  <span style="color:#2a4060;font-size:10px;margin-top:6px;display:inline-block">v5.3.1 · 11/11/2026</span>
 </footer>
 
 <!-- ES Modules: main.js importa o grafo de módulos (js/) na ordem de dependência -->

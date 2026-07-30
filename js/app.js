@@ -24,6 +24,36 @@ document.getElementById('main-fab')?.addEventListener('click', () => {
   else if (fabTab === 'acompanhamento') abrirModalAcomp();
 });
 
+// Casca do app: navegação de abas, tema, fonte, sincronização e busca.
+// (Fase 2 da migração ESM: antes eram onclick/oninput inline no index.html.)
+function ligarCasca() {
+  // abas — delegação: um listener na barra cobre os 11 botões
+  document.querySelector('.tabs')?.addEventListener('click', e => {
+    const btn = e.target.closest('.tab-btn');
+    if (btn?.dataset.tab) switchTab(btn.dataset.tab);
+  });
+  document.getElementById('tabs-select')?.addEventListener('change', e => switchTab(e.target.value));
+
+  // cabeçalho
+  document.getElementById('quem-badge')?.addEventListener('click', () => abrirEscolhaCargo());
+  document.getElementById('btn-instalar-header')?.addEventListener('click', () => installPWA());
+  document.querySelector('.theme-controls')?.addEventListener('click', e => {
+    const acao = e.target.closest('button')?.dataset.action;
+    if (acao === 'tema') toggleTheme();
+    else if (acao === 'fonte-mais') changeFontSize(1);
+    else if (acao === 'fonte-menos') changeFontSize(-1);
+  });
+
+  // sincronização
+  document.getElementById('sync-btn')?.addEventListener('click', () => sincronizarManual());
+
+  // busca
+  const busca = document.getElementById('search-input');
+  busca?.addEventListener('input', () => doSearch(busca.value));
+  document.getElementById('search-clear')?.addEventListener('click', () => clearSearch());
+}
+ligarCasca();
+
 // switchTab completo: troca a aba (ativarAba, do ui.js), avisa o FAB, sincroniza
 // o select das telas estreitas e faz o lazy-load de abas que carregam sob demanda.
 export function switchTab(t) {
