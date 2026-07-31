@@ -205,7 +205,12 @@ export function selosConfirmacao(e) {
   }[e.confirmacao];
   if (!sel) return '';
   const qdo = e.confirmadoEm ? new Date(e.confirmadoEm).toLocaleDateString('pt-BR') : '';
-  return `<span style="color:${sel[0]}" title="${qdo}">${sel[1]}</span>`;
+  // Quando o membro sugeriu data/hora, mostra o que ele pediu — é o que o
+  // bispado precisa ver para reagendar (o botão Reagendar já abre com isso).
+  const pedido = e.confirmacao === 'reagendar' && e.sugestaoData
+    ? ` para ${formatarData(e.sugestaoData)}${e.sugestaoHora ? ` às ${e.sugestaoHora}` : ''}`
+    : '';
+  return `<span style="color:${sel[0]}" title="${esc(qdo)}">${sel[1]}${esc(pedido)}</span>`;
 }
 
 // --- Tela que o membro vê ao abrir o link do WhatsApp ---
@@ -258,29 +263,64 @@ export async function abrirTelaConfirmacao(id) {
         <button data-resp="${v}"
           style="background:transparent;border:1px solid ${c};color:${c};border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">${r}</button>`).join('')}
     </div>
+    <!-- aparece só ao pedir outra data: o membro sugere quando pode -->
+    <div id="conf-sugestao" style="display:none;text-align:left;margin-top:14px;background:rgba(232,176,64,.08);border:1px solid rgba(232,176,64,.3);border-radius:12px;padding:14px">
+      <p style="color:#e8b040;font-size:13px;font-weight:600;margin-bottom:10px">Quando ficaria bom para você?</p>
+      <label style="color:#8eacc8;font-size:11px;display:block;margin-bottom:3px">Data</label>
+      <input type="date" id="conf-data" value="${esc(e.data || '')}"
+        style="width:100%;background:#0d1b2a;border:1px solid #2a4060;color:#c8d8e8;border-radius:10px;padding:10px;font-size:14px;font-family:inherit;margin-bottom:10px">
+      <label style="color:#8eacc8;font-size:11px;display:block;margin-bottom:3px">Horário</label>
+      <input type="time" id="conf-hora" value="${esc(e.hora || '')}"
+        style="width:100%;background:#0d1b2a;border:1px solid #2a4060;color:#c8d8e8;border-radius:10px;padding:10px;font-size:14px;font-family:inherit;margin-bottom:12px">
+      <button id="conf-enviar-sugestao"
+        style="width:100%;background:#e8b040;color:#0d1b2a;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Enviar pedido</button>
+    </div>
     ${e.confirmacao ? `<p style="color:#4a6a8a;font-size:11px;margin-top:14px">Você já respondeu antes. Pode alterar se precisar.</p>` : ''}`;
 
+  const sugestao = caixa.querySelector('#conf-sugestao');
   caixa.querySelectorAll('button[data-resp]').forEach(btn =>
-    btn.addEventListener('click', () => responderConvite(e.id, btn.dataset.resp)));
+    btn.addEventListener('click', () => {
+      // "Preciso de outra data" abre o formulário em vez de responder na hora
+      if (btn.dataset.resp === 'reagendar') { sugestao.style.display = 'block'; sugestao.scrollIntoView({ behavior:'smooth', block:'center' }); return; }
+      responderConvite(e.id, btn.dataset.resp);
+    }));
+
+  caixa.querySelector('#conf-enviar-sugestao').addEventListener('click', () => {
+    const data = caixa.querySelector('#conf-data').value;
+    const hora = caixa.querySelector('#conf-hora').value;
+    if (!data) { caixa.querySelector('#conf-data').focus(); return; }
+    responderConvite(e.id, 'reagendar', { data, hora });
+  });
 }
 
-export async function responderConvite(id, resposta) {
+// `sugestao` ({data, hora}) só vem quando o membro pede outra data.
+// Fica em campos próprios: é um pedido, não muda a entrevista por conta própria —
+// quem reagenda é o bispado (o formulário de lá já abre com esta sugestão).
+export async function responderConvite(id, resposta, sugestao = null) {
   const caixa = document.querySelector('#conf-wrap > div');
   caixa.innerHTML = '<div class="loading">Enviando…</div>';
   let ok = true;
   try {
     const lista = await (await fetch(API_AGENDA)).json();
     const atual = (Array.isArray(lista) ? lista : []).find(x => String(x.id) === String(id)) || {};
+    const campos = { ...atual, confirmacao: resposta, confirmadoEm: new Date().toISOString() };
+    if (sugestao) { campos.sugestaoData = sugestao.data; campos.sugestaoHora = sugestao.hora; }
     const r = await fetch(`${API_AGENDA}?id=${encodeURIComponent(id)}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...atual, confirmacao: resposta, confirmadoEm: new Date().toISOString() }),
+      body: JSON.stringify(campos),
     });
     ok = r.ok;
   } catch { ok = false; }
 
+  const quandoPedido = sugestao?.data
+    ? formatarData(sugestao.data) + (sugestao.hora ? ` às ${sugestao.hora}` : '')
+    : '';
   const txt = {
     confirmado: ['✅', 'Presença confirmada', 'Obrigado! O bispado já foi avisado.'],
-    reagendar:  ['🔄', 'Pedido registrado',   'O bispado entrará em contato para combinar outra data.'],
+    reagendar:  ['🔄', 'Pedido registrado',
+                 quandoPedido
+                   ? `O bispado recebeu seu pedido para <strong style="color:#c8d8e8">${esc(quandoPedido)}</strong> e confirma em breve.`
+                   : 'O bispado entrará em contato para combinar outra data.'],
     recusado:   ['❌', 'Resposta registrada', 'Obrigado por avisar. O bispado foi informado.'],
   }[resposta];
 
@@ -435,20 +475,31 @@ export async function naoRealizada(id) {
 }
 
 export async function reagendarEntrevista(id) {
-  const atualEnt = DADOS.agenda.find(e => e.id === id) || {};
+  const atual = DADOS.agenda.find(e => e.id === id) || {};
+  // Se o membro pediu outra data pelo link do convite, o formulário já abre com
+  // a sugestão dele — é só confirmar.
   const r = await pedirTexto('Reagendar entrevista', [
-    { id: 'data', label: 'Nova data', tipo: 'date', valor: atualEnt.data || '', obrigatorio: true },
+    { id: 'data', label: 'Nova data',    tipo: 'date', valor: atual.sugestaoData || atual.data || '', obrigatorio: true },
+    { id: 'hora', label: 'Novo horário', tipo: 'time', valor: atual.sugestaoHora || atual.hora || '' },
   ], { okLabel: 'Reagendar' });
   if (r === null) return;
-  const novaData = r.data;
-  const atual = atualEnt;
-  const hist = [...(atual.reagendamentos || []), { dataAnterior: atual.data, reagendadoEm: new Date().toISOString() }];
+
+  const hist = [...(atual.reagendamentos || []), {
+    dataAnterior: atual.data, horaAnterior: atual.hora, reagendadoEm: new Date().toISOString(),
+  }];
+  // O pedido do membro foi atendido e a data mudou: a resposta anterior não vale
+  // mais para o novo horário, então volta a "sem confirmação" — o membro recebe
+  // o convite de novo e confirma a data nova.
+  const campos = {
+    data: r.data, hora: r.hora, status: 'agendada', reagendamentos: hist,
+    sugestaoData: '', sugestaoHora: '', confirmacao: '', confirmadoEm: '',
+  };
   try {
-    const atualizado = await apiFetch(`${API_AGENDA}?id=${id}`, 'PUT', { data: novaData, status:'agendada', reagendamentos: hist });
+    const atualizado = await apiFetch(`${API_AGENDA}?id=${id}`, 'PUT', campos);
     DADOS.agenda = DADOS.agenda.map(e => e.id===id ? atualizado : e);
     atualizarUltimaSinc(); setSyncStatus('ok');
   } catch(e) {
-    DADOS.agenda = DADOS.agenda.map(e => e.id===id ? {...e, data:novaData, status:'agendada', reagendamentos:hist} : e);
+    DADOS.agenda = DADOS.agenda.map(e => e.id===id ? {...e, ...campos} : e);
   }
   renderAgenda();
 }
