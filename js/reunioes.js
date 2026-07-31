@@ -44,10 +44,10 @@ export function renderReunioes() {
   if (filtros) {
     const usados = TIPOS_REUNIAO.filter(t => todas.some(r => r.tipo === t.k));
     filtros.innerHTML = [
-      `<button class="filtro-btn ${filReuniao===''?'active':''}" onclick="setFilReuniao('')">Todas (${todas.length})</button>`,
+      `<button class="filtro-btn ${filReuniao===''?'active':''}" data-fil="">Todas (${todas.length})</button>`,
       ...usados.map(t => {
         const n = todas.filter(r => r.tipo === t.k).length;
-        return `<button class="filtro-btn ${filReuniao===t.k?'active':''}" style="${filReuniao===t.k?'':`border-color:${t.c};color:${t.c}`}" onclick="setFilReuniao('${t.k}')">${t.r} (${n})</button>`;
+        return `<button class="filtro-btn ${filReuniao===t.k?'active':''}" style="${filReuniao===t.k?'':`border-color:${t.c};color:${t.c}`}" data-fil="${t.k}">${t.r} (${n})</button>`;
       }),
     ].join('');
   }
@@ -76,9 +76,9 @@ export function renderReunioes() {
           ${abertos ? `<span style="margin-left:8px;font-size:11px;color:#e8b040">• ${abertos} em aberto</span>` : ''}
         </div>
         <div style="display:flex;gap:6px">
-          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="imprimirAtaPDF('${r.id}')">📄 PDF</button>
-          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="editarReuniao('${r.id}')">✏️</button>
-          <button class="btn-danger" onclick="excluirReuniao('${r.id}')">🗑</button>
+          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" data-act="pdf" data-id="${r.id}">📄 PDF</button>
+          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" data-act="editar" data-id="${r.id}">✏️</button>
+          <button class="btn-danger" data-act="excluir" data-id="${r.id}">🗑</button>
         </div>
       </div>
       ${r.pauta?`<div class="reuniao-pauta">${r.pauta}</div>`:''}
@@ -87,7 +87,7 @@ export function renderReunioes() {
         <div class="reuniao-itens">
           ${r.itens.map((it,i)=>`
             <div class="reuniao-item">
-              <div class="item-check ${it.feito?'checked':''}" onclick="toggleItem('${r.id}',${i})"></div>
+              <div class="item-check ${it.feito?'checked':''}" data-act="item" data-id="${r.id}" data-idx="${i}"></div>
               <span style="${it.feito?'text-decoration:line-through;opacity:.5':''}">${it.texto}</span>
             </div>
           `).join('')}
@@ -117,7 +117,7 @@ export function abrirModalReuniao(id) {
   const itensVal = r?.itens?.map(i=>i.texto).join('\n') || '';
   const partsVal = r?.participantes?.join(', ') || '';
   document.getElementById('modal-reuniao-content').innerHTML = `
-    <h3>${r?'✏️ Editar':'➕ Nova'} Reunião <button class="modal-close" onclick="fecharModal('modal-reuniao')">✕</button></h3>
+    <h3>${r?'✏️ Editar':'➕ Nova'} Reunião <button class="modal-close" data-act="fechar">✕</button></h3>
     <div class="form-row">
       <div class="form-group">
         <label>Data</label>
@@ -142,7 +142,7 @@ export function abrirModalReuniao(id) {
       <label>Itens de ação (um por linha)</label>
       <textarea class="form-textarea" id="re-itens" placeholder="Verificar relatório trimestral&#10;Marcar entrevistas de jovens…">${itensVal}</textarea>
     </div>
-    <button class="btn-primary" onclick="salvarReuniao('${id||''}')">💾 Salvar</button>
+    <button class="btn-primary" data-act="salvar" data-id="${id||''}">💾 Salvar</button>
   `;
   abrirModal('modal-reuniao');
 }
@@ -184,3 +184,35 @@ export async function excluirReuniao(id) {
 }
 
 export function editarReuniao(id) { abrirModalReuniao(id); }
+
+// Fase 5 da migração ESM: liga a aba Reuniões por delegação,
+// no lugar dos onclick/oninput inline (busca, filtros, cards e modal).
+function ligarReunioes() {
+  document.getElementById('busca-reuniao')?.addEventListener('input', renderReunioes);
+
+  // filtros são recriados a cada render — daí a delegação no container
+  document.getElementById('filtros-reuniao')?.addEventListener('click', e => {
+    const btn = e.target.closest('.filtro-btn');
+    if (btn) setFilReuniao(btn.dataset.fil ?? '');
+  });
+
+  document.getElementById('lista-reunioes')?.addEventListener('click', e => {
+    const alvo = e.target.closest('[data-act]');
+    if (!alvo) return;
+    const { act, id, idx } = alvo.dataset;
+    switch (act) {
+      case 'pdf':     imprimirAtaPDF(id); break;
+      case 'editar':  editarReuniao(id); break;
+      case 'excluir': excluirReuniao(id); break;
+      case 'item':    toggleItem(id, Number(idx)); break;
+    }
+  });
+
+  document.getElementById('modal-reuniao')?.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    if (btn.dataset.act === 'fechar') fecharModal('modal-reuniao');
+    else if (btn.dataset.act === 'salvar') salvarReuniao(btn.dataset.id);
+  });
+}
+ligarReunioes();
