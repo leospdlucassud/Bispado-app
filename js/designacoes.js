@@ -46,10 +46,10 @@ export function renderDesignacoes() {
         ${!isPerm?`<div class="progress-bar"><div class="progress-fill" style="width:${pct[d.status]||0}%"></div></div>`:''}
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${isPerm ? `
-            <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="togglePermDesig('${d.id}')">${d.status==='inativa'?'▶ Ativar':'⏸ Desativar'}</button>
-          ` : d.status!=='concluido' ? `<button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="avancarDesig('${d.id}')">▶</button>` : ''}
-          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="editarDesig('${d.id}')">✏️</button>
-          <button class="btn-danger" onclick="excluirDesig('${d.id}')">🗑</button>
+            <button class="btn-secondary" style="font-size:11px;padding:4px 10px" data-act="perm" data-id="${d.id}">${d.status==='inativa'?'▶ Ativar':'⏸ Desativar'}</button>
+          ` : d.status!=='concluido' ? `<button class="btn-secondary" style="font-size:11px;padding:4px 10px" data-act="avancar" data-id="${d.id}">▶</button>` : ''}
+          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" data-act="editar" data-id="${d.id}">✏️</button>
+          <button class="btn-danger" data-act="excluir" data-id="${d.id}">🗑</button>
         </div>
       </div>
     </div>`;
@@ -58,8 +58,9 @@ export function renderDesignacoes() {
 
 export function setFilDesig(val,btn){
   filDesig=val;
-  document.querySelectorAll('.filtros .filtro-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+  // restrito ao próprio painel: '.filtros' global apagava o estado das outras abas
+  document.querySelectorAll('#filtros-desig .filtro-btn').forEach(b=>b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
   renderDesignacoes();
 }
 
@@ -68,10 +69,10 @@ export function abrirModalDesig(id){
   const resps = d ? (Array.isArray(d.responsaveis) ? d.responsaveis : [d.responsavel||'']) : [];
   const isPerm = d?.tipo === 'permanente';
   document.getElementById('modal-desig-content').innerHTML=`
-    <h3>${d?'✏️ Editar':'➕ Nova'} Designação <button class="modal-close" onclick="fecharModal('modal-desig')">✕</button></h3>
+    <h3>${d?'✏️ Editar':'➕ Nova'} Designação <button class="modal-close" data-act="fechar">✕</button></h3>
     <div class="form-group"><label>Tarefa</label><input type="text" class="form-input" id="de-tarefa" value="${d?.tarefa||''}" placeholder="Descrição da designação…"></div>
     <div class="form-group"><label>Tipo</label>
-      <select class="form-select" id="de-tipo" onchange="toggleDesigTipo()">
+      <select class="form-select" id="de-tipo">
         <option value="pontual" ${!isPerm?'selected':''}>📋 Pontual</option>
         <option value="permanente" ${isPerm?'selected':''}>📌 Permanente</option>
       </select>
@@ -91,7 +92,7 @@ export function abrirModalDesig(id){
       </select>
     </div>
     <div class="form-group" style="border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px">
-      <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="de-alarme" ${d?.alarme?'checked':''} onchange="toggleDesigAlarme()"> 🔔 Incluir alarme</label>
+      <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="de-alarme" ${d?.alarme?'checked':''}> 🔔 Incluir alarme</label>
       <div id="de-alarme-wrap" style="margin-top:8px;${d?.alarme?'':'display:none'}">
         <select class="form-select" id="de-alarme-tempo">
           ${['15 min antes','30 min antes','1 hora antes','1 dia antes','No horário'].map(t=>`<option value="${t}" ${d?.alarmeTempo===t?'selected':''}>${t}</option>`).join('')}
@@ -99,7 +100,7 @@ export function abrirModalDesig(id){
       </div>
     </div>
     <div class="form-group"><label>Observações</label><textarea class="form-textarea" id="de-obs" style="min-height:60px" placeholder="Detalhes adicionais…">${d?.obs||''}</textarea></div>
-    <button class="btn-primary" onclick="salvarDesig('${id||''}')">💾 Salvar</button>
+    <button class="btn-primary" data-act="salvar" data-id="${id||''}">💾 Salvar</button>
   `;
   abrirModal('modal-desig');
 }
@@ -221,3 +222,40 @@ export function verificarAlarmesDesig() {
 }
 // Verificar alarmes quando dados carregam
 document.addEventListener('DOMContentLoaded', () => setTimeout(verificarAlarmesDesig, 3000));
+
+// Fase 6 da migração ESM: liga a aba Designações por delegação,
+// no lugar dos onclick/onchange inline (filtros, cards e modal).
+function ligarDesignacoes() {
+  document.getElementById('fil-desig-resp')?.addEventListener('change', renderDesignacoes);
+
+  document.getElementById('filtros-desig')?.addEventListener('click', e => {
+    const btn = e.target.closest('.filtro-btn');
+    if (btn?.dataset.fil) setFilDesig(btn.dataset.fil, btn);
+  });
+
+  document.getElementById('lista-designacoes')?.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    switch (btn.dataset.act) {
+      case 'perm':    togglePermDesig(id); break;
+      case 'avancar': avancarDesig(id); break;
+      case 'editar':  editarDesig(id); break;
+      case 'excluir': excluirDesig(id); break;
+    }
+  });
+
+  const modal = document.getElementById('modal-desig');
+  modal?.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    if (btn.dataset.act === 'fechar') fecharModal('modal-desig');
+    else if (btn.dataset.act === 'salvar') salvarDesig(btn.dataset.id);
+  });
+  // campos do modal são recriados a cada abertura — daí a delegação
+  modal?.addEventListener('change', e => {
+    if (e.target.id === 'de-tipo') toggleDesigTipo();
+    else if (e.target.id === 'de-alarme') toggleDesigAlarme();
+  });
+}
+ligarDesignacoes();
