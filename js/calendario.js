@@ -130,7 +130,7 @@ export function renderCalendario() {
     const dataStr = `${calAno}-${String(calMes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const evsDia = todosEventos.filter(e=>e.data===dataStr);
     const eHoje = hoje.getDate()===d && hoje.getMonth()===calMes && hoje.getFullYear()===calAno;
-    html += `<div class="cal-dia${eHoje?' hoje':''}${evsDia.length?' tem-evento':''}" onclick="verDia('${dataStr}')">
+    html += `<div class="cal-dia${eHoje?' hoje':''}${evsDia.length?' tem-evento':''}" data-dia="${dataStr}">
       <div class="cal-num" style="${eHoje?'color:#c9a84c;font-weight:800':''}">${d}</div>
       ${evsDia.slice(0,2).map(e=>`<div class="cal-evento-dot" style="color:${e.cor}">${comAla(e.txt)}</div>`).join('')}
       ${evsDia.length>2?`<div style="font-size:9px;color:#8eacc8">+${evsDia.length-2}</div>`:''}
@@ -156,7 +156,7 @@ export function verDia(dataStr) {
     items.innerHTML = evs.map(e=>`
       <div class="cal-ev-item">
         <span style="color:${e.cor};margin-right:8px">●</span>${comAla(e.txt)}
-        ${e.extra?`<button class="btn-danger" style="margin-left:8px;padding:2px 8px;font-size:10px" onclick="excluirEvento('${e.id}')">🗑</button>`:''}
+        ${e.extra?`<button class="btn-danger" style="margin-left:8px;padding:2px 8px;font-size:10px" data-act="excluir" data-id="${e.id}">🗑</button>`:''}
       </div>
     `).join('');
   }
@@ -172,7 +172,7 @@ export function mudarMes(dir) {
 
 export function abrirModalEvento() {
   document.getElementById('modal-evento-content').innerHTML = `
-    <h3>➕ Novo Evento <button class="modal-close" onclick="fecharModal('modal-evento')">✕</button></h3>
+    <h3>➕ Novo Evento <button class="modal-close" data-act="fechar">✕</button></h3>
     <div class="form-group"><label>Data</label><input type="date" class="form-input" id="ev-data" value="${calAno}-${String(calMes+1).padStart(2,'0')}-01"></div>
     <div class="form-group"><label>Descrição</label><input type="text" class="form-input" id="ev-txt" placeholder="Descreva o evento…"></div>
     <div class="form-group"><label>Categoria</label>
@@ -184,7 +184,7 @@ export function abrirModalEvento() {
         <option value="#50d0c0">🔵 Templo</option>
       </select>
     </div>
-    <button class="btn-primary" onclick="salvarEvento()">💾 Salvar</button>
+    <button class="btn-primary" data-act="salvar">💾 Salvar</button>
   `;
   abrirModal('modal-evento');
 }
@@ -212,3 +212,32 @@ export async function excluirEvento(id) {
   DADOS.eventos_extras = DADOS.eventos_extras.filter(e => e.id !== id);
   renderCalendario();
 }
+
+// Fase 7 da migração ESM: liga a aba Calendário por delegação,
+// no lugar dos onclick inline (navegação de mês, dias, detalhe e modal).
+function ligarCalendario() {
+  document.querySelector('.cal-header')?.addEventListener('click', e => {
+    const btn = e.target.closest('.cal-nav');
+    if (btn?.dataset.mes) mudarMes(Number(btn.dataset.mes));
+  });
+
+  // a grade é recriada a cada render — daí a delegação no container
+  document.getElementById('cal-grid')?.addEventListener('click', e => {
+    const dia = e.target.closest('.cal-dia');
+    if (dia?.dataset.dia) verDia(dia.dataset.dia);
+  });
+
+  // lista de eventos do dia (só eventos próprios da ala têm o botão excluir)
+  document.getElementById('cal-detalhe-items')?.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act="excluir"]');
+    if (btn) excluirEvento(btn.dataset.id);
+  });
+
+  document.getElementById('modal-evento')?.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    if (btn.dataset.act === 'fechar') fecharModal('modal-evento');
+    else if (btn.dataset.act === 'salvar') salvarEvento();
+  });
+}
+ligarCalendario();
