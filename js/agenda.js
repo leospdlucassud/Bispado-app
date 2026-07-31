@@ -106,6 +106,7 @@ export function renderAgenda() {
         <span class="ent-nome">${esc(e.membro)}</span>
         ${e.sigiloso?'<span class="selo-sigilo">🔒 Sigiloso</span>':''}
         ${e.acompanhar?'<span style="font-size:10px;color:#fbbf24">🧭</span>':''}
+        ${precisaReenviarConvite(e)?'<span class="selo-reenviar" title="A data mudou depois do último convite">📨 Reenviar convite</span>':''}
         <span class="status-badge status-${e.status}">${e.status==='nao-realizada'?'Não Realizada':e.status.charAt(0).toUpperCase()+e.status.slice(1)}</span>
       </div>
       <div class="ent-info">
@@ -130,6 +131,33 @@ export function renderAgenda() {
       </div>
     </div>
   `).join('');
+}
+
+// Entrevista reagendada cujo convite mais recente é ANTERIOR ao reagendamento:
+// o membro ainda não foi avisado da data nova e está esperando um aviso que não
+// saiu. Comparação de ISO por string funciona (mesmo fuso, mesmo formato).
+export function precisaReenviarConvite(e) {
+  const hist = e.reagendamentos || [];
+  const ultimoReagendamento = hist[hist.length - 1]?.reagendadoEm;
+  if (!ultimoReagendamento) return false;                       // nunca foi reagendada
+  if (e.status === 'realizada' || e.status === 'nao-realizada') return false;
+  return !e.convidadoEm || e.convidadoEm < ultimoReagendamento;
+}
+
+// O botão "Convidar" é um link para o WhatsApp; o clique passa por aqui só para
+// registrar que o convite saiu — é isso que faz o aviso de reenvio sumir.
+export async function registrarConvite(id) {
+  const e = DADOS.agenda.find(x => x.id === id);
+  if (!e) return;
+  const convidadoEm = new Date().toISOString();
+  e.convidadoEm = convidadoEm; // otimista: o aviso some na hora
+  renderAgenda();
+  try {
+    const atualizado = await apiFetch(`${API_AGENDA}?id=${id}`, 'PUT', { convidadoEm });
+    DADOS.agenda = DADOS.agenda.map(x => x.id === id ? atualizado : x);
+    atualizarUltimaSinc(); setSyncStatus('ok');
+  } catch (err) {}
+  renderAgenda();
 }
 
 // Liga/desliga acompanhar ou sigiloso direto no card, depois de criada a entrevista
@@ -194,6 +222,7 @@ export function botaoWhatsApp(e) {
     `Obrigado!`;
   const url = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
   return `<a class="btn-secondary" href="${url}" target="_blank" rel="noopener"
+            data-act="convidar" data-id="${e.id}"
             style="text-decoration:none;color:#25d366;border-color:#25d366">💬 Convidar</a>`;
 }
 
@@ -571,16 +600,19 @@ function ligarAgenda() {
     if (btn?.dataset.fil) setFilAgenda(btn.dataset.fil, btn);
   });
 
+  // `[data-act]` e não `button[data-act]`: o "Convidar" é um link para o WhatsApp
   document.getElementById('lista-agenda')?.addEventListener('click', e => {
-    const btn = e.target.closest('button[data-act]');
-    if (!btn) return;
-    const id = btn.dataset.id;
-    switch (btn.dataset.act) {
+    const alvo = e.target.closest('[data-act]');
+    if (!alvo) return;
+    const id = alvo.dataset.id;
+    switch (alvo.dataset.act) {
       case 'realizada':     marcarRealizada(id); break;
       case 'reagendar':     reagendarEntrevista(id); break;
       case 'naorealizada':  naoRealizada(id); break;
       case 'excluir':       excluirEntrevista(id); break;
-      case 'toggle':        toggleFlagEntrevista(id, btn.dataset.campo); break;
+      case 'toggle':        toggleFlagEntrevista(id, alvo.dataset.campo); break;
+      // sem preventDefault: o link precisa abrir o WhatsApp normalmente
+      case 'convidar':      registrarConvite(id); break;
     }
   });
 
