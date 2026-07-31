@@ -199,7 +199,7 @@ export async function importarPdfMembros(input) {
         <div style="font-size:32px;margin-bottom:10px">⚠️</div>
         <div style="color:#e05555;font-size:14px;margin-bottom:8px">Não foi possível importar</div>
         <div style="color:#8eacc8;font-size:12px;line-height:1.6">${(e.message||e).toString().replace(/</g,'&lt;')}</div>
-        <button onclick="fecharModal('modal-import')" style="margin-top:16px;background:rgba(74,106,138,.25);color:#c8d8e8;border:none;border-radius:10px;padding:10px 20px;cursor:pointer">Fechar</button>
+        <button data-act="fechar" style="margin-top:16px;background:rgba(74,106,138,.25);color:#c8d8e8;border:none;border-radius:10px;padding:10px 20px;cursor:pointer">Fechar</button>
       </div>`;
   }
 }
@@ -240,7 +240,7 @@ export function mostrarPreviaImportacao(lidos, ala, nPaginas) {
   document.getElementById('modal-import-content').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <h3 style="color:#c9a84c;font-size:16px">📄 Conferir importação</h3>
-      <span onclick="fecharModal('modal-import')" style="cursor:pointer;color:#4a6a8a;font-size:20px">✕</span>
+      <span data-act="fechar" style="cursor:pointer;color:#4a6a8a;font-size:20px">✕</span>
     </div>
     ${avisoAla}
     <div style="font-size:12px;color:#8eacc8;margin-bottom:12px">
@@ -256,8 +256,8 @@ export function mostrarPreviaImportacao(lidos, ala, nPaginas) {
       ${ausentes.length ? '<br><strong style="color:#e8b040">Os ausentes serão removidos da lista ativa</strong> — registre a saída antes se quiser manter o histórico.' : ''}
     </div>
     <div style="display:flex;gap:8px">
-      <button onclick="aplicarImportacao()" style="flex:1;background:#c9a84c;color:#0d1b2a;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;font-size:13px">Aplicar</button>
-      <button onclick="fecharModal('modal-import')" style="background:rgba(74,106,138,.25);color:#8eacc8;border:none;border-radius:10px;padding:11px 18px;cursor:pointer;font-size:13px">Cancelar</button>
+      <button data-act="aplicar" style="flex:1;background:#c9a84c;color:#0d1b2a;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;font-size:13px">Aplicar</button>
+      <button data-act="fechar" style="background:rgba(74,106,138,.25);color:#8eacc8;border:none;border-radius:10px;padding:11px 18px;cursor:pointer;font-size:13px">Cancelar</button>
     </div>`;
 }
 
@@ -297,3 +297,14 @@ export async function aplicarImportacao() {
   renderMembros();
   toast(`${MEMBROS.length} membros importados`);
 }
+
+function ligarImportMembros() {
+  // o conteúdo do modal é reescrito em cada etapa (lendo / erro / prévia)
+  document.getElementById('modal-import')?.addEventListener('click', e => {
+    const el = e.target.closest('[data-act]');
+    if (!el) return;
+    if (el.dataset.act === 'fechar') fecharModal('modal-import');
+    else if (el.dataset.act === 'aplicar') aplicarImportacao();
+  });
+}
+ligarImportMembros();

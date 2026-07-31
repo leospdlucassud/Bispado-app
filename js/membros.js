@@ -140,7 +140,7 @@ export function renderHistorico(el, busca) {
 export function abrirModalEntrada() {
   const motivosOpts = MOTIVOS_ENTRADA.map(m => `<option value="${m}">${m}</option>`).join('');
   document.getElementById('modal-agenda-content').innerHTML = `
-    <h3>➕ Registrar Entrada de Membro <button class="modal-close" onclick="fecharModal('modal-agenda')">✕</button></h3>
+    <h3>➕ Registrar Entrada de Membro <button class="modal-close" data-act="fechar">✕</button></h3>
     <div class="form-group"><label>Nome completo</label><input type="text" class="form-input" id="me-nome" placeholder="Nome do membro…"></div>
     <div class="form-row">
       <div class="form-group"><label>Sexo</label>
@@ -151,7 +151,7 @@ export function abrirModalEntrada() {
     <div class="form-group"><label>Motivo da Entrada</label><select class="form-select" id="me-motivo">${motivosOpts}</select></div>
     <div class="form-group"><label>Data</label><input type="date" class="form-input" id="me-data" value="${new Date().toISOString().slice(0,10)}"></div>
     <div class="form-group"><label>Observações</label><input type="text" class="form-input" id="me-obs" maxlength="200" placeholder="Detalhes adicionais…"></div>
-    <button class="btn-primary" onclick="salvarEntrada()">💾 Registrar Entrada</button>
+    <button class="btn-primary" data-act="mem-entrada">💾 Registrar Entrada</button>
   `;
   abrirModal('modal-agenda');
 }
@@ -187,16 +187,16 @@ export function abrirModalSaida() {
   const membrosOpts = membrosAtivos.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
 
   document.getElementById('modal-agenda-content').innerHTML = `
-    <h3>📤 Registrar Saída de Membro <button class="modal-close" onclick="fecharModal('modal-agenda')">✕</button></h3>
+    <h3>📤 Registrar Saída de Membro <button class="modal-close" data-act="fechar">✕</button></h3>
     <div class="form-group"><label>Membro</label>
-      <input list="dl-saida-membros" class="form-input" id="ms-membro-nome" placeholder="Digite o nome do membro…" oninput="buscarMembroSaida(this.value)">
+      <input list="dl-saida-membros" class="form-input" id="ms-membro-nome" placeholder="Digite o nome do membro…">
       <datalist id="dl-saida-membros">${membrosAtivos.map(m=>`<option value="${m.name}">`).join('')}</datalist>
       <input type="hidden" id="ms-membro-id">
     </div>
     <div class="form-group"><label>Motivo da Saída</label><select class="form-select" id="ms-motivo">${motivosOpts}</select></div>
     <div class="form-group"><label>Data</label><input type="date" class="form-input" id="ms-data" value="${new Date().toISOString().slice(0,10)}"></div>
     <div class="form-group"><label>Observações</label><input type="text" class="form-input" id="ms-obs" maxlength="200" placeholder="Detalhes adicionais…"></div>
-    <button class="btn-primary" style="background:#e07070" onclick="salvarSaida()">📤 Registrar Saída</button>
+    <button class="btn-primary" style="background:#e07070" data-act="mem-saida">📤 Registrar Saída</button>
   `;
   abrirModal('modal-agenda');
 }
@@ -232,5 +232,41 @@ export async function salvarSaida() {
   await salvarDadosMembros();
   renderMembros();
 }
+
+function ligarMembros() {
+  document.getElementById('membros-acoes')?.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    switch (btn.dataset.act) {
+      case 'entrada':  abrirModalEntrada(); break;
+      case 'saida':    abrirModalSaida(); break;
+      // o input de arquivo fica escondido; o botão é quem o aciona
+      case 'importar': document.getElementById('pdf-membros').click(); break;
+    }
+  });
+
+  document.getElementById('pdf-membros')?.addEventListener('change', e => importarPdfMembros(e.target));
+
+  document.getElementById('filtros-membros')?.addEventListener('click', e => {
+    const btn = e.target.closest('.filtro-btn');
+    if (btn) setFilMembros(btn.dataset.fil, btn);
+  });
+
+  document.getElementById('busca-membros')?.addEventListener('input', renderMembros);
+
+  // os modais de entrada/saída reusam #modal-agenda, que já tem a delegação da
+  // Agenda — daí os nomes 'mem-*', para não colidir com o 'salvar' de lá
+  document.getElementById('modal-agenda')?.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    if (btn.dataset.act === 'mem-entrada') salvarEntrada();
+    else if (btn.dataset.act === 'mem-saida') salvarSaida();
+  });
+
+  document.getElementById('modal-agenda')?.addEventListener('input', e => {
+    if (e.target.id === 'ms-membro-nome') buscarMembroSaida(e.target.value);
+  });
+}
+ligarMembros();
 
 // (o gancho de troca de aba vive em app.js)
