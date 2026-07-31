@@ -3,6 +3,8 @@
 // Ambos retornam Promise; usar com await.
 // =============================================
 
+import { esc } from './utils.js';
+
 export function _fecharDialogo() {
   document.getElementById('modal-dialogo').classList.remove('open');
   document.getElementById('modal-dialogo-content').innerHTML = '';

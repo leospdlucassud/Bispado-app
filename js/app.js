@@ -2,6 +2,23 @@
 // APP — botão flutuante e inicialização
 // Carregado por último: depende de todos os demais módulos.
 // =============================================
+import { abrirModalAcomp } from './acompanhamento.js';
+import { abrirModalAgenda, abrirTelaConfirmacao } from './agenda.js';
+import { carregarDados, sincronizarManual } from './api.js';
+import { clearSearch, doSearch } from './busca.js';
+import { abrirModalEvento, renderCalendario } from './calendario.js';
+import { aplicarNomeAla } from './config.js';
+import { abrirModalDesig } from './designacoes.js';
+import { renderManual, renderRoteiros } from './manual.js';
+import { carregarMovimentacoes } from './membros.js';
+import { carregarNotasCompartilhadas } from './notas.js';
+import { installPWA } from './offline-pwa.js';
+import { abrirModalReuniao } from './reunioes.js';
+import { abrirModalSac, carregarSacramentais, formatDateKey, sacCarregado } from './sacramental.js';
+import { changeFontSize, toggleTheme } from './tema.js';
+import { ativarAba } from './ui.js';
+import { abrirEscolhaCargo, initUsuario } from './usuario.js';
+
 export let fabTab = '';
 
 export function onTabChange(tab) {

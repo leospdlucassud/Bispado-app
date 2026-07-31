@@ -1,6 +1,10 @@
 // =============================================
 // MANUAL & LINKS OFICIAIS
 // =============================================
+import { toggleOrd } from './ui.js';
+import { toast } from './usuario.js';
+import { esc } from './utils.js';
+
 export const MG = 'https://www.churchofjesuschrist.org/study/manual/general-handbook/';
 
 export const CAPITULOS_MANUAL = [

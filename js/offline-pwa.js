@@ -1,4 +1,7 @@
 // ── FILA OFFLINE (IndexedDB) ──
+import { atualizarUltimaSinc, carregarDados, setSyncStatus } from './api.js';
+import { toast } from './usuario.js';
+
 export const DB_NAME = 'bispado-offline';
 export const STORE_Q = 'fila-pendente';
 export let dbInstance = null;

@@ -1,7 +1,17 @@
 // =============================================
 // PLANEJADOR DE SACRAMENTAIS
 // =============================================
+import { apiFetch } from './api.js';
+import { API_SAC, DADOS } from './config.js';
+import { MEMBROS } from './dados-membros.js';
+import { confirmar } from './dialogo.js';
+import { imprimirAtaSacramental } from './pdf.js';
+import { abrirModal, fecharModal } from './ui.js';
+import { esc } from './utils.js';
+
 export let sacCarregado = false;
+// api.js marca o carregamento (binding importado é somente-leitura)
+export function setSacCarregado(v) { sacCarregado = v; }
 export let sacMes = new Date().getMonth();
 export let sacAno = new Date().getFullYear();
 

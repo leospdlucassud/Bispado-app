@@ -2,6 +2,12 @@
 // IMPRESSÃO DE ATA EM PDF (jsPDF)
 // =============================================
 // Ata da reunião sacramental em PDF, na mesma ordem do formulário
+import { ALA, DADOS } from './config.js';
+import { tipoReuniao } from './reunioes.js';
+import { ATA_ORDEM, campoAta, formatDateSac, getSacPorData } from './sacramental.js';
+import { toast } from './usuario.js';
+import { formatarData } from './utils.js';
+
 export function imprimirAtaSacramental(dataKey) {
   if (!window.jspdf) return toast('O gerador de PDF não carregou. Recarregue o app.');
   const sac = getSacPorData(dataKey);

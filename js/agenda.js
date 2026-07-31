@@ -1,6 +1,19 @@
 // =============================================
 // AGENDA DE ENTREVISTAS
 // =============================================
+import { renderAcompanhamentos } from './acompanhamento.js';
+import { apiFetch, atualizarUltimaSinc, setSyncStatus } from './api.js';
+import { reativarAbaAtual } from './app.js';
+import { ALA, API_AGENDA, DADOS } from './config.js';
+import { MEMBROS } from './dados-membros.js';
+import { confirmar, pedirTexto } from './dialogo.js';
+import { norm } from './membros-import.js';
+import { abrirModal, fecharModal } from './ui.js';
+import { podeVer, toast } from './usuario.js';
+import { esc, formatarData } from './utils.js';
+
+export let filAgenda = 'ativas';
+
 export const TIPOS_ENTREVISTA = [
   // Recomendações
   'Recomendação para o Templo (Batismos Vicários)',

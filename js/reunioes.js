@@ -2,6 +2,14 @@
 // REUNIÕES
 // =============================================
 // Tipos de reunião administrados pelo bispado — fonte única para filtros e formulário
+import { apiFetch, atualizarUltimaSinc, setSyncStatus } from './api.js';
+import { API_REUNIOES, DADOS } from './config.js';
+import { confirmar } from './dialogo.js';
+import { imprimirAtaPDF } from './pdf.js';
+import { abrirModal, fecharModal } from './ui.js';
+import { toast } from './usuario.js';
+import { formatarData } from './utils.js';
+
 export const TIPOS_REUNIAO = [
   { k:'conselho',   r:'Conselho da Ala',              c:'#a78bfa' },
   { k:'bispado',    r:'Reunião do Bispado',           c:'#c9a84c' },

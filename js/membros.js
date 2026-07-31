@@ -1,6 +1,13 @@
 // =============================================
 // ABA MEMBROS — Entrada/Saída + Histórico
 // =============================================
+import { reativarAbaAtual } from './app.js';
+import { MEMBROS, setMembros } from './dados-membros.js';
+import { confirmar } from './dialogo.js';
+import { importarPdfMembros } from './membros-import.js';
+import { abrirModal, fecharModal } from './ui.js';
+import { USUARIO, toast } from './usuario.js';
+
 export const API_MEMBROS = '/api/membros';
 export const MOTIVOS_ENTRADA = [
   'Batismo e Confirmação',
@@ -22,6 +29,11 @@ export let MEMBROS_SAIDOS = []; // IDs dos membros que saíram
 export let filMembros = 'ativos';
 export let ROSTER_ATUALIZADO = null; // quando o quadro veio de um PDF importado
 
+// A importação de PDF (membros-import.js) troca estes dois; binding importado
+// é somente-leitura, então a escrita de fora passa por estes setters.
+export function setMembrosSaidos(ids) { MEMBROS_SAIDOS = ids; }
+export function setRosterAtualizado(quando) { ROSTER_ATUALIZADO = quando; }
+
 export async function carregarMovimentacoes() {
   try {
     const res = await fetch(API_MEMBROS);
@@ -31,7 +43,7 @@ export async function carregarMovimentacoes() {
       if (data.saidos) MEMBROS_SAIDOS = data.saidos;
       // Quadro importado de PDF tem prioridade sobre a lista embutida
       if (Array.isArray(data.roster) && data.roster.length) {
-        MEMBROS = data.roster;
+        setMembros(data.roster);
         ROSTER_ATUALIZADO = data.rosterAtualizadoEm || null;
       }
       if (data.adicionados) {

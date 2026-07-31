@@ -1,6 +1,8 @@
 // =============================================
 // TEMA ESCURO/CLARO + TAMANHO DA FONTE
 // =============================================
+import { toast } from './usuario.js';
+
 export function toggleTheme() {
   const html = document.documentElement;
   const current = html.getAttribute('data-theme') || 'dark';

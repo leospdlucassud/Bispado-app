@@ -1,6 +1,13 @@
 // =============================================
 // IMPORTAÇÃO DO PDF DE MEMBROS (LCR)
 // =============================================
+import { ALA } from './config.js';
+import { MEMBROS, setMembros } from './dados-membros.js';
+import { API_MEMBROS, MEMBROS_SAIDOS, MOVIMENTACOES, renderMembros, setMembrosSaidos, setRosterAtualizado } from './membros.js';
+import { abrirModal, fecharModal } from './ui.js';
+import { toast } from './usuario.js';
+import { esc } from './utils.js';
+
 export const PDFJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
 export const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -269,7 +276,7 @@ export async function aplicarImportacao() {
   const porNome = new Map(MEMBROS.map(m => [norm(m.name), m.id]));
   let proximo = Math.max(0, ...MEMBROS.map(m => m.id || 0)) + 1;
 
-  MEMBROS = lidos.map(r => ({
+  setMembros(lidos.map(r => ({
     id: porNome.get(norm(r.name)) || proximo++,
     name: r.name,
     gender: r.gender,
@@ -277,17 +284,17 @@ export async function aplicarImportacao() {
     nascimento: r.nascimento || '',
     telefone: r.telefone || '',
     email: r.email || '',
-  }));
+  })));
 
   const ativos = new Set(MEMBROS.map(m => m.id));
-  MEMBROS_SAIDOS = MEMBROS_SAIDOS.filter(id => ativos.has(id));
+  setMembrosSaidos(MEMBROS_SAIDOS.filter(id => ativos.has(id)));
 
   try {
     await fetch(API_MEMBROS, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ movimentacoes: MOVIMENTACOES, saidos: MEMBROS_SAIDOS, adicionados: [], roster: MEMBROS }),
     });
-    ROSTER_ATUALIZADO = new Date().toISOString();
+    setRosterAtualizado(new Date().toISOString());
   } catch {
     toast('Salvo neste aparelho — sem conexão com o servidor');
   }

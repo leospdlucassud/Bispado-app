@@ -1,41 +1,31 @@
 // =============================================
 // PONTO DE ENTRADA (ES Modules)
-// Carrega os módulos na ordem de dependência e expõe seus símbolos no `window`.
-// Essa "ponte" mantém os handlers inline (onclick="...") funcionando enquanto a
-// migração avança. Nas próximas fases, cada área troca os onclick por listeners
-// e sai da ponte, até ela poder ser removida.
+// Cada módulo declara suas próprias dependências com `import`, então aqui basta
+// carregá-los todos: o import solto garante que módulos que ninguém importa
+// (tema, offline-pwa) também avaliem e registrem seus listeners (`ligar*()`).
+// A ordem abaixo é só de leitura — quem manda na avaliação é o grafo de imports.
+//
+// Arquivo novo em js/ → incluir aqui E em ASSETS no sw.js.
 // =============================================
-import * as mDados     from './dados-membros.js';
-import * as mConfig    from './config.js';
-import * as mUtils     from './utils.js';
-import * as mUi        from './ui.js';
-import * as mDialogo   from './dialogo.js';
-import * as mUsuario   from './usuario.js';
-import * as mApi       from './api.js';
-import * as mOffline   from './offline-pwa.js';
-import * as mTema      from './tema.js';
-import * as mAgenda    from './agenda.js';
-import * as mAcomp     from './acompanhamento.js';
-import * as mReunioes  from './reunioes.js';
-import * as mDesig     from './designacoes.js';
-import * as mCalendario from './calendario.js';
-import * as mSacramental from './sacramental.js';
-import * as mMembros   from './membros.js';
-import * as mImport    from './membros-import.js';
-import * as mNotas     from './notas.js';
-import * as mManual    from './manual.js';
-import * as mPdf       from './pdf.js';
-import * as mBusca     from './busca.js';
-import * as mApp       from './app.js';
-
-const modulos = [
-  mDados, mConfig, mUtils, mUi, mDialogo, mUsuario, mApi, mOffline, mTema,
-  mAgenda, mAcomp, mReunioes, mDesig, mCalendario, mSacramental, mMembros,
-  mImport, mNotas, mManual, mPdf, mBusca, mApp,
-];
-
-for (const ns of modulos) {
-  for (const [nome, valor] of Object.entries(ns)) {
-    window[nome] = valor;
-  }
-}
+import './dados-membros.js';
+import './config.js';
+import './utils.js';
+import './ui.js';
+import './dialogo.js';
+import './usuario.js';
+import './api.js';
+import './offline-pwa.js';
+import './tema.js';
+import './agenda.js';
+import './acompanhamento.js';
+import './reunioes.js';
+import './designacoes.js';
+import './calendario.js';
+import './sacramental.js';
+import './membros.js';
+import './membros-import.js';
+import './notas.js';
+import './manual.js';
+import './pdf.js';
+import './busca.js';
+import './app.js';

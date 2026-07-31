@@ -3,6 +3,15 @@
 // A lista junta duas origens: entrevistas marcadas para acompanhar (aba Agenda)
 // e acompanhamentos avulsos criados aqui. Itens sigilosos só aparecem ao bispo.
 // =============================================
+import { renderAgenda } from './agenda.js';
+import { apiFetch, setSyncStatus } from './api.js';
+import { API_AGENDA, CARGOS, DADOS } from './config.js';
+import { MEMBROS } from './dados-membros.js';
+import { confirmar, pedirTexto } from './dialogo.js';
+import { abrirModal, fecharModal } from './ui.js';
+import { USUARIO, podeVer, toast } from './usuario.js';
+import { esc, formatarData } from './utils.js';
+
 export const API_ACOMP = '/api/acompanhamentos';
 export let filAcomp = 'abertos';
 

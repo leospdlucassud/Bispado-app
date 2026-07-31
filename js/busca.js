@@ -1,4 +1,13 @@
 // ===== BUSCADOR =====
+import { listaAcompanhamentos } from './acompanhamento.js';
+import { switchTab } from './app.js';
+import { DADOS } from './config.js';
+import { NOTAS_COMPARTILHADAS, NOTAS_PRIVADAS } from './notas.js';
+import { tipoReuniao } from './reunioes.js';
+import { formatDateSac } from './sacramental.js';
+import { podeVer } from './usuario.js';
+import { esc, formatarData } from './utils.js';
+
 export function highlight(text, query){
   if(!query) return text;
   const escaped = query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');

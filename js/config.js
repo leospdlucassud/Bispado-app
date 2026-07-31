@@ -11,8 +11,9 @@ export const API_SAC       = '/api/sacramentais';
 export const CARGOS = ['Bispo', '1º Conselheiro', '2º Conselheiro', 'Secretário', 'Secretário Executivo'];
 
 export let DADOS = { agenda:[], reunioes:[], designacoes:[], eventos_extras:[], sacramentais:[], acompanhamentos:[] };
-export let filAgenda = 'ativas', filDesig = 'ativas';
-export let calMes = new Date().getMonth(), calAno = new Date().getFullYear();
+// O estado de filtro/mês de cada aba mora no módulo da própria aba (filAgenda em
+// agenda.js, filDesig em designacoes.js, calMes/calAno em calendario.js): só ela
+// lê e escreve, e binding importado é somente-leitura.
 
 // =============================================
 // NOME DA ALA

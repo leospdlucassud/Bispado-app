@@ -3,6 +3,10 @@
 // Sem senha — vale a integridade de quem usa. Serve para atribuir registros
 // e para esconder assuntos sigilosos de quem não é o bispo.
 // =============================================
+import { renderAcompanhamentos } from './acompanhamento.js';
+import { renderAgenda } from './agenda.js';
+import { CARGOS } from './config.js';
+
 export const CARGO_KEY = 'cargo_atual';
 export const ICONE_CARGO = { 'Bispo':'⚜️', '1º Conselheiro':'🔵', '2º Conselheiro':'🟢', 'Secretário':'📝', 'Secretário Executivo':'🗓️' };
 export let USUARIO = localStorage.getItem(CARGO_KEY) || '';

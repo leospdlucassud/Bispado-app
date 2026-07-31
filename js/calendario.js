@@ -1,6 +1,15 @@
 // =============================================
 // CALENDÁRIO
 // =============================================
+import { apiFetch, atualizarUltimaSinc, setSyncStatus } from './api.js';
+import { reativarAbaAtual } from './app.js';
+import { API_EVENTOS, DADOS, comAla } from './config.js';
+import { confirmar } from './dialogo.js';
+import { abrirModal, fecharModal } from './ui.js';
+import { toast } from './usuario.js';
+
+export let calMes = new Date().getMonth(), calAno = new Date().getFullYear();
+
 export const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 export const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 

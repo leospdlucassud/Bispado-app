@@ -1,6 +1,16 @@
 // =============================================
 // DESIGNAÇÕES
 // =============================================
+import { apiFetch, atualizarUltimaSinc, setSyncStatus } from './api.js';
+import { reativarAbaAtual } from './app.js';
+import { API_DESIG, CARGOS, DADOS } from './config.js';
+import { confirmar, pedirTexto } from './dialogo.js';
+import { abrirModal, fecharModal } from './ui.js';
+import { toast } from './usuario.js';
+import { formatarData } from './utils.js';
+
+export let filDesig = 'ativas';
+
 export function renderDesignacoes() {
   const el = document.getElementById('lista-designacoes');
   if (!el) return;

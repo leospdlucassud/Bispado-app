@@ -1,6 +1,15 @@
 // =============================================
 // STATUS / SYNC UI
 // =============================================
+import { loadAcompanhamentos } from './acompanhamento.js';
+import { renderAgenda } from './agenda.js';
+import { renderCalendario } from './calendario.js';
+import { API_AGENDA, API_DESIG, API_EVENTOS, API_REUNIOES, API_SAC, DADOS } from './config.js';
+import { renderDesignacoes } from './designacoes.js';
+import { enviarFilaPendente, isOnline, limparCacheApp, salvarNaFila } from './offline-pwa.js';
+import { renderReunioes } from './reunioes.js';
+import { renderSacramentais, sacCarregado, setSacCarregado } from './sacramental.js';
+
 export function showSync(msg) {}  // mantido por compatibilidade
 
 export function setSyncStatus(status) {
@@ -103,7 +112,7 @@ export async function loadEventos() {
 export async function loadSacramentais() {
   try {
     const data = await apiFetch(API_SAC);
-    if (Array.isArray(data)) { DADOS.sacramentais = data; sacCarregado = true; renderSacramentais(); }
+    if (Array.isArray(data)) { DADOS.sacramentais = data; setSacCarregado(true); renderSacramentais(); }
   } catch(e) { if (sacCarregado) renderSacramentais(); }
 }
 

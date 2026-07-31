@@ -1,6 +1,10 @@
 // =============================================
 // ABA NOTAS — Privadas (localStorage) + Compartilhadas (Blobs)
 // =============================================
+import { confirmar, pedirTexto } from './dialogo.js';
+import { USUARIO, toast } from './usuario.js';
+import { esc } from './utils.js';
+
 export const API_NOTAS = '/api/notas';
 export const NOTAS_PRIV_KEY = 'notas_privadas';
 
