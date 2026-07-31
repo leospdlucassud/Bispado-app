@@ -9,8 +9,17 @@ import { renderDesignacoes } from './designacoes.js';
 import { enviarFilaPendente, isOnline, limparCacheApp, salvarNaFila } from './offline-pwa.js';
 import { renderReunioes } from './reunioes.js';
 import { renderSacramentais, sacCarregado, setSacCarregado } from './sacramental.js';
+import { toast } from './usuario.js';
 
 export function showSync(msg) {}  // mantido por compatibilidade
+
+// A alteração foi aceita na tela mas o servidor não confirmou: ela está na fila
+// e sai na próxima sincronização. Sem este aviso o usuário acha que salvou —
+// foi assim que uma exclusão sumiu de um aparelho e continuou existindo no outro.
+export function avisarPendente(acao = 'alteração') {
+  setSyncStatus('erro');
+  toast(`Sem conexão com o servidor — a ${acao} será enviada ao sincronizar`);
+}
 
 // Devolve o botão de sincronizar sempre com a estrutura interna esperada.
 // Antes, quem escrevia innerHTML no botão apagava #sync-icone e .sync-label —
@@ -163,6 +172,27 @@ export async function carregarDados() {
   } catch(e) {
     setSyncStatus('erro');
   }
+}
+
+// =============================================
+// ATUALIZAÇÃO AUTOMÁTICA
+// Sem isso, uma alteração feita no computador só aparecia no celular quando
+// alguém apertava sincronizar. Roda apenas com o app em primeiro plano — em
+// segundo plano não adianta gastar rede e bateria de ninguém.
+// =============================================
+export const INTERVALO_ATUALIZACAO = 30000;
+
+export async function atualizarEmSegundoPlano() {
+  if (document.visibilityState !== 'visible' || !isOnline) return;
+  // não troca os dados debaixo de um formulário aberto
+  if (document.querySelector('.modal-overlay.open')) return;
+  try {
+    if (await carregarTudo()) atualizarUltimaSinc();
+  } catch (e) { /* silencioso: o botão de sincronizar continua sendo o caminho manual */ }
+}
+
+export function iniciarAtualizacaoAutomatica() {
+  setInterval(atualizarEmSegundoPlano, INTERVALO_ATUALIZACAO);
 }
 
 export async function sincronizarManual() {

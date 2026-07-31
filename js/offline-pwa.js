@@ -76,7 +76,10 @@ export async function enviarFilaPendente() {
         body: item.body != null ? JSON.stringify(item.body) : undefined,
       });
       if (res.ok) { await removerDaFila(item.id); enviados++; continue; }
-      // 4xx não adianta repetir (ex.: PUT num id que só existia neste aparelho)
+      // 409 é conflito de escrita simultânea e 429 é excesso de chamadas:
+      // nos dois casos vale tentar de novo depois
+      if (res.status === 409 || res.status === 408 || res.status === 429) { falhou = true; break; }
+      // demais 4xx não adianta repetir (ex.: PUT num id que só existia aqui)
       if (res.status >= 400 && res.status < 500) { await removerDaFila(item.id); continue; }
       falhou = true; break;   // servidor fora do ar: guarda o resto para depois
     } catch(e) { falhou = true; break; }

@@ -2,7 +2,7 @@
 // REUNIÕES
 // =============================================
 // Tipos de reunião administrados pelo bispado — fonte única para filtros e formulário
-import { apiFetch, atualizarUltimaSinc, setSyncStatus } from './api.js';
+import { apiFetch, atualizarUltimaSinc, avisarPendente, setSyncStatus } from './api.js';
 import { API_REUNIOES, DADOS } from './config.js';
 import { confirmar } from './dialogo.js';
 import { imprimirAtaPDF } from './pdf.js';
@@ -186,7 +186,7 @@ export async function salvarReuniao(id) {
 
 export async function excluirReuniao(id) {
   if (!await confirmar('Excluir esta reunião?', { perigo: true, okLabel: 'Excluir' })) return;
-  try { await apiFetch(`${API_REUNIOES}?id=${id}`, 'DELETE'); atualizarUltimaSinc(); setSyncStatus('ok'); } catch(e) {}
+  try { await apiFetch(`${API_REUNIOES}?id=${id}`, 'DELETE'); atualizarUltimaSinc(); setSyncStatus('ok'); } catch(e) { avisarPendente('exclusão'); }
   DADOS.reunioes = DADOS.reunioes.filter(r => r.id !== id);
   renderReunioes();
 }

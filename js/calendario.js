@@ -1,7 +1,7 @@
 // =============================================
 // CALENDÁRIO
 // =============================================
-import { apiFetch, atualizarUltimaSinc, setSyncStatus } from './api.js';
+import { apiFetch, atualizarUltimaSinc, avisarPendente, setSyncStatus } from './api.js';
 import { reativarAbaAtual } from './app.js';
 import { API_EVENTOS, DADOS, comAla } from './config.js';
 import { confirmar } from './dialogo.js';
@@ -218,7 +218,7 @@ export async function salvarEvento() {
 
 export async function excluirEvento(id) {
   if (!await confirmar('Excluir evento?', { perigo: true, okLabel: 'Excluir' })) return;
-  try { await apiFetch(`${API_EVENTOS}?id=${id}`, 'DELETE'); atualizarUltimaSinc(); setSyncStatus('ok'); } catch(e) {}
+  try { await apiFetch(`${API_EVENTOS}?id=${id}`, 'DELETE'); atualizarUltimaSinc(); setSyncStatus('ok'); } catch(e) { avisarPendente('exclusão'); }
   DADOS.eventos_extras = DADOS.eventos_extras.filter(e => e.id !== id);
   renderCalendario();
 }

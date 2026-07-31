@@ -4,7 +4,7 @@
 // =============================================
 import { abrirModalAcomp } from './acompanhamento.js';
 import { abrirModalAgenda, abrirTelaConfirmacao } from './agenda.js';
-import { carregarDados, sincronizarManual } from './api.js';
+import { carregarDados, iniciarAtualizacaoAutomatica, sincronizarManual } from './api.js';
 import { clearSearch, doSearch } from './busca.js';
 import { abrirModalEvento, renderCalendario } from './calendario.js';
 import { aplicarNomeAla } from './config.js';
@@ -95,4 +95,5 @@ document.addEventListener('DOMContentLoaded', () => {
   renderRoteiros();
   onTabChange('agenda');
   carregarDados();
+  iniciarAtualizacaoAutomatica();
 });

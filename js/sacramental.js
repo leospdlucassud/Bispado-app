@@ -1,7 +1,7 @@
 // =============================================
 // PLANEJADOR DE SACRAMENTAIS
 // =============================================
-import { apiFetch } from './api.js';
+import { apiFetch, avisarPendente } from './api.js';
 import { API_SAC, DADOS } from './config.js';
 import { MEMBROS } from './dados-membros.js';
 import { confirmar } from './dialogo.js';
@@ -313,7 +313,7 @@ export async function salvarSac(dataKey) {
 
 export async function excluirSac(id) {
   if (!await confirmar('Excluir esta programação?', { perigo: true, okLabel: 'Excluir' })) return;
-  try { await apiFetch(API_SAC + '?id=' + id, 'DELETE'); } catch {}
+  try { await apiFetch(API_SAC + '?id=' + id, 'DELETE'); } catch { avisarPendente('exclusão'); }
   if (DADOS.sacramentais) DADOS.sacramentais = DADOS.sacramentais.filter(s => s.id !== id);
   fecharModal('modal-sacramental');
   renderSacramentais();

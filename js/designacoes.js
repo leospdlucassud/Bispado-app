@@ -1,7 +1,7 @@
 // =============================================
 // DESIGNAÇÕES
 // =============================================
-import { apiFetch, atualizarUltimaSinc, setSyncStatus } from './api.js';
+import { apiFetch, atualizarUltimaSinc, avisarPendente, setSyncStatus } from './api.js';
 import { reativarAbaAtual } from './app.js';
 import { API_DESIG, CARGOS, DADOS } from './config.js';
 import { confirmar, pedirTexto } from './dialogo.js';
@@ -185,7 +185,7 @@ export async function avancarDesig(id) {
 
 export async function excluirDesig(id) {
   if (!await confirmar('Excluir esta designação?', { perigo: true, okLabel: 'Excluir' })) return;
-  try { await apiFetch(`${API_DESIG}?id=${id}`, 'DELETE'); atualizarUltimaSinc(); setSyncStatus('ok'); } catch(e) {}
+  try { await apiFetch(`${API_DESIG}?id=${id}`, 'DELETE'); atualizarUltimaSinc(); setSyncStatus('ok'); } catch(e) { avisarPendente('exclusão'); }
   DADOS.designacoes = DADOS.designacoes.filter(d => d.id !== id);
   renderDesignacoes();
 }

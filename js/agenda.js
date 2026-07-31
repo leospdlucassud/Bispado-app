@@ -2,7 +2,7 @@
 // AGENDA DE ENTREVISTAS
 // =============================================
 import { renderAcompanhamentos } from './acompanhamento.js';
-import { apiFetch, atualizarUltimaSinc, setSyncStatus } from './api.js';
+import { apiFetch, atualizarUltimaSinc, avisarPendente, setSyncStatus } from './api.js';
 import { reativarAbaAtual } from './app.js';
 import { ALA, API_AGENDA, DADOS } from './config.js';
 import { MEMBROS } from './dados-membros.js';
@@ -585,7 +585,7 @@ export async function excluirEntrevista(id) {
   try {
     await apiFetch(`${API_AGENDA}?id=${id}`, 'DELETE');
     atualizarUltimaSinc(); setSyncStatus('ok');
-  } catch(e) {}
+  } catch(e) { avisarPendente(); }
   DADOS.agenda = DADOS.agenda.filter(e => e.id !== id);
   renderAgenda();
 }
