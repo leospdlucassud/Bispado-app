@@ -283,13 +283,13 @@
     </div>
   </div>
   <div class="filtros" id="filtros-notas">
-    <button class="filtro-btn active" onclick="setFilNotas('todas',this)">Todas</button>
-    <button class="filtro-btn" onclick="setFilNotas('privada',this)">🔒 Privadas</button>
-    <button class="filtro-btn" onclick="setFilNotas('compartilhada',this)">🌐 Compartilhadas</button>
+    <button class="filtro-btn active" data-fil="todas">Todas</button>
+    <button class="filtro-btn" data-fil="privada">🔒 Privadas</button>
+    <button class="filtro-btn" data-fil="compartilhada">🌐 Compartilhadas</button>
   </div>
-  <div style="display:flex;gap:8px;margin-bottom:12px">
-    <button class="btn-primary" style="font-size:12px;padding:8px 14px" onclick="novaNota('privada')">🔒 Nova Nota Privada</button>
-    <button class="btn-primary" style="font-size:12px;padding:8px 14px;background:#60a5fa" onclick="novaNota('compartilhada')">🌐 Nova Nota Compartilhada</button>
+  <div style="display:flex;gap:8px;margin-bottom:12px" id="notas-acoes">
+    <button class="btn-primary" style="font-size:12px;padding:8px 14px" data-scope="privada">🔒 Nova Nota Privada</button>
+    <button class="btn-primary" style="font-size:12px;padding:8px 14px;background:#60a5fa" data-scope="compartilhada">🌐 Nova Nota Compartilhada</button>
   </div>
   <div id="lista-notas"><div class="vazia">📭 Nenhuma nota</div></div>
 </div>
@@ -303,11 +303,11 @@
     As ordenanças <span style="color:#64b5f6;font-weight:700">guiadas pelo Espírito</span> seguem uma estrutura de passos, mas as palavras da bênção são inspiradas.
   </p>
 
-  <div class="ord-grid">
+  <div class="ord-grid" id="lista-ordenancas">
 
     <!-- ① SACRAMENTO DO PÃO -->
     <div class="ord-card" id="ord-sacramento-pao">
-      <div class="ord-header" onclick="toggleOrd('ord-sacramento-pao')">
+      <div class="ord-header">
         <div class="ord-icon">🍞</div>
         <div class="ord-info">
           <div class="ord-titulo">Sacramento do Pão</div>
@@ -329,7 +329,7 @@
 
     <!-- ② SACRAMENTO DA ÁGUA -->
     <div class="ord-card" id="ord-sacramento-agua">
-      <div class="ord-header" onclick="toggleOrd('ord-sacramento-agua')">
+      <div class="ord-header">
         <div class="ord-icon">🥛</div>
         <div class="ord-info">
           <div class="ord-titulo">Sacramento da Água</div>
@@ -351,7 +351,7 @@
 
     <!-- ③ BATISMO -->
     <div class="ord-card" id="ord-batismo">
-      <div class="ord-header" onclick="toggleOrd('ord-batismo')">
+      <div class="ord-header">
         <div class="ord-icon">💧</div>
         <div class="ord-info">
           <div class="ord-titulo">Batismo</div>
@@ -384,7 +384,7 @@
 
     <!-- ④ DAR NOME E BÊNÇÃO -->
     <div class="ord-card" id="ord-nome-bencao">
-      <div class="ord-header" onclick="toggleOrd('ord-nome-bencao')">
+      <div class="ord-header">
         <div class="ord-icon">👶</div>
         <div class="ord-info">
           <div class="ord-titulo">Dar Nome e Bênção a Crianças</div>
@@ -410,7 +410,7 @@
 
     <!-- ⑤ CONFIRMAÇÃO -->
     <div class="ord-card" id="ord-confirmacao">
-      <div class="ord-header" onclick="toggleOrd('ord-confirmacao')">
+      <div class="ord-header">
         <div class="ord-icon">🕊️</div>
         <div class="ord-info">
           <div class="ord-titulo">Confirmação e Dom do Espírito Santo</div>
@@ -437,7 +437,7 @@
 
     <!-- ⑥ CONFERIR SACERDÓCIO AARÔNICO -->
     <div class="ord-card" id="ord-sac-aaronico">
-      <div class="ord-header" onclick="toggleOrd('ord-sac-aaronico')">
+      <div class="ord-header">
         <div class="ord-icon">🔵</div>
         <div class="ord-info">
           <div class="ord-titulo">Conferir o Sacerdócio Aarônico e Ordenar</div>
@@ -464,7 +464,7 @@
 
     <!-- ⑦ CONFERIR SACERDÓCIO DE MELQUISEDEQUE -->
     <div class="ord-card" id="ord-sac-melq">
-      <div class="ord-header" onclick="toggleOrd('ord-sac-melq')">
+      <div class="ord-header">
         <div class="ord-icon">⭐</div>
         <div class="ord-info">
           <div class="ord-titulo">Conferir o Sacerdócio de Melquisedeque e Ordenar</div>
@@ -491,7 +491,7 @@
 
     <!-- ⑧ DESIGNAÇÃO POR IMPOSIÇÃO DE MÃOS -->
     <div class="ord-card" id="ord-designacao">
-      <div class="ord-header" onclick="toggleOrd('ord-designacao')">
+      <div class="ord-header">
         <div class="ord-icon">🤝</div>
         <div class="ord-info">
           <div class="ord-titulo">Designação por Imposição de Mãos</div>
@@ -517,7 +517,7 @@
 
     <!-- ⑨ CONSAGRAR O ÓLEO -->
     <div class="ord-card" id="ord-oleo">
-      <div class="ord-header" onclick="toggleOrd('ord-oleo')">
+      <div class="ord-header">
         <div class="ord-icon">🫙</div>
         <div class="ord-info">
           <div class="ord-titulo">Consagrar o Óleo</div>
@@ -542,7 +542,7 @@
 
     <!-- ⑩ BÊNÇÃO DE ENFERMOS — UNÇÃO -->
     <div class="ord-card" id="ord-uncao">
-      <div class="ord-header" onclick="toggleOrd('ord-uncao')">
+      <div class="ord-header">
         <div class="ord-icon">🌿</div>
         <div class="ord-info">
           <div class="ord-titulo">Bênção de Enfermos — 1ª Parte: Unção</div>
@@ -567,7 +567,7 @@
 
     <!-- ⑪ BÊNÇÃO DE ENFERMOS — SELAR A UNÇÃO -->
     <div class="ord-card" id="ord-selar">
-      <div class="ord-header" onclick="toggleOrd('ord-selar')">
+      <div class="ord-header">
         <div class="ord-icon">🙌</div>
         <div class="ord-info">
           <div class="ord-titulo">Bênção de Enfermos — 2ª Parte: Selar a Unção</div>
@@ -592,7 +592,7 @@
 
     <!-- ⑫ BÊNÇÃOS DE CONSOLO / PATERNAS -->
     <div class="ord-card" id="ord-consolo">
-      <div class="ord-header" onclick="toggleOrd('ord-consolo')">
+      <div class="ord-header">
         <div class="ord-icon">🫂</div>
         <div class="ord-info">
           <div class="ord-titulo">Bênçãos de Consolo, Aconselhamento e Paternas</div>
@@ -617,7 +617,7 @@
 
     <!-- ⑬ DEDICAÇÃO DO LAR -->
     <div class="ord-card" id="ord-lar">
-      <div class="ord-header" onclick="toggleOrd('ord-lar')">
+      <div class="ord-header">
         <div class="ord-icon">🏠</div>
         <div class="ord-info">
           <div class="ord-titulo">Dedicação do Lar</div>
@@ -642,7 +642,7 @@
 
     <!-- ⑭ DEDICAÇÃO DE SEPULTURAS -->
     <div class="ord-card" id="ord-sepultura">
-      <div class="ord-header" onclick="toggleOrd('ord-sepultura')">
+      <div class="ord-header">
         <div class="ord-icon">🕯️</div>
         <div class="ord-info">
           <div class="ord-titulo">Dedicação de Sepulturas</div>
@@ -749,7 +749,7 @@
   </a>
 
   <div style="margin-bottom:8px">
-    <input type="text" class="form-input" id="filtro-manual" placeholder="🔍 Filtrar capítulo…" oninput="filtrarManual(this.value)" style="font-size:13px">
+    <input type="text" class="form-input" id="filtro-manual" placeholder="🔍 Filtrar capítulo…" style="font-size:13px">
   </div>
 
   <div class="como-usar-section">
@@ -905,7 +905,7 @@
   Bispado <span data-ala></span> · A Igreja de Jesus Cristo dos Santos dos Últimos Dias<br>
   Consulte o <a href="https://www.churchofjesuschrist.org/study/manual/general-handbook?lang=por" target="_blank">Manual Geral</a> na aba 📖 Manual<br>
   <span style="color:#4a6a8a;margin-top:4px;display:inline-block">© 2025 Léo Lucas · Todos os direitos reservados</span><br>
-  <span style="color:#2a4060;font-size:10px;margin-top:6px;display:inline-block">v5.3.8 · 31/07/2026</span>
+  <span style="color:#2a4060;font-size:10px;margin-top:6px;display:inline-block">v5.3.9 · 31/07/2026</span>
 </footer>
 
 <!-- ES Modules: main.js importa o grafo de módulos (js/) na ordem de dependência -->

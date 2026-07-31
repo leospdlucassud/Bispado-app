@@ -16,6 +16,16 @@ export function toggleOrd(id) {
   card.classList.toggle('open');
 }
 
+// As 14 ordenanças são marcação estática; os roteiros do Manual são recriados no
+// render e ligados em manual.js. Nos dois casos o cabeçalho abre o próprio cartão.
+function ligarOrdenancas() {
+  document.getElementById('lista-ordenancas')?.addEventListener('click', e => {
+    const card = e.target.closest('.ord-header')?.closest('.ord-card');
+    if (card) toggleOrd(card.id);
+  });
+}
+ligarOrdenancas();
+
 export function abrirModal(id) {
   document.getElementById(id).classList.add('open');
 }

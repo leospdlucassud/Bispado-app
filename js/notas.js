@@ -56,8 +56,8 @@ export function renderNotas() {
       <div class="nota-header">
         <span class="nota-tipo ${n.scope}">${n.scope === 'privada' ? '🔒 Privada' : '🌐 Compartilhada'}</span>
         <div style="display:flex;gap:6px">
-          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="editarNota('${n.id}','${n.scope}')">✏️</button>
-          <button class="btn-danger" onclick="excluirNota('${n.id}','${n.scope}')">🗑</button>
+          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" data-act="editar" data-id="${n.id}" data-scope="${n.scope}">✏️</button>
+          <button class="btn-danger" data-act="excluir" data-id="${n.id}" data-scope="${n.scope}">🗑</button>
         </div>
       </div>
       ${n.titulo ? `<div style="font-weight:700;color:#e8edf2;margin-bottom:4px">${esc(n.titulo)}</div>` : ''}
@@ -124,5 +124,25 @@ export async function excluirNota(id, scope) {
   }
   renderNotas();
 }
+
+function ligarNotas() {
+  document.getElementById('filtros-notas')?.addEventListener('click', e => {
+    const btn = e.target.closest('.filtro-btn');
+    if (btn) setFilNotas(btn.dataset.fil, btn);
+  });
+
+  document.getElementById('notas-acoes')?.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-scope]');
+    if (btn) novaNota(btn.dataset.scope);
+  });
+
+  document.getElementById('lista-notas')?.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    if (btn.dataset.act === 'editar') editarNota(btn.dataset.id, btn.dataset.scope);
+    else if (btn.dataset.act === 'excluir') excluirNota(btn.dataset.id, btn.dataset.scope);
+  });
+}
+ligarNotas();
 
 // (o gancho de troca de aba vive em app.js)

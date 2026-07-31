@@ -21,7 +21,7 @@ export function renderQuemBadge() {
 export function abrirEscolhaCargo() {
   const cx = document.getElementById('quem-opcoes');
   cx.innerHTML = CARGOS.map(c => `
-    <div class="quem-opt" onclick="definirCargo('${c}')">
+    <div class="quem-opt" data-cargo="${c}">
       <span class="qi">${ICONE_CARGO[c] || '👤'}</span>
       <span style="font-size:13.5px;font-weight:600">${c}</span>
       ${c === 'Bispo' ? '<span style="margin-left:auto;font-size:10px;color:#e05555">vê sigilosos</span>' : ''}
@@ -58,3 +58,12 @@ export function toast(msg) {
   clearTimeout(t._timer);
   t._timer = setTimeout(() => { t.style.opacity = '0'; }, 2200);
 }
+
+function ligarUsuario() {
+  // as opções são recriadas a cada abrirEscolhaCargo()
+  document.getElementById('quem-opcoes')?.addEventListener('click', e => {
+    const opt = e.target.closest('.quem-opt');
+    if (opt) definirCargo(opt.dataset.cargo);
+  });
+}
+ligarUsuario();

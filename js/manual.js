@@ -217,7 +217,7 @@ export function renderRoteiros() {
     const nota = localStorage.getItem(chaveNotaRoteiro(r.id)) || '';
     return `
     <div class="ord-card" id="rot-${r.id}">
-      <div class="ord-header" onclick="toggleOrd('rot-${r.id}')">
+      <div class="ord-header">
         <div class="ord-icon">${r.icone}</div>
         <div class="ord-info">
           <div class="ord-titulo">${esc(r.titulo)}</div>
@@ -235,7 +235,7 @@ export function renderRoteiros() {
           <label style="color:#8eacc8;font-size:10px;display:block;margin-bottom:4px">Anotações da ala (salvas neste aparelho)</label>
           <textarea class="form-input" rows="3" placeholder="Cole aqui o texto oficial das perguntas ou observações da entrevista…"
             style="font-size:12px;padding:8px 10px;resize:vertical"
-            onchange="salvarNotaRoteiro('${r.id}', this.value)">${esc(nota)}</textarea>
+            data-rot="${r.id}">${esc(nota)}</textarea>
         </div>
         <div class="ord-ref" style="margin-top:10px">
           <a href="${r.url}" target="_blank" rel="noopener">Abrir o texto oficial — ${esc(r.ref)} ↗</a>
@@ -251,3 +251,18 @@ export function salvarNotaRoteiro(id, texto) {
   else localStorage.removeItem(chaveNotaRoteiro(id));
   toast('Anotação salva');
 }
+
+function ligarManual() {
+  document.getElementById('filtro-manual')?.addEventListener('input', e => filtrarManual(e.target.value));
+
+  // os roteiros são recriados em renderRoteiros — daí a delegação no container
+  const roteiros = document.getElementById('lista-roteiros');
+  roteiros?.addEventListener('click', e => {
+    const card = e.target.closest('.ord-header')?.closest('.ord-card');
+    if (card) toggleOrd(card.id);
+  });
+  roteiros?.addEventListener('change', e => {
+    if (e.target.dataset.rot) salvarNotaRoteiro(e.target.dataset.rot, e.target.value);
+  });
+}
+ligarManual();

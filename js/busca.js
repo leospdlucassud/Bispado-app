@@ -101,7 +101,7 @@ export function doSearch(val){
       <div class="search-result-head"><span style="font-size:16px">🕊️</span><div style="flex:1">
         <div class="search-result-who" style="color:#e8d080">Sacramental</div>
         <div class="search-result-title">${formatDateSac(d)} de ${d.getFullYear()}</div>
-      </div><button onclick="clearSearch();switchTab('sacramental')" style="background:#e8d080;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
+      </div><button data-act="ir" data-aba="sacramental" style="background:#e8d080;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
     </div>`;
   }).join('');
@@ -113,7 +113,7 @@ export function doSearch(val){
       <div class="search-result-head"><span style="font-size:16px">🗓️</span><div style="flex:1">
         <div class="search-result-who" style="color:#34d399">Agenda</div>
         <div class="search-result-title">${highlight(e.membro, val)} — ${highlight(e.tipo, val)}</div>
-      </div><button onclick="clearSearch();switchTab('agenda')" style="background:#34d399;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
+      </div><button data-act="ir" data-aba="agenda" style="background:#34d399;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
     </div>`;
   }).join('');
@@ -125,7 +125,7 @@ export function doSearch(val){
       <div class="search-result-head"><span style="font-size:16px">🧭</span><div style="flex:1">
         <div class="search-result-who" style="color:#fbbf24">Acompanhamento${a.sigiloso?' 🔒':''}</div>
         <div class="search-result-title">${highlight(esc(a.titulo), val)}</div>
-      </div><button onclick="clearSearch();switchTab('acompanhamento')" style="background:#fbbf24;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
+      </div><button data-act="ir" data-aba="acompanhamento" style="background:#fbbf24;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${highlight(esc(a.assunto || (ult && ult.texto) || '').slice(0,120), val)}</div></div>
     </div>`;
   }).join('');
@@ -137,7 +137,7 @@ export function doSearch(val){
       <div class="search-result-head"><span style="font-size:16px">✅</span><div style="flex:1">
         <div class="search-result-who" style="color:#f472b6">Designação</div>
         <div class="search-result-title">${highlight(d.tarefa, val)}</div>
-      </div><button onclick="clearSearch();switchTab('designacoes')" style="background:#f472b6;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
+      </div><button data-act="ir" data-aba="designacoes" style="background:#f472b6;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
     </div>`;
   }).join('');
@@ -149,7 +149,7 @@ export function doSearch(val){
       <div class="search-result-head"><span style="font-size:16px">📋</span><div style="flex:1">
         <div class="search-result-who" style="color:#a78bfa">Reunião</div>
         <div class="search-result-title">${tipoReuniao(r.tipo).r} — ${formatarData(r.data)}</div>
-      </div><button onclick="clearSearch();switchTab('reuniao')" style="background:#a78bfa;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
+      </div><button data-act="ir" data-aba="reuniao" style="background:#a78bfa;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
     </div>`;
   }).join('');
@@ -162,7 +162,7 @@ export function doSearch(val){
       <div class="search-result-head"><span style="font-size:16px">📝</span><div style="flex:1">
         <div class="search-result-who" style="color:${cor}">Nota ${n.scope==='privada'?'Privada':'Compartilhada'}</div>
         <div class="search-result-title">${highlight(n.titulo||'Nota', val)}</div>
-      </div><button onclick="clearSearch();switchTab('notas')" style="background:${cor};color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
+      </div><button data-act="ir" data-aba="notas" style="background:${cor};color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
     </div>`;
   }).join('');
@@ -173,7 +173,7 @@ export function doSearch(val){
       <div class="search-result-head"><span style="font-size:16px">🕊️</span><div style="flex:1">
         <div class="search-result-who" style="color:#a78bfa">Ordenança</div>
         <div class="search-result-title">${highlight(o.titulo, val)}</div>
-      </div><button onclick="clearSearch();switchTab('ordenancas');setTimeout(()=>{const c=document.getElementById('${o.card.id}');if(c){c.classList.add('open');c.scrollIntoView({behavior:'smooth',block:'center'})}},100)" style="background:#a78bfa;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
+      </div><button data-act="ir" data-aba="ordenancas" data-card="${o.card.id}" style="background:#a78bfa;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
     </div>`;
   }).join('');
 
@@ -185,3 +185,19 @@ export function clearSearch(){
   input.value = '';
   doSearch('');
 }
+
+function ligarBusca() {
+  document.getElementById('search-hits')?.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act="ir"]');
+    if (!btn) return;
+    const { aba, card } = btn.dataset;
+    clearSearch();
+    switchTab(aba);
+    // ordenanças: abre e rola até o cartão do resultado, depois da troca de aba
+    if (card) setTimeout(() => {
+      const c = document.getElementById(card);
+      if (c) { c.classList.add('open'); c.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    }, 100);
+  });
+}
+ligarBusca();
