@@ -145,6 +145,8 @@
   [data-theme="light"] .link-card .lc-title { color:var(--text1); }
   [data-theme="light"] .link-card .lc-sub { color:var(--text2); }
   [data-theme="light"] .entrevista-card { background:var(--bg2); border:1px solid var(--border); }
+  /* sobre o fundo creme o cobalto perde contraste; escurece, como o dourado faz */
+  [data-theme="light"] .status-agendada { background:rgba(29,78,216,.12);color:#1d4ed8; }
   [data-theme="light"] .desig-card { background:var(--bg2); border:1px solid var(--border); }
   [data-theme="light"] .reuniao-card { background:var(--bg2); border:1px solid var(--border); }
   [data-theme="light"] .nota-card { background:var(--bg2); border:1px solid var(--border); }
@@ -309,7 +311,11 @@
   .ent-actions { display:flex;gap:8px;margin-top:10px;flex-wrap:wrap; }
   .status-badge { padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700; }
   .status-pendente { background:rgba(248,113,113,.15);color:#f87171; }
-  .status-agendada { background:rgba(251,191,36,.15);color:#fbbf24; }
+  /* Azul cobalto: os azuis do app são todos claros/lavados (#60a5fa nos links e
+     notas, #5b9bd5 no responsável — que aparece neste mesmo card — e #64b5f6 nas
+     ordenanças), então o tom saturado e mais escuro é o que não se confunde com
+     nenhum deles. O âmbar de antes era a cor do Acompanhamento. */
+  .status-agendada { background:rgba(59,130,246,.15);color:#3b82f6; }
   .status-realizada { background:rgba(52,211,153,.15);color:#34d399; }
   .status-nao-realizada { background:rgba(148,163,184,.15);color:#94a3b8; }
   .vazia { text-align:center;padding:40px 20px;color:#445566;font-size:14px; }

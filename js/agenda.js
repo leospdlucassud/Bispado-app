@@ -93,7 +93,8 @@ export function renderAgenda() {
 
   if (!lista.length) { el.innerHTML = `<div class="vazia">📭 Nenhuma entrevista encontrada</div>`; return; }
 
-  const statusCor = { pendente:'#f87171', agendada:'#fbbf24', realizada:'#34d399', 'nao-realizada':'#94a3b8' };
+  // a borda do card acompanha o selo (ver .status-agendada no css)
+  const statusCor = { pendente:'#f87171', agendada:'#3b82f6', realizada:'#34d399', 'nao-realizada':'#94a3b8' };
   const prioEmoji = { alta:'🔴', media:'🟡', normal:'🟢' };
   const respCor = { bispo:'#c9a84c', c1:'#5b9bd5', c2:'#6dbf8c', sec:'#e8b040' };
   const respNome = { bispo:'Bispo', c1:'1º Conselheiro', c2:'2º Conselheiro', sec:'Secretário' };
@@ -319,12 +320,16 @@ export async function responderConvite(id, resposta, sugestao = null) {
   const quandoPedido = sugestao?.data
     ? formatarData(sugestao.data) + (sugestao.hora ? ` às ${sugestao.hora}` : '')
     : '';
+  // O horário que o membro sugere é um pedido, não um agendamento: quem fecha a
+  // agenda é o bispado, que reenvia o convite. A mensagem precisa deixar isso
+  // claro, senão a pessoa sai achando que já está marcado.
   const txt = {
     confirmado: ['✅', 'Presença confirmada', 'Obrigado! O bispado já foi avisado.'],
     reagendar:  ['🔄', 'Pedido registrado',
-                 quandoPedido
-                   ? `O bispado recebeu seu pedido para <strong style="color:#c8d8e8">${esc(quandoPedido)}</strong> e confirma em breve.`
-                   : 'O bispado entrará em contato para combinar outra data.'],
+                 (quandoPedido
+                   ? `Anotamos sua sugestão de <strong style="color:#c8d8e8">${esc(quandoPedido)}</strong>. `
+                   : '') +
+                 'O bispado vai conferir a disponibilidade e enviar um novo convite com a data e o horário confirmados.'],
   }[resposta] || ['✅', 'Resposta registrada', 'Obrigado! O bispado foi informado.'];
 
   caixa.innerHTML = ok
