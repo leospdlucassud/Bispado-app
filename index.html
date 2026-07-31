@@ -689,10 +689,10 @@
       <h2 style="font-size:18px;color:#e8d080">🕊️ Planejador de Sacramentais</h2>
       <p style="font-size:12px;color:#8eacc8;margin-top:4px">Discursos, hinos e programação dos domingos</p>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn-sm" onclick="mudarMesSac(-1)" style="background:rgba(232,208,128,.15);color:#e8d080;border:1px solid rgba(232,208,128,.3);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px">‹</button>
+    <div style="display:flex;gap:8px;align-items:center" id="sac-nav">
+      <button class="btn-sm" data-mes="-1" style="background:rgba(232,208,128,.15);color:#e8d080;border:1px solid rgba(232,208,128,.3);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px">‹</button>
       <span id="sac-mes-titulo" style="color:#e8d080;font-size:14px;font-weight:600;min-width:120px;text-align:center"></span>
-      <button class="btn-sm" onclick="mudarMesSac(1)" style="background:rgba(232,208,128,.15);color:#e8d080;border:1px solid rgba(232,208,128,.3);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px">›</button>
+      <button class="btn-sm" data-mes="1" style="background:rgba(232,208,128,.15);color:#e8d080;border:1px solid rgba(232,208,128,.3);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px">›</button>
     </div>
   </div>
 
@@ -725,7 +725,7 @@
         <option value="jovens">Jovens</option>
         <option value="outros">Outros</option>
       </select>
-      <button onclick="adicionarOrador()" style="background:#e8d080;color:#0d1b2a;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:600">+ Adicionar</button>
+      <button id="sac-add-orador" style="background:#e8d080;color:#0d1b2a;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:600">+ Adicionar</button>
     </div>
   </details>
 
@@ -905,7 +905,7 @@
   Bispado <span data-ala></span> · A Igreja de Jesus Cristo dos Santos dos Últimos Dias<br>
   Consulte o <a href="https://www.churchofjesuschrist.org/study/manual/general-handbook?lang=por" target="_blank">Manual Geral</a> na aba 📖 Manual<br>
   <span style="color:#4a6a8a;margin-top:4px;display:inline-block">© 2025 Léo Lucas · Todos os direitos reservados</span><br>
-  <span style="color:#2a4060;font-size:10px;margin-top:6px;display:inline-block">v5.3.6 · 11/11/2026</span>
+  <span style="color:#2a4060;font-size:10px;margin-top:6px;display:inline-block">v5.3.7 · 31/07/2026</span>
 </footer>
 
 <!-- ES Modules: main.js importa o grafo de módulos (js/) na ordem de dependência -->

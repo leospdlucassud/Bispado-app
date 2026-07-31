@@ -21,7 +21,7 @@ export function renderBancoOradores() {
     if (!el) continue;
     const nomes = banco[key] || [];
     el.innerHTML = nomes.length
-      ? nomes.map((n,i) => `<div style="display:flex;align-items:center;gap:4px"><span>${n}</span><span onclick="removerOrador('${key}',${i})" style="cursor:pointer;color:#e05555;font-size:10px;opacity:.6" title="Remover">✕</span></div>`).join('')
+      ? nomes.map((n,i) => `<div style="display:flex;align-items:center;gap:4px"><span>${n}</span><span data-act="remover" data-grupo="${key}" data-idx="${i}" style="cursor:pointer;color:#e05555;font-size:10px;opacity:.6" title="Remover">✕</span></div>`).join('')
       : '<span style="opacity:.4">—</span>';
   }
 }
@@ -155,7 +155,7 @@ export function renderSacramentais() {
       ? `<div><span style="color:${cor};font-size:10px">${n}º Orador</span><div style="color:#c8d8e8">${esc(sac['orador'+n])}${sac['tema'+n] ? ` <span style="color:#4a6a8a">· ${esc(sac['tema'+n])}</span>` : ''}</div></div>` : '';
 
     return `
-    <div class="card" style="border-color:${borderColor};${opacity};margin-bottom:12px;cursor:pointer" onclick="abrirModalSac('${dk}')">
+    <div class="card" style="border-color:${borderColor};${opacity};margin-bottom:12px;cursor:pointer" data-act="abrir" data-dk="${dk}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div style="display:flex;align-items:center">
           ${statusDot}
@@ -164,7 +164,7 @@ export function renderSacramentais() {
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           ${freq}
-          ${preenchido ? `<button class="btn-secondary" style="font-size:11px;padding:3px 9px" onclick="event.stopPropagation();imprimirAtaSacramental('${dk}')">📄 PDF</button>` : ''}
+          ${preenchido ? `<button class="btn-secondary" style="font-size:11px;padding:3px 9px" data-act="pdf" data-dk="${dk}">📄 PDF</button>` : ''}
         </div>
       </div>
 
@@ -239,7 +239,7 @@ export function abrirModalSac(dataKey) {
   document.getElementById('modal-sacramental-content').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <h3 style="color:#e8d080;font-size:16px">🕊️ ${titulo}</h3>
-      <span onclick="fecharModal('modal-sacramental')" style="cursor:pointer;color:#4a6a8a;font-size:20px">✕</span>
+      <span data-act="fechar" style="cursor:pointer;color:#4a6a8a;font-size:20px">✕</span>
     </div>
 
     ${datalist}
@@ -263,10 +263,10 @@ export function abrirModalSac(dataKey) {
     </div>
 
     <div style="display:flex;gap:8px;margin-top:16px">
-      <button onclick="salvarSac('${dataKey}')" style="flex:1;background:#e8d080;color:#0d1b2a;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;font-size:13px">Salvar</button>
-      ${sac.id ? `<button onclick="imprimirAtaSacramental('${dataKey}')" style="background:rgba(232,208,128,.15);color:#e8d080;border:1px solid rgba(232,208,128,.35);border-radius:10px;padding:11px 16px;cursor:pointer;font-size:13px">📄 PDF</button>` : ''}
-      ${sac.id ? `<button onclick="excluirSac('${sac.id}')" style="background:rgba(224,85,85,.15);color:#e05555;border:1px solid rgba(224,85,85,.3);border-radius:10px;padding:11px 16px;cursor:pointer;font-size:13px">Excluir</button>` : ''}
-      <button onclick="fecharModal('modal-sacramental')" style="background:rgba(74,106,138,.25);color:#8eacc8;border:none;border-radius:10px;padding:11px 16px;cursor:pointer;font-size:13px">Cancelar</button>
+      <button data-act="salvar" data-dk="${dataKey}" style="flex:1;background:#e8d080;color:#0d1b2a;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;font-size:13px">Salvar</button>
+      ${sac.id ? `<button data-act="pdf" data-dk="${dataKey}" style="background:rgba(232,208,128,.15);color:#e8d080;border:1px solid rgba(232,208,128,.35);border-radius:10px;padding:11px 16px;cursor:pointer;font-size:13px">📄 PDF</button>` : ''}
+      ${sac.id ? `<button data-act="excluir" data-id="${sac.id}" style="background:rgba(224,85,85,.15);color:#e05555;border:1px solid rgba(224,85,85,.3);border-radius:10px;padding:11px 16px;cursor:pointer;font-size:13px">Excluir</button>` : ''}
+      <button data-act="fechar" style="background:rgba(74,106,138,.25);color:#8eacc8;border:none;border-radius:10px;padding:11px 16px;cursor:pointer;font-size:13px">Cancelar</button>
     </div>`;
   abrirModal('modal-sacramental');
 }
@@ -308,3 +308,38 @@ export async function excluirSac(id) {
   fecharModal('modal-sacramental');
   renderSacramentais();
 }
+
+function ligarSacramental() {
+  document.getElementById('sac-nav')?.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-mes]');
+    if (btn) mudarMesSac(Number(btn.dataset.mes));
+  });
+
+  document.getElementById('sac-add-orador')?.addEventListener('click', adicionarOrador);
+
+  // o banco é recriado a cada renderBancoOradores — daí a delegação no container
+  document.getElementById('banco-oradores')?.addEventListener('click', e => {
+    const x = e.target.closest('[data-act="remover"]');
+    if (x) removerOrador(x.dataset.grupo, Number(x.dataset.idx));
+  });
+
+  document.getElementById('lista-sacramentais')?.addEventListener('click', e => {
+    // o PDF fica dentro do card: tratar antes para não abrir o modal junto
+    const pdf = e.target.closest('button[data-act="pdf"]');
+    if (pdf) { imprimirAtaSacramental(pdf.dataset.dk); return; }
+    const card = e.target.closest('[data-act="abrir"]');
+    if (card) abrirModalSac(card.dataset.dk);
+  });
+
+  document.getElementById('modal-sacramental')?.addEventListener('click', e => {
+    const el = e.target.closest('[data-act]');
+    if (!el) return;
+    switch (el.dataset.act) {
+      case 'fechar':  fecharModal('modal-sacramental'); break;
+      case 'salvar':  salvarSac(el.dataset.dk); break;
+      case 'pdf':     imprimirAtaSacramental(el.dataset.dk); break;
+      case 'excluir': excluirSac(el.dataset.id); break;
+    }
+  });
+}
+ligarSacramental();
