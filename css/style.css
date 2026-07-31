@@ -113,7 +113,30 @@
     --gold:#7a5c0f; --border:#dcd0b8;
   }
   [data-theme="light"] body { background:var(--bg1); color:var(--text1); }
-  [data-theme="light"] header { background:linear-gradient(135deg, #1e3a5c 0%, #0f1d2e 100%); }
+  /* Cabeçalho no tema claro. A regra existia, mas com dois tons de azul-escuro
+     praticamente iguais aos do tema escuro — o cabeçalho não clareava.
+     Tudo dentro dele era pensado para fundo escuro (h1 branco, dourado claro),
+     então cada elemento precisa da sua variante. */
+  [data-theme="light"] header {
+    background:linear-gradient(135deg, #fffdf7 0%, #f2e8d2 100%);
+    border-bottom:2px solid var(--gold);
+  }
+  [data-theme="light"] header h1 { color:var(--text1); }
+  [data-theme="light"] header p { color:var(--text2); }
+  [data-theme="light"] header .church-logo { color:var(--gold); }
+  /* o SVG do templo traz stroke/fill dourado-claro como atributo; o CSS vence */
+  [data-theme="light"] header svg g { stroke:var(--gold); }
+  [data-theme="light"] header svg polygon,
+  [data-theme="light"] header svg circle { fill:var(--gold); }
+  [data-theme="light"] .quem-badge {
+    background:rgba(122,92,15,.12); color:var(--gold); border-color:rgba(122,92,15,.45);
+  }
+  [data-theme="light"] #btn-instalar-header {
+    border-color:var(--gold); background:rgba(122,92,15,.1); color:var(--gold);
+  }
+  [data-theme="light"] #btn-instalar-header:hover { background:rgba(122,92,15,.2); }
+  /* o dourado do tema claro é escuro: o texto do botão ativo precisa clarear */
+  [data-theme="light"] .theme-controls button.active-theme { color:var(--bg2); }
   [data-theme="light"] .manual-hero { background:linear-gradient(135deg, #f5e6c0, #faf3e0); border:1px solid #d8c48a; }
   [data-theme="light"] .manual-hero .mh-title { color:#8b6914; }
   [data-theme="light"] .manual-hero .mh-sub { color:var(--text2); }

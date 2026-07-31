@@ -241,10 +241,11 @@ export async function abrirTelaConfirmacao(id) {
     ? formatarData(e.data) + (e.hora ? `, às ${e.hora}` : '')
     : 'data a combinar';
 
+  // Só duas opções: quem não pode vir deve pedir outra data, não apenas recusar.
+  // ('recusado' segue reconhecido em selosConfirmacao, por causa dos registros antigos.)
   const opcoes = [
     ['confirmado', '✅ Confirmo minha presença', '#34d399'],
     ['reagendar',  '🔄 Preciso de outra data',   '#e8b040'],
-    ['recusado',   '❌ Não poderei ir',          '#e05555'],
   ];
 
   caixa.innerHTML = `
@@ -304,6 +305,9 @@ export async function responderConvite(id, resposta, sugestao = null) {
     const lista = await (await fetch(API_AGENDA)).json();
     const atual = (Array.isArray(lista) ? lista : []).find(x => String(x.id) === String(id)) || {};
     const campos = { ...atual, confirmacao: resposta, confirmadoEm: new Date().toISOString() };
+    // A resposta do membro move o status do card: quem confirmou está agendado.
+    // Quem pediu outra data mantém o status — ainda não há data combinada.
+    if (resposta === 'confirmado' && atual.status === 'pendente') campos.status = 'agendada';
     if (sugestao) { campos.sugestaoData = sugestao.data; campos.sugestaoHora = sugestao.hora; }
     const r = await fetch(`${API_AGENDA}?id=${encodeURIComponent(id)}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -321,8 +325,7 @@ export async function responderConvite(id, resposta, sugestao = null) {
                  quandoPedido
                    ? `O bispado recebeu seu pedido para <strong style="color:#c8d8e8">${esc(quandoPedido)}</strong> e confirma em breve.`
                    : 'O bispado entrará em contato para combinar outra data.'],
-    recusado:   ['❌', 'Resposta registrada', 'Obrigado por avisar. O bispado foi informado.'],
-  }[resposta];
+  }[resposta] || ['✅', 'Resposta registrada', 'Obrigado! O bispado foi informado.'];
 
   caixa.innerHTML = ok
     ? `<div style="font-size:40px;margin-bottom:10px">${txt[0]}</div>
