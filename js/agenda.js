@@ -330,10 +330,49 @@ export async function responderConvite(id, resposta, sugestao = null) {
   caixa.innerHTML = ok
     ? `<div style="font-size:40px;margin-bottom:10px">${txt[0]}</div>
        <h2 style="color:#e8d080;font-size:17px;margin-bottom:8px">${txt[1]}</h2>
-       <p style="color:#8eacc8;font-size:13px;line-height:1.6">${txt[2]}</p>`
+       <p style="color:#8eacc8;font-size:13px;line-height:1.6">${txt[2]}</p>
+       <div style="margin-top:20px;border-top:1px solid rgba(255,255,255,.08);padding-top:16px">
+         <button id="conf-fechar"
+           style="background:rgba(232,208,128,.15);color:#e8d080;border:1px solid rgba(232,208,128,.35);border-radius:12px;padding:11px 22px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Fechar agora</button>
+         <p id="conf-contagem" style="color:#4a6a8a;font-size:11px;margin-top:10px">Esta janela fecha sozinha em <strong>20</strong>s</p>
+       </div>`
     : `<div style="font-size:36px;margin-bottom:10px">⚠️</div>
        <h2 style="color:#e05555;font-size:16px;margin-bottom:8px">Não deu para enviar</h2>
        <p style="color:#8eacc8;font-size:13px;line-height:1.6">Verifique sua conexão e tente de novo, ou responda direto ao bispado pelo WhatsApp.</p>`;
+
+  // só encerra quando a resposta foi mesmo registrada; na falha o membro
+  // precisa da tela aberta para tentar de novo
+  if (ok) agendarFechamento(caixa);
+}
+
+// Fecha a aba do convite: aos 20s ou no botão.
+// `window.close()` só encerra janelas abertas por script — abrindo o link pelo
+// WhatsApp o navegador quase sempre recusa. Por isso a tentativa é verificada:
+// se a aba continuar de pé, o aviso vira "pode fechar", em vez de deixar uma
+// contagem que não cumpre o que promete.
+export function agendarFechamento(caixa, segundos = 20) {
+  const aviso = caixa.querySelector('#conf-contagem');
+  const botao = caixa.querySelector('#conf-fechar');
+  let restam = segundos;
+
+  const tentarFechar = () => {
+    clearInterval(cronometro);
+    if (aviso) aviso.textContent = 'Fechando…';
+    window.close();
+    // se em 400ms ainda estamos aqui, o navegador bloqueou o fechamento
+    setTimeout(() => {
+      if (botao) botao.style.display = 'none';
+      if (aviso) aviso.textContent = 'Sua resposta foi registrada. Pode fechar esta aba.';
+    }, 400);
+  };
+
+  const cronometro = setInterval(() => {
+    restam--;
+    if (restam <= 0) return tentarFechar();
+    if (aviso) aviso.innerHTML = `Esta janela fecha sozinha em <strong>${restam}</strong>s`;
+  }, 1000);
+
+  botao?.addEventListener('click', tentarFechar);
 }
 
 export function setFilAgenda(val, btn) {
