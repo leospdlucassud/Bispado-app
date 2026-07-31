@@ -9,16 +9,37 @@ const H = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-async function getAll(store, key) {
-  try {
-    const raw = await store.get(key, { type: "json" });
-    if (Array.isArray(raw)) return raw;
-    await store.setJSON(key, []);
-    return [];
-  } catch {
-    await store.setJSON(key, []).catch(() => {});
-    return [];
+// Lê a coleção junto com o ETag, usado depois para gravar sem atropelar
+// escrita de outra pessoa. NUNCA grava aqui: falha de leitura tem de virar erro,
+// senão um problema momentâneo do Blobs apagaria a coleção inteira.
+async function lerColecao(store, key) {
+  const res = await store.getWithMetadata(key, { type: "json" });
+  if (!res || res.data == null) return { data: [], etag: null }; // ainda não existe
+  if (!Array.isArray(res.data)) throw new Error(`Conteúdo inesperado em "${key}"`);
+  return { data: res.data, etag: res.etag ?? null };
+}
+
+// Grava só se ninguém tiver alterado a chave desde a leitura (compare-and-swap).
+// Devolve false quando outra escrita chegou primeiro, para o chamador tentar de novo.
+async function gravarSeIntacto(store, key, data, etag) {
+  const r = await store.setJSON(key, data, etag ? { onlyIfMatch: etag } : { onlyIfNew: true });
+  // SDK antiga não devolve { modified }: nesse caso mantém o comportamento de sempre
+  return r?.modified !== false;
+}
+
+// Repete ler→alterar→gravar enquanto outra escrita ganhar a corrida.
+// `mutar` recebe a lista atual e devolve { data, resposta }.
+async function alterar(store, key, mutar, tentativas = 4) {
+  for (let i = 0; i < tentativas; i++) {
+    const { data, etag } = await lerColecao(store, key);
+    const r = mutar(data);
+    if (r.erro) return r.erro;
+    if (await gravarSeIntacto(store, key, r.data, etag)) return r.resposta();
   }
+  return new Response(
+    JSON.stringify({ error: "Conflito de escrita — tente de novo" }),
+    { status: 409, headers: H }
+  );
 }
 
 // Cria um handler CRUD completo para uma coleção guardada em Netlify Blobs.
@@ -36,29 +57,38 @@ export function crudHandler(key) {
 
     try {
       if (req.method === "GET") {
-        return new Response(JSON.stringify(await getAll(store, key)), { headers: H });
+        const { data } = await lerColecao(store, key);
+        return new Response(JSON.stringify(data), { headers: H });
       }
       if (req.method === "POST") {
         const body = await req.json();
-        const data = await getAll(store, key);
         const item = { ...body, id: Date.now().toString(), criadoEm: new Date().toISOString() };
-        data.push(item);
-        await store.setJSON(key, data);
-        return new Response(JSON.stringify(item), { status: 201, headers: H });
+        return await alterar(store, key, data => ({
+          data: [...data, item],
+          resposta: () => new Response(JSON.stringify(item), { status: 201, headers: H }),
+        }));
       }
       if (req.method === "PUT" && id) {
         const body = await req.json();
-        const data = await getAll(store, key);
-        const idx = data.findIndex(i => i.id === id);
-        if (idx === -1) return new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: H });
-        data[idx] = { ...data[idx], ...body, atualizadoEm: new Date().toISOString() };
-        await store.setJSON(key, data);
-        return new Response(JSON.stringify(data[idx]), { headers: H });
+        return await alterar(store, key, data => {
+          const idx = data.findIndex(i => i.id === id);
+          if (idx === -1) {
+            return { erro: new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: H }) };
+          }
+          const atualizado = { ...data[idx], ...body, atualizadoEm: new Date().toISOString() };
+          const novo = [...data];
+          novo[idx] = atualizado;
+          return {
+            data: novo,
+            resposta: () => new Response(JSON.stringify(atualizado), { headers: H }),
+          };
+        });
       }
       if (req.method === "DELETE" && id) {
-        const data = await getAll(store, key);
-        await store.setJSON(key, data.filter(i => i.id !== id));
-        return new Response(JSON.stringify({ ok: true }), { headers: H });
+        return await alterar(store, key, data => ({
+          data: data.filter(i => i.id !== id),
+          resposta: () => new Response(JSON.stringify({ ok: true }), { headers: H }),
+        }));
       }
       return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers: H });
     } catch (e) {

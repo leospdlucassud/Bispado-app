@@ -7,7 +7,7 @@ import { API_DESIG, CARGOS, DADOS } from './config.js';
 import { confirmar, pedirTexto } from './dialogo.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
-import { formatarData } from './utils.js';
+import { esc, formatarData } from './utils.js';
 
 export let filDesig = 'ativas';
 
@@ -32,14 +32,14 @@ export function renderDesignacoes() {
   el.innerHTML = lista.map(d=>{
     const isPerm = d.tipo === 'permanente';
     const resps = Array.isArray(d.responsaveis) ? d.responsaveis : [d.responsavel||''];
-    const respsHtml = resps.map(r => `<span style="color:${respCor[r]||'#8eacc8'}">👤 ${r}</span>`).join(' ');
+    const respsHtml = resps.map(r => `<span style="color:${respCor[r]||'#8eacc8'}">👤 ${esc(r)}</span>`).join(' ');
     const statusLabel = isPerm
       ? (d.status==='inativa'?'⏸ Inativa':'📌 Ativa')
       : (d.status==='andamento'?'Em Andamento':d.status.charAt(0).toUpperCase()+d.status.slice(1));
     const statusClass = isPerm ? (d.status==='inativa'?'nao-realizada':'realizada') : d.status;
     return `<div class="desig-card" style="${isPerm?'border-left:3px solid #a78bfa;':''}${d.status==='inativa'?'opacity:.55':''}">
       <div class="desig-header">
-        <span class="desig-tarefa">${d.tarefa}</span>
+        <span class="desig-tarefa">${esc(d.tarefa)}</span>
         <div style="display:flex;gap:4px;align-items:center">
           ${isPerm?'<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:rgba(167,139,250,.15);color:#a78bfa;font-weight:600">Permanente</span>':''}
           ${d.alarme?'<span title="Alarme configurado" style="font-size:14px">🔔</span>':''}
@@ -50,8 +50,8 @@ export function renderDesignacoes() {
         ${respsHtml}
         ${d.prazo?`<span>📅 ${formatarData(d.prazo)}</span>`:''}
       </div>
-      ${d.obs?`<div class="ent-obs">${d.obs}</div>`:''}
-      ${d.obs_conclusao?`<div class="ent-obs" style="border-left:3px solid #34d399;padding-left:8px;margin-top:4px;color:#34d399">✔ ${d.obs_conclusao}</div>`:''}
+      ${d.obs?`<div class="ent-obs">${esc(d.obs)}</div>`:''}
+      ${d.obs_conclusao?`<div class="ent-obs" style="border-left:3px solid #34d399;padding-left:8px;margin-top:4px;color:#34d399">✔ ${esc(d.obs_conclusao)}</div>`:''}
       <div class="desig-status">
         ${!isPerm?`<div class="progress-bar"><div class="progress-fill" style="width:${pct[d.status]||0}%"></div></div>`:''}
         <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -80,7 +80,7 @@ export function abrirModalDesig(id){
   const isPerm = d?.tipo === 'permanente';
   document.getElementById('modal-desig-content').innerHTML=`
     <h3>${d?'✏️ Editar':'➕ Nova'} Designação <button class="modal-close" data-act="fechar">✕</button></h3>
-    <div class="form-group"><label>Tarefa</label><input type="text" class="form-input" id="de-tarefa" value="${d?.tarefa||''}" placeholder="Descrição da designação…"></div>
+    <div class="form-group"><label>Tarefa</label><input type="text" class="form-input" id="de-tarefa" value="${esc(d?.tarefa||'')}" placeholder="Descrição da designação…"></div>
     <div class="form-group"><label>Tipo</label>
       <select class="form-select" id="de-tipo">
         <option value="pontual" ${!isPerm?'selected':''}>📋 Pontual</option>
@@ -109,7 +109,7 @@ export function abrirModalDesig(id){
         </select>
       </div>
     </div>
-    <div class="form-group"><label>Observações</label><textarea class="form-textarea" id="de-obs" style="min-height:60px" placeholder="Detalhes adicionais…">${d?.obs||''}</textarea></div>
+    <div class="form-group"><label>Observações</label><textarea class="form-textarea" id="de-obs" style="min-height:60px" placeholder="Detalhes adicionais…">${esc(d?.obs||'')}</textarea></div>
     <button class="btn-primary" data-act="salvar" data-id="${id||''}">💾 Salvar</button>
   `;
   abrirModal('modal-desig');

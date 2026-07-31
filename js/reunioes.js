@@ -8,7 +8,7 @@ import { confirmar } from './dialogo.js';
 import { imprimirAtaPDF } from './pdf.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
-import { formatarData } from './utils.js';
+import { esc, formatarData } from './utils.js';
 
 export const TIPOS_REUNIAO = [
   { k:'conselho',   r:'Conselho da Ala',              c:'#a78bfa' },
@@ -89,14 +89,14 @@ export function renderReunioes() {
           <button class="btn-danger" data-act="excluir" data-id="${r.id}">🗑</button>
         </div>
       </div>
-      ${r.pauta?`<div class="reuniao-pauta">${r.pauta}</div>`:''}
-      ${r.participantes?.length?`<div style="font-size:11px;color:#8eacc8;margin-top:4px">👥 ${r.participantes.join(', ')}</div>`:''}
+      ${r.pauta?`<div class="reuniao-pauta">${esc(r.pauta)}</div>`:''}
+      ${r.participantes?.length?`<div style="font-size:11px;color:#8eacc8;margin-top:4px">👥 ${esc(r.participantes.join(', '))}</div>`:''}
       ${r.itens?.length?`
         <div class="reuniao-itens">
           ${r.itens.map((it,i)=>`
             <div class="reuniao-item">
               <div class="item-check ${it.feito?'checked':''}" data-act="item" data-id="${r.id}" data-idx="${i}"></div>
-              <span style="${it.feito?'text-decoration:line-through;opacity:.5':''}">${it.texto}</span>
+              <span style="${it.feito?'text-decoration:line-through;opacity:.5':''}">${esc(it.texto)}</span>
             </div>
           `).join('')}
         </div>
@@ -140,15 +140,15 @@ export function abrirModalReuniao(id) {
     </div>
     <div class="form-group">
       <label>Participantes (separados por vírgula)</label>
-      <input type="text" class="form-input" id="re-partic" value="${partsVal}" placeholder="Bispo, 1º Conselheiro, 2º Conselheiro…">
+      <input type="text" class="form-input" id="re-partic" value="${esc(partsVal)}" placeholder="Bispo, 1º Conselheiro, 2º Conselheiro…">
     </div>
     <div class="form-group">
       <label>Pauta / Anotações</label>
-      <textarea class="form-textarea" id="re-pauta" placeholder="Registre os assuntos discutidos…">${r?.pauta||''}</textarea>
+      <textarea class="form-textarea" id="re-pauta" placeholder="Registre os assuntos discutidos…">${esc(r?.pauta||'')}</textarea>
     </div>
     <div class="form-group">
       <label>Itens de ação (um por linha)</label>
-      <textarea class="form-textarea" id="re-itens" placeholder="Verificar relatório trimestral&#10;Marcar entrevistas de jovens…">${itensVal}</textarea>
+      <textarea class="form-textarea" id="re-itens" placeholder="Verificar relatório trimestral&#10;Marcar entrevistas de jovens…">${esc(itensVal)}</textarea>
     </div>
     <button class="btn-primary" data-act="salvar" data-id="${id||''}">💾 Salvar</button>
   `;

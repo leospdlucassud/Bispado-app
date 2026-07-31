@@ -10,14 +10,34 @@ export const NOTAS_PRIV_KEY = 'notas_privadas';
 
 // Migração única: versões antigas guardavam sob "notas_privadas_anon"
 (function migrarNotasAntigas() {
-  const legado = localStorage.getItem('notas_privadas_anon');
-  if (legado && !localStorage.getItem(NOTAS_PRIV_KEY)) {
-    localStorage.setItem(NOTAS_PRIV_KEY, legado);
-    localStorage.removeItem('notas_privadas_anon');
-  }
+  try {
+    const legado = localStorage.getItem('notas_privadas_anon');
+    if (legado && !localStorage.getItem(NOTAS_PRIV_KEY)) {
+      localStorage.setItem(NOTAS_PRIV_KEY, legado);
+      localStorage.removeItem('notas_privadas_anon');
+    }
+  } catch (e) {}
 })();
 
-export let NOTAS_PRIVADAS = JSON.parse(localStorage.getItem(NOTAS_PRIV_KEY) || '[]');
+// Isto roda no carregamento do módulo: um JSON corrompido aqui derrubava o app
+// inteiro (nenhuma aba abria, sem erro visível). Na dúvida, começa vazio e
+// preserva o conteúdo suspeito numa chave à parte, para não perder nada.
+function lerNotasPrivadas() {
+  let bruto = null;
+  try { bruto = localStorage.getItem(NOTAS_PRIV_KEY); } catch (e) { return []; }
+  if (!bruto) return [];
+  try {
+    const v = JSON.parse(bruto);
+    if (Array.isArray(v)) return v;
+  } catch (e) {}
+  try {
+    localStorage.setItem(NOTAS_PRIV_KEY + '_corrompido', bruto);
+    localStorage.removeItem(NOTAS_PRIV_KEY);
+  } catch (e) {}
+  return [];
+}
+
+export let NOTAS_PRIVADAS = lerNotasPrivadas();
 export let NOTAS_COMPARTILHADAS = [];
 export let filNotas = 'todas';
 

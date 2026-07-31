@@ -23,11 +23,13 @@ export function setFilAcomp(val, btn) {
 }
 
 export async function loadAcompanhamentos() {
+  let ok = false;
   try {
     const data = await apiFetch(API_ACOMP);
-    if (Array.isArray(data)) DADOS.acompanhamentos = data;
+    if (Array.isArray(data)) { DADOS.acompanhamentos = data; ok = true; }
   } catch {}
   renderAcompanhamentos();
+  return ok;
 }
 
 // Unifica entrevistas marcadas e itens avulsos num formato só

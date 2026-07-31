@@ -12,36 +12,59 @@ import { renderSacramentais, sacCarregado, setSacCarregado } from './sacramental
 
 export function showSync(msg) {}  // mantido por compatibilidade
 
+// Devolve o botão de sincronizar sempre com a estrutura interna esperada.
+// Antes, quem escrevia innerHTML no botão apagava #sync-icone e .sync-label —
+// e a partir daí setSyncStatus caía no guard e virava um no-op silencioso.
+function elementosSync() {
+  const btn = document.getElementById('sync-btn');
+  if (!btn) return null;
+  let icon = btn.querySelector('.sync-icone');
+  let label = btn.querySelector('.sync-label');
+  if (!icon || !label) {
+    btn.innerHTML = '<span class="sync-icone" id="sync-icone">⟳</span><span class="sync-label"> Sincronizar</span>';
+    icon = btn.querySelector('.sync-icone');
+    label = btn.querySelector('.sync-label');
+  }
+  if (!icon.id) icon.id = 'sync-icone';
+  return { btn, icon, label };
+}
+
+// Troca só o texto do botão, preservando ícone e estrutura.
+export function rotuloSync(texto) {
+  const el = elementosSync();
+  if (el) el.label.textContent = texto;
+}
+
 export function setSyncStatus(status) {
-  const btn  = document.getElementById('sync-btn');
-  const icon = document.getElementById('sync-icone');
-  if (!btn || !icon) return;
+  const el = elementosSync();
+  if (!el) return;
+  const { btn, icon, label } = el;
   btn.className = 'sync-btn ' + status;
   btn.disabled = status === 'syncing';
   if (status === 'syncing') {
     icon.textContent = '⟳';
     icon.style.display = 'inline-block';
     icon.style.animation = 'spin-sync .8s linear infinite';
-    btn.querySelector('.sync-label').textContent = ' Sincronizando…';
+    label.textContent = ' Sincronizando…';
   } else if (status === 'ok') {
     icon.textContent = '✓';
     icon.style.animation = '';
-    btn.querySelector('.sync-label').textContent = ' Sincronizado';
+    label.textContent = ' Sincronizado';
     setTimeout(() => {
       if (btn.className.includes('ok')) {
         icon.textContent = '⟳';
-        btn.querySelector('.sync-label').textContent = ' Sincronizar';
+        label.textContent = ' Sincronizar';
         btn.className = 'sync-btn';
       }
     }, 3000);
   } else if (status === 'erro') {
     icon.textContent = '⚠';
     icon.style.animation = '';
-    btn.querySelector('.sync-label').textContent = ' Sem conexão';
+    label.textContent = ' Sem conexão';
     setTimeout(() => {
       if (btn.className.includes('erro')) {
         icon.textContent = '⟳';
-        btn.querySelector('.sync-label').textContent = ' Sincronizar';
+        label.textContent = ' Sincronizar';
         btn.className = 'sync-btn';
       }
     }, 4000);
@@ -81,47 +104,62 @@ export async function apiFetch(url, method = 'GET', body = null) {
 // =============================================
 // LOAD / SAVE por recurso
 // =============================================
+// Cada load* devolve true se conseguiu trazer dados do servidor. Sem isso o
+// Promise.all de carregarDados nunca rejeitava e o app dizia "Sincronizado"
+// mesmo sem rede.
 export async function loadAgenda() {
   try {
     const data = await apiFetch(API_AGENDA);
-    if (Array.isArray(data)) { DADOS.agenda = data; renderAgenda(); }
-  } catch(e) { renderAgenda(); }
+    if (Array.isArray(data)) { DADOS.agenda = data; renderAgenda(); return true; }
+    return false;
+  } catch(e) { renderAgenda(); return false; }
 }
 
 export async function loadReunioes() {
   try {
     const data = await apiFetch(API_REUNIOES);
-    if (Array.isArray(data)) { DADOS.reunioes = data; renderReunioes(); }
-  } catch(e) { renderReunioes(); }
+    if (Array.isArray(data)) { DADOS.reunioes = data; renderReunioes(); return true; }
+    return false;
+  } catch(e) { renderReunioes(); return false; }
 }
 
 export async function loadDesignacoes() {
   try {
     const data = await apiFetch(API_DESIG);
-    if (Array.isArray(data)) { DADOS.designacoes = data; renderDesignacoes(); }
-  } catch(e) { renderDesignacoes(); }
+    if (Array.isArray(data)) { DADOS.designacoes = data; renderDesignacoes(); return true; }
+    return false;
+  } catch(e) { renderDesignacoes(); return false; }
 }
 
 export async function loadEventos() {
   try {
     const data = await apiFetch(API_EVENTOS);
-    if (Array.isArray(data)) { DADOS.eventos_extras = data; renderCalendario(); }
-  } catch(e) { renderCalendario(); }
+    if (Array.isArray(data)) { DADOS.eventos_extras = data; renderCalendario(); return true; }
+    return false;
+  } catch(e) { renderCalendario(); return false; }
 }
 
 export async function loadSacramentais() {
   try {
     const data = await apiFetch(API_SAC);
-    if (Array.isArray(data)) { DADOS.sacramentais = data; setSacCarregado(true); renderSacramentais(); }
-  } catch(e) { if (sacCarregado) renderSacramentais(); }
+    if (Array.isArray(data)) { DADOS.sacramentais = data; setSacCarregado(true); renderSacramentais(); return true; }
+    return false;
+  } catch(e) { if (sacCarregado) renderSacramentais(); return false; }
+}
+
+async function carregarTudo() {
+  const r = await Promise.all([
+    loadAgenda(), loadReunioes(), loadDesignacoes(),
+    loadEventos(), loadSacramentais(), loadAcompanhamentos(),
+  ]);
+  return r.every(Boolean);
 }
 
 export async function carregarDados() {
   setSyncStatus('syncing');
   try {
-    await Promise.all([loadAgenda(), loadReunioes(), loadDesignacoes(), loadEventos(), loadSacramentais(), loadAcompanhamentos()]);
-    atualizarUltimaSinc();
-    setSyncStatus('ok');
+    if (await carregarTudo()) { atualizarUltimaSinc(); setSyncStatus('ok'); }
+    else setSyncStatus('erro');
   } catch(e) {
     setSyncStatus('erro');
   }
@@ -132,9 +170,8 @@ export async function sincronizarManual() {
   limparCacheApp(); // limpa cache do app durante sync manual
   try {
     await enviarFilaPendente();
-    await Promise.all([loadAgenda(), loadReunioes(), loadDesignacoes(), loadEventos(), loadSacramentais(), loadAcompanhamentos()]);
-    atualizarUltimaSinc();
-    setSyncStatus('ok');
+    if (await carregarTudo()) { atualizarUltimaSinc(); setSyncStatus('ok'); }
+    else setSyncStatus('erro');
   } catch(e) {
     setSyncStatus('erro');
   }

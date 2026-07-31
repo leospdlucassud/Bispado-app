@@ -7,6 +7,7 @@ import { confirmar } from './dialogo.js';
 import { importarPdfMembros } from './membros-import.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { USUARIO, toast } from './usuario.js';
+import { esc } from './utils.js';
 
 export const API_MEMBROS = '/api/membros';
 export const MOTIVOS_ENTRADA = [
@@ -34,10 +35,15 @@ export let ROSTER_ATUALIZADO = null; // quando o quadro veio de um PDF importado
 export function setMembrosSaidos(ids) { MEMBROS_SAIDOS = ids; }
 export function setRosterAtualizado(quando) { ROSTER_ATUALIZADO = quando; }
 
+// Enquanto o GET não tiver dado certo, o que está na memória não representa o
+// servidor — gravar por cima apagaria histórico e saídas de verdade.
+export let movimentacoesCarregadas = false;
+
 export async function carregarMovimentacoes() {
   try {
     const res = await fetch(API_MEMBROS);
     if (res.ok) {
+      movimentacoesCarregadas = true;
       const data = await res.json();
       if (data.movimentacoes) MOVIMENTACOES = data.movimentacoes;
       if (data.saidos) MEMBROS_SAIDOS = data.saidos;
@@ -58,12 +64,21 @@ export async function carregarMovimentacoes() {
 }
 
 export async function salvarDadosMembros() {
+  if (!movimentacoesCarregadas) {
+    toast('Sem os dados do servidor ainda — a alteração não foi enviada. Sincronize e tente de novo.');
+    return false;
+  }
   const adicionados = MEMBROS.filter(m => m.id > 900000);
   // sem 'roster' no corpo, o servidor mantém o quadro já gravado
   const payload = { movimentacoes: MOVIMENTACOES, saidos: MEMBROS_SAIDOS, adicionados };
   try {
-    await fetch(API_MEMBROS, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
-  } catch(e) {}
+    const res = await fetch(API_MEMBROS, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return true;
+  } catch(e) {
+    toast('Sem conexão — a alteração ficou só neste aparelho');
+    return false;
+  }
 }
 
 export function setFilMembros(val, btn) {
@@ -120,8 +135,8 @@ export function renderMembros() {
       const ultimaMov = mov[0];
       return `<div class="membro-card ${saiu?'saiu':''}">
         <div>
-          <div class="membro-nome">${m.name}</div>
-          <div class="membro-info">${m.gender==='M'?'♂':'♀'} · ${m.age||'?'} anos${ultimaMov?' · '+ultimaMov.motivo:''}</div>
+          <div class="membro-nome">${esc(m.name)}</div>
+          <div class="membro-info">${m.gender==='M'?'♂':'♀'} · ${esc(m.age||'?')} anos${ultimaMov?' · '+esc(ultimaMov.motivo):''}</div>
         </div>
         ${saiu?`<span class="membro-badge saida">Saiu</span>`:`<span class="membro-badge entrada">Ativo</span>`}
       </div>`;
@@ -139,12 +154,12 @@ export function renderHistorico(el, busca) {
     const isFalecimento = m.motivo === 'Falecimento';
     return `<div class="mov-card ${isEntrada?'entrada':'saida'}">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <span style="font-weight:700;color:#e8edf2">${m.nome||'—'}</span>
+        <span style="font-weight:700;color:#e8edf2">${esc(m.nome||'—')}</span>
         <span class="membro-badge ${isEntrada?'entrada':isFalecimento?'falecimento':'saida'}">${isEntrada?'↓ Entrada':isFalecimento?'✝ Falecimento':'↑ Saída'}</span>
       </div>
-      <div style="font-size:12px;color:#8eacc8">📋 ${m.motivo}</div>
-      ${m.obs?`<div style="font-size:11px;color:#6a8fa8;margin-top:4px">📝 ${m.obs}</div>`:''}
-      <div style="font-size:10px;color:#445566;margin-top:4px">📅 ${m.data?new Date(m.data).toLocaleDateString('pt-BR'):''} · 👤 ${m.registradoPor||'—'}</div>
+      <div style="font-size:12px;color:#8eacc8">📋 ${esc(m.motivo)}</div>
+      ${m.obs?`<div style="font-size:11px;color:#6a8fa8;margin-top:4px">📝 ${esc(m.obs)}</div>`:''}
+      <div style="font-size:10px;color:#445566;margin-top:4px">📅 ${m.data?new Date(m.data).toLocaleDateString('pt-BR'):''} · 👤 ${esc(m.registradoPor||'—')}</div>
     </div>`;
   }).join('');
 }
@@ -196,13 +211,13 @@ export async function salvarEntrada() {
 export function abrirModalSaida() {
   const motivosOpts = MOTIVOS_SAIDA.map(m => `<option value="${m}">${m}</option>`).join('');
   const membrosAtivos = MEMBROS.filter(m => !MEMBROS_SAIDOS.includes(m.id)).sort((a,b) => a.name.localeCompare(b.name));
-  const membrosOpts = membrosAtivos.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+  const membrosOpts = membrosAtivos.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
 
   document.getElementById('modal-agenda-content').innerHTML = `
     <h3>📤 Registrar Saída de Membro <button class="modal-close" data-act="fechar">✕</button></h3>
     <div class="form-group"><label>Membro</label>
       <input list="dl-saida-membros" class="form-input" id="ms-membro-nome" placeholder="Digite o nome do membro…">
-      <datalist id="dl-saida-membros">${membrosAtivos.map(m=>`<option value="${m.name}">`).join('')}</datalist>
+      <datalist id="dl-saida-membros">${membrosAtivos.map(m=>`<option value="${esc(m.name)}">`).join('')}</datalist>
       <input type="hidden" id="ms-membro-id">
     </div>
     <div class="form-group"><label>Motivo da Saída</label><select class="form-select" id="ms-motivo">${motivosOpts}</select></div>

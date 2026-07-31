@@ -12,7 +12,9 @@ import { abrirModal, fecharModal } from './ui.js';
 import { podeVer, toast } from './usuario.js';
 import { esc, formatarData } from './utils.js';
 
-export let filAgenda = 'ativas';
+// 'todas' para bater com o botão marcado como active no index.html — antes
+// iniciava em 'ativas' e as realizadas sumiam com "Todas" aceso.
+export let filAgenda = 'todas';
 
 export const TIPOS_ENTREVISTA = [
   // Recomendações
@@ -100,20 +102,20 @@ export function renderAgenda() {
     <div class="entrevista-card" style="border-color:${statusCor[e.status]||'#445566'}">
       <div class="ent-header">
         <span class="ent-prioridade">${prioEmoji[e.prioridade]||'🟢'}</span>
-        <span class="ent-nome">${e.membro}</span>
+        <span class="ent-nome">${esc(e.membro)}</span>
         ${e.sigiloso?'<span class="selo-sigilo">🔒 Sigiloso</span>':''}
         ${e.acompanhar?'<span style="font-size:10px;color:#fbbf24">🧭</span>':''}
         <span class="status-badge status-${e.status}">${e.status==='nao-realizada'?'Não Realizada':e.status.charAt(0).toUpperCase()+e.status.slice(1)}</span>
       </div>
       <div class="ent-info">
-        <span>📋 ${e.tipo}</span>
-        <span style="color:${respCor[e.responsavel]||'#8eacc8'}">👤 ${respNome[e.responsavel]||e.responsavel}</span>
+        <span>📋 ${esc(e.tipo)}</span>
+        <span style="color:${respCor[e.responsavel]||'#8eacc8'}">👤 ${esc(respNome[e.responsavel]||e.responsavel)}</span>
         ${e.data?`<span>📅 ${formatarData(e.data)}${e.hora?` às ${e.hora}`:''}</span>`:''}
         ${e.reagendamentos?.length?`<span>🔄 Reagendado ${e.reagendamentos.length}x</span>`:''}
         ${selosConfirmacao(e)}
       </div>
-      ${e.obs?`<div class="ent-obs">${e.obs}</div>`:''}
-      ${e.obs_conclusao?`<div class="ent-obs" style="border-left:3px solid #34d399;padding-left:8px;margin-top:4px;color:#34d399">✔ ${e.obs_conclusao}</div>`:''}
+      ${e.obs?`<div class="ent-obs">${esc(e.obs)}</div>`:''}
+      ${e.obs_conclusao?`<div class="ent-obs" style="border-left:3px solid #34d399;padding-left:8px;margin-top:4px;color:#34d399">✔ ${esc(e.obs_conclusao)}</div>`:''}
       <div class="ent-actions">
         ${e.status==='pendente'||e.status==='agendada'?`
           ${botaoWhatsApp(e)}
@@ -300,14 +302,14 @@ export function setFilAgenda(val, btn) {
 
 export function abrirModalAgenda(id) {
   const e = id ? DADOS.agenda.find(x=>x.id===id) : null;
-  const membrosOptions = MEMBROS.map(m=>`<option value="${m.name}" ${e?.membro===m.name?'selected':''}>${m.name}</option>`).join('');
-  const tiposOptions = TIPOS_ENTREVISTA.map(t=>`<option value="${t}" ${e?.tipo===t?'selected':''}>${t}</option>`).join('');
+  const membrosOptions = MEMBROS.map(m=>`<option value="${esc(m.name)}" ${e?.membro===m.name?'selected':''}>${esc(m.name)}</option>`).join('');
+  const tiposOptions = TIPOS_ENTREVISTA.map(t=>`<option value="${esc(t)}" ${e?.tipo===t?'selected':''}>${esc(t)}</option>`).join('');
 
   document.getElementById('modal-agenda-content').innerHTML = `
     <h3>${e?'✏️ Editar':'➕ Nova'} Entrevista <button class="modal-close" data-act="fechar">✕</button></h3>
     <div class="form-group">
       <label>Membro</label>
-      <input list="lista-membros-dl" class="form-input" id="ag-membro" placeholder="Digite o nome…" value="${e?.membro||''}">
+      <input list="lista-membros-dl" class="form-input" id="ag-membro" placeholder="Digite o nome…" value="${esc(e?.membro||'')}">
       <datalist id="lista-membros-dl">${membrosOptions}</datalist>
     </div>
     <div class="form-row">
@@ -344,12 +346,12 @@ export function abrirModalAgenda(id) {
       <div class="form-group">
         <label>WhatsApp <span style="opacity:.6;font-weight:400">(do quadro de membros)</span></label>
         <input type="text" class="form-input" id="ag-telefone" placeholder="(21) 90000-0000"
-               value="${e?.telefone || telefoneDoMembro(e?.membro || '')}">
+               value="${esc(e?.telefone || telefoneDoMembro(e?.membro || ''))}">
       </div>
     </div>
     <div class="form-group">
       <label>Observações (máx. 100 caracteres)</label>
-      <input type="text" class="form-input" id="ag-obs" maxlength="100" placeholder="Observações livres…" value="${e?.obs||''}">
+      <input type="text" class="form-input" id="ag-obs" maxlength="100" placeholder="Observações livres…" value="${esc(e?.obs||'')}">
     </div>
     <div class="form-group" style="background:rgba(255,255,255,.03);border-radius:10px;padding:10px 12px">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#c8d8e8;margin-bottom:8px">

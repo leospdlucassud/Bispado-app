@@ -94,7 +94,7 @@ export function doSearch(val){
     ? '1 resultado encontrado' : `${totalCount} resultados encontrados`;
 
   if(totalCount === 0){
-    hitsDiv.innerHTML = `<div class="search-no-results">😕 Nenhum resultado para "<strong>${val}</strong>"<br><small style="color:#3a5068;margin-top:6px;display:block">Tente um nome de membro, tema de discurso, tarefa, hino ou ordenança…</small></div>`;
+    hitsDiv.innerHTML = `<div class="search-no-results">😕 Nenhum resultado para "<strong>${esc(val)}</strong>"<br><small style="color:#3a5068;margin-top:6px;display:block">Tente um nome de membro, tema de discurso, tarefa, hino ou ordenança…</small></div>`;
     return;
   }
 
@@ -105,7 +105,7 @@ export function doSearch(val){
     const d = new Date(s.data + 'T12:00:00');
     const quem = [s.orador1, s.orador2, s.orador3].filter(Boolean).join(', ');
     const temas = [s.tema1, s.tema2, s.tema3].filter(Boolean).join(' · ');
-    const snippet = highlight([quem, temas].filter(Boolean).join(' — ').substring(0,120), val);
+    const snippet = highlight(esc([quem, temas].filter(Boolean).join(' — ').substring(0,120)), val);
     return `<div class="search-result-card" style="border-color:#e8d080">
       <div class="search-result-head"><span style="font-size:16px">🕊️</span><div style="flex:1">
         <div class="search-result-who" style="color:#e8d080">Sacramental</div>
@@ -117,11 +117,11 @@ export function doSearch(val){
 
   // Resultados de Entrevistas
   html += agendaMatches.map(e => {
-    const snippet = highlight([e.membro, e.tipo, e.obs||''].join(' — ').substring(0,120), val);
+    const snippet = highlight(esc([e.membro, e.tipo, e.obs||''].join(' — ').substring(0,120)), val);
     return `<div class="search-result-card" style="border-color:#34d399">
       <div class="search-result-head"><span style="font-size:16px">🗓️</span><div style="flex:1">
         <div class="search-result-who" style="color:#34d399">Agenda</div>
-        <div class="search-result-title">${highlight(e.membro, val)} — ${highlight(e.tipo, val)}</div>
+        <div class="search-result-title">${highlight(esc(e.membro), val)} — ${highlight(esc(e.tipo), val)}</div>
       </div><button data-act="ir" data-aba="agenda" style="background:#34d399;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
     </div>`;
@@ -141,11 +141,11 @@ export function doSearch(val){
 
   // Resultados de Designações
   html += desigMatches.map(d => {
-    const snippet = highlight([d.tarefa, d.responsavel||'', d.obs||''].join(' — ').substring(0,120), val);
+    const snippet = highlight(esc([d.tarefa, d.responsavel||'', d.obs||''].join(' — ').substring(0,120)), val);
     return `<div class="search-result-card" style="border-color:#f472b6">
       <div class="search-result-head"><span style="font-size:16px">✅</span><div style="flex:1">
         <div class="search-result-who" style="color:#f472b6">Designação</div>
-        <div class="search-result-title">${highlight(d.tarefa, val)}</div>
+        <div class="search-result-title">${highlight(esc(d.tarefa), val)}</div>
       </div><button data-act="ir" data-aba="designacoes" style="background:#f472b6;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
     </div>`;
@@ -153,7 +153,7 @@ export function doSearch(val){
 
   // Resultados de Reuniões
   html += reuniaoMatches.map(r => {
-    const snippet = highlight([(r.pauta||'').substring(0,100), (r.itens||[]).map(i=>i.texto).join(', ').substring(0,60)].join(' · '), val);
+    const snippet = highlight(esc([(r.pauta||'').substring(0,100), (r.itens||[]).map(i=>i.texto).join(', ').substring(0,60)].join(' · ')), val);
     return `<div class="search-result-card" style="border-color:#a78bfa">
       <div class="search-result-head"><span style="font-size:16px">📋</span><div style="flex:1">
         <div class="search-result-who" style="color:#a78bfa">Reunião</div>
@@ -165,12 +165,12 @@ export function doSearch(val){
 
   // Resultados de Notas
   html += notasMatches.map(n => {
-    const snippet = highlight((n.texto||'').substring(0,120), val);
+    const snippet = highlight(esc((n.texto||'').substring(0,120)), val);
     const cor = n.scope==='privada' ? '#f59e0b' : '#60a5fa';
     return `<div class="search-result-card" style="border-color:${cor}">
       <div class="search-result-head"><span style="font-size:16px">📝</span><div style="flex:1">
         <div class="search-result-who" style="color:${cor}">Nota ${n.scope==='privada'?'Privada':'Compartilhada'}</div>
-        <div class="search-result-title">${highlight(n.titulo||'Nota', val)}</div>
+        <div class="search-result-title">${highlight(esc(n.titulo||'Nota'), val)}</div>
       </div><button data-act="ir" data-aba="notas" style="background:${cor};color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
     </div>`;
@@ -181,7 +181,7 @@ export function doSearch(val){
     return `<div class="search-result-card" style="border-color:#a78bfa">
       <div class="search-result-head"><span style="font-size:16px">🕊️</span><div style="flex:1">
         <div class="search-result-who" style="color:#a78bfa">Ordenança</div>
-        <div class="search-result-title">${highlight(o.titulo, val)}</div>
+        <div class="search-result-title">${highlight(esc(o.titulo), val)}</div>
       </div><button data-act="ir" data-aba="ordenancas" data-card="${o.card.id}" style="background:#a78bfa;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
     </div>`;
   }).join('');

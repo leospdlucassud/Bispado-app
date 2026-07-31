@@ -1,5 +1,5 @@
 // ── FILA OFFLINE (IndexedDB) ──
-import { atualizarUltimaSinc, carregarDados, setSyncStatus } from './api.js';
+import { atualizarUltimaSinc, carregarDados, rotuloSync, setSyncStatus } from './api.js';
 import { toast } from './usuario.js';
 
 export const DB_NAME = 'bispado-offline';
@@ -16,12 +16,15 @@ export function abrirDB() {
   });
 }
 
-export async function salvarNaFila(chave, dados) {
+// Guarda a requisição inteira (url + método + corpo) para reenviar depois.
+// A assinatura antiga era (chave, dados) e recebia 3 argumentos de apiFetch:
+// o corpo era descartado e a fila guardava o método no lugar dele.
+export async function salvarNaFila(url, method, body) {
   try {
     const db = await abrirDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_Q, 'readwrite');
-      tx.objectStore(STORE_Q).add({ chave, dados, ts: Date.now() });
+      tx.objectStore(STORE_Q).add({ url, method, body, ts: Date.now() });
       tx.oncomplete = resolve;
       tx.onerror = reject;
     });
@@ -53,25 +56,36 @@ export async function removerDaFila(id) {
 
 export async function enviarFilaPendente() {
   const fila = await lerFila();
-  if (!fila.length) return;
-  const btn = document.getElementById('sync-btn');
-  if (btn) { btn.className = 'sync-btn syncing'; btn.innerHTML = `<span class="sync-icone">⟳</span> Enviando ${fila.length} pendente${fila.length>1?'s':''}…`; btn.disabled = true; }
-  let ok = 0;
-  for (const item of fila) {
+  // Itens do formato antigo ({chave, dados}) não têm o corpo da alteração e são
+  // impossíveis de reenviar — descarta para a fila não crescer para sempre.
+  const antigos = fila.filter(i => !i.url);
+  for (const i of antigos) await removerDaFila(i.id);
+
+  const pendentes = fila.filter(i => i.url).sort((a, b) => a.ts - b.ts);
+  if (!pendentes.length) return;
+
+  setSyncStatus('syncing');
+  rotuloSync(` Enviando ${pendentes.length} pendente${pendentes.length > 1 ? 's' : ''}…`);
+
+  let enviados = 0, falhou = false;
+  for (const item of pendentes) {
     try {
-      await fetch(`${API}?chave=${item.chave}`, {
-        method: 'POST',
+      const res = await fetch(item.url, {
+        method: item.method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(item.dados)
+        body: item.body != null ? JSON.stringify(item.body) : undefined,
       });
-      await removerDaFila(item.id);
-      ok++;
-    } catch(e) {}
+      if (res.ok) { await removerDaFila(item.id); enviados++; continue; }
+      // 4xx não adianta repetir (ex.: PUT num id que só existia neste aparelho)
+      if (res.status >= 400 && res.status < 500) { await removerDaFila(item.id); continue; }
+      falhou = true; break;   // servidor fora do ar: guarda o resto para depois
+    } catch(e) { falhou = true; break; }
   }
-  if (ok === fila.length) {
-    atualizarUltimaSinc();
-    setSyncStatus('ok');
-  }
+
+  if (falhou) { setSyncStatus('erro'); return 0; }
+  atualizarUltimaSinc();
+  setSyncStatus('ok');
+  return enviados;   // quem chamou recarrega, para pegar os ids definitivos
 }
 
 abrirDB().catch(() => {});
@@ -80,15 +94,16 @@ abrirDB().catch(() => {});
 export let swRegistration = null;
 export let isOnline = navigator.onLine;
 
-window.addEventListener('online',  () => {
+window.addEventListener('online',  async () => {
   isOnline = true;
   setSyncStatus('ok');
-  enviarFilaPendente();
+  await enviarFilaPendente();
+  carregarDados();   // recarrega já com o que a fila enviou
 });
 window.addEventListener('offline', () => {
   isOnline = false;
-  const btn = document.getElementById('sync-btn');
-  if (btn) { btn.className = 'sync-btn erro'; btn.innerHTML = '<span class="sync-icone">📵</span> Sem conexão'; }
+  setSyncStatus('erro');
+  rotuloSync(' Sem conexão');
 });
 
 if ('serviceWorker' in navigator) {

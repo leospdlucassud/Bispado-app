@@ -7,6 +7,7 @@ import { API_EVENTOS, DADOS, comAla } from './config.js';
 import { confirmar } from './dialogo.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
+import { esc } from './utils.js';
 
 export let calMes = new Date().getMonth(), calAno = new Date().getFullYear();
 
@@ -141,7 +142,7 @@ export function renderCalendario() {
     const eHoje = hoje.getDate()===d && hoje.getMonth()===calMes && hoje.getFullYear()===calAno;
     html += `<div class="cal-dia${eHoje?' hoje':''}${evsDia.length?' tem-evento':''}" data-dia="${dataStr}">
       <div class="cal-num" style="${eHoje?'color:#c9a84c;font-weight:800':''}">${d}</div>
-      ${evsDia.slice(0,2).map(e=>`<div class="cal-evento-dot" style="color:${e.cor}">${comAla(e.txt)}</div>`).join('')}
+      ${evsDia.slice(0,2).map(e=>`<div class="cal-evento-dot" style="color:${e.cor}">${esc(comAla(e.txt))}</div>`).join('')}
       ${evsDia.length>2?`<div style="font-size:9px;color:#8eacc8">+${evsDia.length-2}</div>`:''}
     </div>`;
   }
@@ -164,7 +165,7 @@ export function verDia(dataStr) {
   } else {
     items.innerHTML = evs.map(e=>`
       <div class="cal-ev-item">
-        <span style="color:${e.cor};margin-right:8px">●</span>${comAla(e.txt)}
+        <span style="color:${e.cor};margin-right:8px">●</span>${esc(comAla(e.txt))}
         ${e.extra?`<button class="btn-danger" style="margin-left:8px;padding:2px 8px;font-size:10px" data-act="excluir" data-id="${e.id}">🗑</button>`:''}
       </div>
     `).join('');

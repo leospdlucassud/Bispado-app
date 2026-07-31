@@ -3,7 +3,7 @@
 // =============================================
 import { ALA } from './config.js';
 import { MEMBROS, setMembros } from './dados-membros.js';
-import { API_MEMBROS, MEMBROS_SAIDOS, MOVIMENTACOES, renderMembros, setMembrosSaidos, setRosterAtualizado } from './membros.js';
+import { API_MEMBROS, MEMBROS_SAIDOS, MOVIMENTACOES, movimentacoesCarregadas, renderMembros, setMembrosSaidos, setRosterAtualizado } from './membros.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
 import { esc } from './utils.js';
@@ -290,10 +290,15 @@ export async function aplicarImportacao() {
   setMembrosSaidos(MEMBROS_SAIDOS.filter(id => ativos.has(id)));
 
   try {
-    await fetch(API_MEMBROS, {
+    // Só manda histórico e saídas se eles vieram mesmo do servidor; o que o
+    // corpo não traz, a function preserva (evita apagar dados de verdade).
+    const corpo = { adicionados: [], roster: MEMBROS };
+    if (movimentacoesCarregadas) { corpo.movimentacoes = MOVIMENTACOES; corpo.saidos = MEMBROS_SAIDOS; }
+    const res = await fetch(API_MEMBROS, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ movimentacoes: MOVIMENTACOES, saidos: MEMBROS_SAIDOS, adicionados: [], roster: MEMBROS }),
+      body: JSON.stringify(corpo),
     });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     setRosterAtualizado(new Date().toISOString());
   } catch {
     toast('Salvo neste aparelho — sem conexão com o servidor');
