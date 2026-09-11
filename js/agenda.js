@@ -3,6 +3,7 @@
 // =============================================
 import { renderAcompanhamentos } from './acompanhamento.js';
 import { apiFetch, atualizarUltimaSinc, avisarPendente, setSyncStatus } from './api.js';
+import { comNome } from './chamados.js';
 import { reativarAbaAtual } from './app.js';
 import { ALA, API_AGENDA, DADOS } from './config.js';
 import { MEMBROS } from './dados-membros.js';
@@ -124,7 +125,7 @@ export function renderAgenda() {
       </div>
       <div class="ent-info">
         <span>📋 ${esc(e.tipo)}</span>
-        <span style="color:${respCor[e.responsavel]||'#8eacc8'}">👤 ${esc(respNome[e.responsavel]||e.responsavel)}</span>
+        <span style="color:${respCor[e.responsavel]||'#8eacc8'}">👤 ${esc(comNome(respNome[e.responsavel]||e.responsavel))}</span>
         ${e.data?`<span>📅 ${formatarData(e.data)}${e.hora?` às ${e.hora}`:''}</span>`:''}
         ${e.reagendamentos?.length?`<span>🔄 Reagendado ${e.reagendamentos.length}x</span>`:''}
         ${selosConfirmacao(e)}

@@ -5,7 +5,9 @@
 // =============================================
 import { renderAcompanhamentos } from './acompanhamento.js';
 import { renderAgenda } from './agenda.js';
+import { abrirEdicaoChamados, nomeDoCargo } from './chamados.js';
 import { CARGOS } from './config.js';
+import { esc } from './utils.js';
 
 export const CARGO_KEY = 'cargo_atual';
 export const ICONE_CARGO = { 'Bispo':'⚜️', '1º Conselheiro':'🔵', '2º Conselheiro':'🟢', 'Secretário':'📝', 'Secretário Executivo':'🗓️' };
@@ -19,7 +21,11 @@ export const podeVer = item => !item.sigiloso || ehBispo();
 export function renderQuemBadge() {
   const b = document.getElementById('quem-badge');
   if (!b) return;
-  b.innerHTML = USUARIO ? `${ICONE_CARGO[USUARIO] || '👤'} ${USUARIO}` : '👤 Identificar-se';
+  // mostra tambem o nome de quem ocupa o chamado, quando estiver preenchido
+  const nome = nomeDoCargo(USUARIO);
+  b.innerHTML = USUARIO
+    ? `${ICONE_CARGO[USUARIO] || '👤'} ${USUARIO}${nome ? ` · ${nome}` : ''}`
+    : '👤 Identificar-se';
 }
 
 export function abrirEscolhaCargo() {
@@ -27,9 +33,13 @@ export function abrirEscolhaCargo() {
   cx.innerHTML = CARGOS.map(c => `
     <div class="quem-opt" data-cargo="${c}">
       <span class="qi">${ICONE_CARGO[c] || '👤'}</span>
-      <span style="font-size:13.5px;font-weight:600">${c}</span>
+      <span style="font-size:13.5px;font-weight:600">${c}${nomeDoCargo(c) ? `<span style="font-weight:400;color:#8eacc8"> · ${esc(nomeDoCargo(c))}</span>` : ''}</span>
       ${c === 'Bispo' ? '<span style="margin-left:auto;font-size:10px;color:#e05555">vê sigilosos</span>' : ''}
     </div>`).join('');
+  // Chamados sao temporarios: da para corrigir os nomes sem mexer no codigo.
+  cx.insertAdjacentHTML('beforeend', `
+    <button id="quem-editar"
+      style="display:block;width:100%;margin-top:10px;background:none;border:none;color:#5b7a99;font-size:12px;text-decoration:underline;cursor:pointer;font-family:inherit">✏️ Editar os nomes dos chamados</button>`);
   document.getElementById('quem-modal').style.display = 'flex';
 }
 
@@ -66,6 +76,11 @@ export function toast(msg) {
 function ligarUsuario() {
   // as opções são recriadas a cada abrirEscolhaCargo()
   document.getElementById('quem-opcoes')?.addEventListener('click', e => {
+    if (e.target.closest('#quem-editar')) {
+      document.getElementById('quem-modal').style.display = 'none';
+      abrirEdicaoChamados();
+      return;
+    }
     const opt = e.target.closest('.quem-opt');
     if (opt) definirCargo(opt.dataset.cargo);
   });

@@ -2,6 +2,7 @@
 // DESIGNAÇÕES
 // =============================================
 import { apiFetch, atualizarUltimaSinc, avisarPendente, setSyncStatus } from './api.js';
+import { comNome } from './chamados.js';
 import { reativarAbaAtual } from './app.js';
 import { API_DESIG, CARGOS, DADOS } from './config.js';
 import { confirmar, pedirTexto } from './dialogo.js';
@@ -32,7 +33,7 @@ export function renderDesignacoes() {
   el.innerHTML = lista.map(d=>{
     const isPerm = d.tipo === 'permanente';
     const resps = Array.isArray(d.responsaveis) ? d.responsaveis : [d.responsavel||''];
-    const respsHtml = resps.map(r => `<span style="color:${respCor[r]||'#8eacc8'}">👤 ${esc(r)}</span>`).join(' ');
+    const respsHtml = resps.map(r => `<span style="color:${respCor[r]||'#8eacc8'}">👤 ${esc(comNome(r))}</span>`).join(' ');
     const statusLabel = isPerm
       ? (d.status==='inativa'?'⏸ Inativa':'📌 Ativa')
       : (d.status==='andamento'?'Em Andamento':d.status.charAt(0).toUpperCase()+d.status.slice(1));

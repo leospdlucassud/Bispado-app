@@ -4,6 +4,7 @@
 import { loadAcompanhamentos } from './acompanhamento.js';
 import { renderAgenda } from './agenda.js';
 import { renderCalendario } from './calendario.js';
+import { carregarChamados } from './chamados.js';
 import { API_AGENDA, API_DESIG, API_EVENTOS, API_REUNIOES, API_SAC, DADOS } from './config.js';
 import { renderDesignacoes } from './designacoes.js';
 import { enviarFilaPendente, isOnline, limparCacheApp, salvarNaFila } from './offline-pwa.js';
@@ -157,11 +158,15 @@ export async function loadSacramentais() {
 }
 
 async function carregarTudo() {
+  // Os nomes dos chamados vem ANTES: as listas abaixo ja renderizam com eles.
+  // Em paralelo, a agenda renderizava primeiro e o nome so aparecia no proximo
+  // desenho da tela.
+  const okChamados = await carregarChamados();
   const r = await Promise.all([
     loadAgenda(), loadReunioes(), loadDesignacoes(),
     loadEventos(), loadSacramentais(), loadAcompanhamentos(),
   ]);
-  return r.every(Boolean);
+  return okChamados && r.every(Boolean);
 }
 
 export async function carregarDados() {

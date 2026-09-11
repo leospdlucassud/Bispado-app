@@ -19,7 +19,7 @@ export let DADOS = { agenda:[], reunioes:[], designacoes:[], eventos_extras:[], 
 // NOME DA ALA
 // Constante única: outra ala troca só esta linha antes de publicar.
 // =============================================
-export const ALA = 'Ala Queimados';
+export const ALA = 'Ala Palmas 4';
 
 // Resolve o marcador {ALA} usado nos textos de dados (eventos do calendário)
 export function comAla(txt) {

@@ -15,7 +15,7 @@ netlify deploy --prod
 Para outra ala, troque **uma única linha** em `js/config.js`:
 
 ```js
-const ALA = 'Ala Queimados';
+const ALA = 'Ala Palmas 4';
 ```
 
 ## Estrutura

@@ -12,6 +12,7 @@ import './config.js';
 import './utils.js';
 import './ui.js';
 import './dialogo.js';
+import './chamados.js';
 import './usuario.js';
 import './api.js';
 import './offline-pwa.js';
