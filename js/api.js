@@ -7,6 +7,7 @@ import { renderCalendario } from './calendario.js';
 import { carregarChamados } from './chamados.js';
 import { API_AGENDA, API_DESIG, API_EVENTOS, API_REUNIOES, API_SAC, DADOS } from './config.js';
 import { renderDesignacoes } from './designacoes.js';
+import { inicioAposCarga } from './inicio.js';
 import { carregarMovimentacoes } from './membros.js';
 import { enviarFilaPendente, isOnline, limparCacheApp, salvarNaFila } from './offline-pwa.js';
 import { renderReunioes } from './reunioes.js';
@@ -163,11 +164,22 @@ async function carregarTudo() {
   // renderizam com eles (responsavel com nome, telefone do membro no convite).
   // O quadro antes vinha embutido no app; agora so existe no servidor, entao
   // esperar a aba Membros ser aberta deixaria a agenda sem membros.
-  const [okChamados, okMembros] = await Promise.all([carregarChamados(), carregarMovimentacoes()]);
+  //
+  // Um load que estoura (um registro torto vindo do servidor quebrando o render
+  // da aba) conta como "não carregou". Sem isto o Promise.all rejeitava inteiro
+  // e o Início nunca saía de "Carregando…".
+  const semRejeitar = p => Promise.resolve(p).catch(() => false);
+  const [okChamados, okMembros] = await Promise.all([carregarChamados(), carregarMovimentacoes()].map(semRejeitar));
   const r = await Promise.all([
     loadAgenda(), loadReunioes(), loadDesignacoes(),
     loadEventos(), loadSacramentais(), loadAcompanhamentos(),
-  ]);
+  ].map(semRejeitar));
+  // O Início junta várias coleções: redesenha uma vez, depois que todas
+  // voltaram, sabendo quais vieram do servidor. Não usa o `ok` geral abaixo —
+  // ele cai se só os chamados ou o quadro de membros falharem, e o Início
+  // diria "sem conexão" com a agenda carregada.
+  const [agenda, , designacoes, eventos, sacramentais, acomp] = r;
+  inicioAposCarga({ agenda, designacoes, eventos, sacramentais, acomp });
   return okChamados && okMembros && r.every(Boolean);
 }
 

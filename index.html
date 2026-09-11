@@ -72,7 +72,8 @@
 </header>
 
 <div class="tabs">
-  <button class="tab-btn active" data-tab="agenda">🗓️ Agenda de Entrevistas</button>
+  <button class="tab-btn active" data-tab="inicio">🏠 Início</button>
+  <button class="tab-btn" data-tab="agenda">🗓️ Agenda de Entrevistas</button>
   <button class="tab-btn" data-tab="acompanhamento">🧭 Acompanhamento</button>
   <button class="tab-btn" data-tab="designacoes">✅ Designações</button>
   <button class="tab-btn" data-tab="reuniao">📋 Reuniões</button>
@@ -88,6 +89,7 @@
 <!-- SELECT RESPONSIVO (telas pequenas) -->
 <div class="tabs-select-wrap">
   <select class="tabs-select" id="tabs-select">
+    <option value="inicio">🏠 Início</option>
     <option value="agenda">🗓️ Agenda de Entrevistas</option>
     <option value="acompanhamento">🧭 Acompanhamento</option>
     <option value="designacoes">✅ Designações</option>
@@ -126,6 +128,51 @@
 </div>
 
 <div class="content" id="main-content">
+
+<!-- ========== INÍCIO (tela de boas-vindas) ==========
+     Primeira tela ao abrir o app. Só leitura: js/inicio.js preenche com o que
+     importa das outras abas. Os atalhos usam data-aba, e não data-tab —
+     ativarAba (ui.js) procura [data-tab] no documento inteiro. -->
+<div class="panel active" id="panel-inicio">
+  <div class="inicio-hero">
+    <div class="inicio-saudacao" id="inicio-saudacao">Bem-vindo</div>
+    <div class="inicio-data" id="inicio-data"></div>
+    <div class="inicio-resumo" id="inicio-resumo"></div>
+    <div class="inicio-meu" id="inicio-meu"></div>
+  </div>
+
+  <div class="nova-card">
+    <h2 class="nova-card-title">🗓️ Próximas entrevistas</h2>
+    <div id="inicio-entrevistas"><div class="loading">Carregando…</div></div>
+  </div>
+
+  <div class="nova-card">
+    <h2 class="nova-card-title">⚠️ Precisa de atenção</h2>
+    <div id="inicio-atencao"><div class="loading">Carregando…</div></div>
+  </div>
+
+  <div class="nova-card">
+    <h2 class="nova-card-title">📆 Nesta semana</h2>
+    <div id="inicio-semana"><div class="loading">Carregando…</div></div>
+  </div>
+
+  <div class="nova-card">
+    <h2 class="nova-card-title">🗂️ Todas as áreas</h2>
+    <div class="link-grid inicio-atalhos">
+      <button type="button" class="link-card" style="--lc:#34d399" data-act="ir" data-aba="agenda"><span class="lc-ico">🗓️</span><span class="lc-txt"><span class="lc-title">Agenda de Entrevistas</span><span class="lc-sub">Marcar, convidar e registrar entrevistas</span></span></button>
+      <button type="button" class="link-card" style="--lc:#fbbf24" data-act="ir" data-aba="acompanhamento"><span class="lc-ico">🧭</span><span class="lc-txt"><span class="lc-title">Acompanhamento</span><span class="lc-sub">Situações que exigem retorno do bispado</span></span></button>
+      <button type="button" class="link-card" style="--lc:#f472b6" data-act="ir" data-aba="designacoes"><span class="lc-ico">✅</span><span class="lc-txt"><span class="lc-title">Designações</span><span class="lc-sub">Tarefas do bispado e seus prazos</span></span></button>
+      <button type="button" class="link-card" style="--lc:#a78bfa" data-act="ir" data-aba="reuniao"><span class="lc-ico">📋</span><span class="lc-txt"><span class="lc-title">Reuniões</span><span class="lc-sub">Atas, pautas e itens em aberto</span></span></button>
+      <button type="button" class="link-card" style="--lc:#60a5fa" data-act="ir" data-aba="calendario"><span class="lc-ico">📆</span><span class="lc-txt"><span class="lc-title">Calendário</span><span class="lc-sub">Eventos da ala e da estaca</span></span></button>
+      <button type="button" class="link-card" style="--lc:#e8d080" data-act="ir" data-aba="sacramental"><span class="lc-ico">🕊️</span><span class="lc-txt"><span class="lc-title">Sacramental</span><span class="lc-sub">Oradores, hinos e ata de cada domingo</span></span></button>
+      <button type="button" class="link-card" style="--lc:#2dd4bf" data-act="ir" data-aba="membros"><span class="lc-ico">👥</span><span class="lc-txt"><span class="lc-title">Membros</span><span class="lc-sub">Quadro do LCR, entradas e saídas</span></span></button>
+      <button type="button" class="link-card" style="--lc:#60a5fa" data-act="ir" data-aba="notas"><span class="lc-ico">📝</span><span class="lc-txt"><span class="lc-title">Notas</span><span class="lc-sub">Privadas neste aparelho ou compartilhadas</span></span></button>
+      <button type="button" class="link-card" style="--lc:#a78bfa" data-act="ir" data-aba="ordenancas"><span class="lc-ico">🕊️</span><span class="lc-txt"><span class="lc-title">Ordenanças</span><span class="lc-sub">Palavras das ordenanças e roteiros de entrevista</span></span></button>
+      <button type="button" class="link-card" style="--lc:#c9a84c" data-act="ir" data-aba="manual"><span class="lc-ico">📖</span><span class="lc-txt"><span class="lc-title">Manual</span><span class="lc-sub">Manual Geral e links oficiais</span></span></button>
+      <button type="button" class="link-card" style="--lc:#94a3b8" data-act="ir" data-aba="como-usar"><span class="lc-ico">ℹ️</span><span class="lc-txt"><span class="lc-title">Como Usar</span><span class="lc-sub">Guia rápido do painel</span></span></button>
+    </div>
+  </div>
+</div>
 
 <!-- ========== REUNIÃO ========== -->
 <div class="panel" id="panel-reuniao">
@@ -173,7 +220,7 @@
 </div>
 
 <!-- ========== AGENDA ========== -->
-<div class="panel active" id="panel-agenda">
+<div class="panel" id="panel-agenda">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
     <div>
       <h2 style="font-size:18px;color:#34d399">🗓️ Agenda de Entrevistas</h2>
@@ -768,6 +815,16 @@
   <div style="text-align:center;margin-bottom:20px">
     <h2 style="color:#c9a84c;font-size:18px">ℹ️ Como Usar o Painel</h2>
     <p style="color:#8eacc8;font-size:13px">Guia rápido do painel</p>
+  </div>
+
+  <div class="como-usar-section">
+    <div class="como-usar-titulo" style="color:#e8edf2">🏠 Início</div>
+    <div class="como-usar-item">É a tela que abre ao entrar no app: a saudação, o que está com você, as próximas entrevistas, o que precisa de atenção e a semana — a reunião sacramental do domingo e os eventos do calendário.</div>
+    <div class="como-usar-item"><strong>Precisa de atenção</strong> junta o que ficou para trás: membro que pediu outra data, convite a reenviar depois de um reagendamento, entrevista que passou da data sem resultado e designação com prazo vencido.</div>
+    <div class="como-usar-item">Toque em qualquer item ou atalho para abrir a aba correspondente. As contas seguem as mesmas regras das abas.</div>
+    <div class="como-usar-item">Entrevistas sigilosas só aparecem para quem está identificado como Bispo — e, mesmo para ele, aparecem aqui como <strong>🔒 Entrevista sigilosa</strong>, sem nome nem tipo, porque esta é a tela que fica aberta. O detalhe está na aba Agenda.</div>
+    <div class="como-usar-item">No Início, o botão <strong>+</strong> marca uma nova entrevista, como antes. Para outros registros, abra a aba correspondente.</div>
+    <div class="como-usar-item">Para voltar ao Início, toque na primeira aba (no celular, a primeira opção da lista de abas).</div>
   </div>
 
   <div class="como-usar-section">

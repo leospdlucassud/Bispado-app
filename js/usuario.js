@@ -7,6 +7,7 @@ import { renderAcompanhamentos } from './acompanhamento.js';
 import { renderAgenda } from './agenda.js';
 import { abrirEdicaoChamados, nomeDoCargo } from './chamados.js';
 import { CARGOS } from './config.js';
+import { renderInicio } from './inicio.js';
 import { esc } from './utils.js';
 
 export const CARGO_KEY = 'cargo_atual';
@@ -51,6 +52,9 @@ export function definirCargo(cargo) {
   // o que está na tela muda conforme o sigilo
   renderAgenda();
   if (typeof renderAcompanhamentos === 'function') renderAcompanhamentos();
+  // sem isto, trocar de Bispo para outro cargo deixaria na tela inicial as
+  // contas que incluem os sigilosos
+  renderInicio();
 }
 
 export function initUsuario() {

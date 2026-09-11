@@ -9,6 +9,7 @@ import { apiFetch, atualizarUltimaSinc, avisarPendente, setSyncStatus } from './
 import { CARGOS } from './config.js';
 import { renderDesignacoes } from './designacoes.js';
 import { pedirTexto } from './dialogo.js';
+import { renderInicio } from './inicio.js';
 import { renderQuemBadge, toast } from './usuario.js';
 
 export const API_BISPADO = '/api/bispado';
@@ -85,4 +86,5 @@ function redesenhar() {
   renderQuemBadge();
   renderAgenda();
   renderDesignacoes();
+  renderInicio();   // saudação e responsáveis
 }

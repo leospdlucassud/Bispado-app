@@ -29,4 +29,5 @@ import './notas.js';
 import './manual.js';
 import './pdf.js';
 import './busca.js';
+import './inicio.js';
 import './app.js';

@@ -9,6 +9,7 @@ import { clearSearch, doSearch } from './busca.js';
 import { abrirModalEvento, renderCalendario } from './calendario.js';
 import { aplicarNomeAla } from './config.js';
 import { abrirModalDesig } from './designacoes.js';
+import { renderInicio } from './inicio.js';
 import { renderManual, renderRoteiros } from './manual.js';
 import { carregarMovimentacoes } from './membros.js';
 import { carregarNotasCompartilhadas } from './notas.js';
@@ -24,7 +25,7 @@ export let fabTab = '';
 export function onTabChange(tab) {
   fabTab = tab;
   const fab = document.getElementById('main-fab');
-  const comBotao = ['agenda', 'reuniao', 'designacoes', 'calendario', 'sacramental', 'acompanhamento'];
+  const comBotao = ['inicio', 'agenda', 'reuniao', 'designacoes', 'calendario', 'sacramental', 'acompanhamento'];
   if (fab) fab.classList.toggle('visible', comBotao.includes(tab));
 }
 
@@ -33,7 +34,11 @@ export function reativarAbaAtual() {
 }
 
 document.getElementById('main-fab')?.addEventListener('click', () => {
-  if (fabTab === 'agenda') abrirModalAgenda('');
+  // No Início o + marca uma entrevista, como quando o app abria na Agenda. Troca
+  // de aba ANTES de abrir o modal: o salvar volta para a aba atual
+  // (reativarAbaAtual), e assim a entrevista nova aparece na Agenda.
+  if (fabTab === 'inicio') { switchTab('agenda'); abrirModalAgenda(''); }
+  else if (fabTab === 'agenda') abrirModalAgenda('');
   else if (fabTab === 'reuniao') abrirModalReuniao('');
   else if (fabTab === 'designacoes') abrirModalDesig('');
   else if (fabTab === 'calendario') abrirModalEvento();
@@ -44,7 +49,7 @@ document.getElementById('main-fab')?.addEventListener('click', () => {
 // Casca do app: navegação de abas, tema, fonte, sincronização e busca.
 // (Fase 2 da migração ESM: antes eram onclick/oninput inline no index.html.)
 function ligarCasca() {
-  // abas — delegação: um listener na barra cobre os 11 botões
+  // abas — delegação: um listener na barra cobre os 12 botões
   document.querySelector('.tabs')?.addEventListener('click', e => {
     const btn = e.target.closest('.tab-btn');
     if (btn?.dataset.tab) switchTab(btn.dataset.tab);
@@ -78,6 +83,8 @@ export function switchTab(t) {
   onTabChange(t);
   const sel = document.getElementById('tabs-select');
   if (sel) sel.value = t;
+  // o Início junta dados das outras abas: redesenha ao voltar para ele
+  if (t === 'inicio') renderInicio();
   if (t === 'notas') carregarNotasCompartilhadas();
   if (t === 'membros') carregarMovimentacoes();
   if (t === 'sacramental' && !sacCarregado) carregarSacramentais();
@@ -93,7 +100,10 @@ document.addEventListener('DOMContentLoaded', () => {
   renderCalendario();
   renderManual();
   renderRoteiros();
-  onTabChange('agenda');
+  // abre na tela de boas-vindas (o index.html já a traz marcada como ativa);
+  // antes o app abria direto na Agenda
+  onTabChange('inicio');
+  renderInicio();
   carregarDados();
   iniciarAtualizacaoAutomatica();
 });

@@ -5,6 +5,7 @@ import { apiFetch, avisarPendente } from './api.js';
 import { API_SAC, DADOS } from './config.js';
 import { MEMBROS } from './dados-membros.js';
 import { confirmar } from './dialogo.js';
+import { inicioColecaoCarregada } from './inicio.js';
 import { imprimirAtaSacramental } from './pdf.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { esc } from './utils.js';
@@ -88,7 +89,9 @@ export function mudarMesSac(dir) {
 export async function carregarSacramentais() {
   try {
     const data = await apiFetch(API_SAC);
-    if (Array.isArray(data)) DADOS.sacramentais = data;
+    // o Início precisa saber que os domingos vieram de fato: sacCarregado,
+    // logo abaixo, fica true mesmo quando a carga falha
+    if (Array.isArray(data)) { DADOS.sacramentais = data; inicioColecaoCarregada('sacramentais'); }
   } catch { }
   sacCarregado = true;
   renderBancoOradores();

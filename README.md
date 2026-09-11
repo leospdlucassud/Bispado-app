@@ -12,11 +12,18 @@ Não há build: o que está no repositório é o que vai para o ar.
 netlify deploy --prod
 ```
 
-Para outra ala, troque **uma única linha** em `js/config.js`:
+Para outra ala, troque **duas linhas** — o nome que aparece na tela e o
+identificador dos dados no servidor:
 
 ```js
-const ALA = 'Ala Palmas 4';
+// js/config.js
+export const ALA = 'Ala Palmas 4';
+
+// netlify/functions/_ala.js
+export const ALA_ID = "palmas-4";
 ```
+
+Trocar só o `ALA` faria a ala nova ler e gravar nos dados da anterior.
 
 ## Estrutura
 
@@ -24,8 +31,11 @@ const ALA = 'Ala Palmas 4';
 index.html          apenas a marcação: cabeçalho, abas, painéis e modais
 css/style.css       toda a folha de estilo, incluindo o tema claro
 js/                 um módulo por área do app (ver ordem abaixo)
-netlify/functions/  API — CRUD compartilhado em _crud.js; um arquivo curto por recurso
+netlify/functions/  API — CRUD compartilhado em _crud.js; um arquivo curto por recurso;
+                    _ala.js dá o nome dos stores da ala
 sw.js               service worker: cache offline e atualização
+version.json        versão publicada — o app instalado se compara com ela
+scripts/versao.mjs  sobe a versão nos quatro lugares de uma vez
 ```
 
 As seis coleções simples (agenda, reuniões, designações, sacramentais,
@@ -35,8 +45,8 @@ acompanhamentos, eventos) são funções de 3 linhas que delegam a
 
 ### Módulos JavaScript
 
-Carregados como scripts clássicos, **na ordem declarada no `index.html`** —
-os primeiros definem o que os seguintes usam, e `app.js` fecha a inicialização.
+ES Modules: o `index.html` carrega só `js/main.js`, que importa todos os
+módulos; cada um declara as próprias dependências com `import`.
 
 | Arquivo | Responsabilidade |
 | --- | --- |
@@ -45,6 +55,7 @@ os primeiros definem o que os seguintes usam, e `app.js` fecha a inicialização
 | `utils.js` | Formatação de data e `esc()` (escape de HTML para innerHTML) |
 | `ui.js` | Troca de abas e abertura/fechamento de modais |
 | `dialogo.js` | `confirmar()` e `pedirTexto()` — substituem prompt/confirm nativos |
+| `chamados.js` | Nomes de quem ocupa cada chamado — ficam no servidor, editáveis no app |
 | `usuario.js` | Identificação por cargo e regra de sigilo (`podeVer`) |
 | `api.js` | Chamadas ao servidor, indicador de sincronização e carga inicial |
 | `offline-pwa.js` | Fila offline em IndexedDB, service worker e instalação |
@@ -61,19 +72,21 @@ os primeiros definem o que os seguintes usam, e `app.js` fecha a inicialização
 | `manual.js` | Manual Geral, links oficiais e roteiros de entrevista |
 | `pdf.js` | Geração das atas em PDF |
 | `busca.js` | Busca global |
+| `inicio.js` | Tela de boas-vindas (aba Início, a primeira ao abrir): saudação, resumo, pendências e atalhos |
 | `app.js` | Botão flutuante e inicialização |
 
-### Migração para ES Modules (em andamento)
+### ES Modules
 
-Desde a v5.3.0 o app carrega como **ES Modules**: `index.html` tem uma única
-tag `<script type="module" src="js/main.js">`, e `main.js` importa o grafo de
-módulos. Cada arquivo `js/` usa `export` nos seus símbolos.
+O app carrega como **ES Modules** desde a v5.3.0, e a migração terminou na
+v5.4.0: não existe mais `onclick=` (nem outro handler inline) na marcação e
+nada é exposto no `window`. Os eventos usam delegação — o HTML marca a ação
+com `data-act` e cada módulo liga os seus numa função `ligar<Área>()`.
 
-**Ponte temporária:** como o HTML ainda usa `onclick="..."` (que só enxerga o
-escopo global), `main.js` copia todos os `export` de cada módulo para o `window`.
-Isso mantém os handlers inline funcionando. A ponte será removida por fases,
-trocando os `onclick` por `addEventListener` (delegação de evento) área por área.
-Até lá, ao adicionar uma função chamada por `onclick`, garanta que ela tem `export`.
+- **Arquivo novo em `js/`** → importar em `js/main.js` e incluir em `ASSETS` no `sw.js`.
+- Binding importado é somente-leitura: para trocar um valor de outro módulo,
+  use o setter que ele exporta (`setMembros`, `setNomesCargos`…).
+- No console do navegador nada do app existe (`window.esc` é `undefined`);
+  teste clicando na interface.
 
 ## Pontos de atenção
 
@@ -83,8 +96,8 @@ Até lá, ao adicionar uma função chamada por `onclick`, garanta que ela tem `
   não pode sair do aparelho do bispo, use as Notas privadas.
 - **Ao criar uma tela que liste entrevistas ou acompanhamentos**, aplique o
   filtro `podeVer` também no contador e na busca, não só na lista.
-- **Ao alterar qualquer arquivo**, suba a versão no rodapé do `index.html` e o
-  `CACHE` do `sw.js` — senão o navegador continua servindo a versão antiga.
+- **Ao alterar qualquer arquivo**, rode `node scripts/versao.mjs patch` (ou
+  `minor`/`major`) — senão o navegador continua servindo a versão antiga.
 - **Novo arquivo em `js/` ou `css/`** precisa entrar em `ASSETS` no `sw.js`
   para continuar disponível offline.
 - Medidas em `vh` precisam ser divididas por `var(--zoom)`, porque o controle
@@ -97,5 +110,18 @@ Até lá, ao adicionar uma função chamada por `onclick`, garanta que ela tem `
 
 ## Versionamento
 
-`MAJOR.MINOR.PATCH` no rodapé do `index.html`.
-Maior para reestruturações, menor para funcionalidades novas, patch para correções.
+`MAJOR.MINOR.PATCH`: maior para reestruturações, menor para funcionalidades
+novas, patch para correções.
+
+A versão mora em quatro lugares — `VERSAO` em `js/config.js` (o rodapé mostra
+esta), `version.json`, o `CACHE` do `sw.js` e o `package.json` — e **não se
+edita à mão**:
+
+```bash
+node scripts/versao.mjs patch     # ou minor, major, ou a versão exata
+node scripts/versao.mjs           # sem argumento: só confere se os quatro batem
+```
+
+O script recusa voltar a versão (o app instalado ficaria à frente do servidor
+e nunca se atualizaria). O app instalado compara a própria versão com
+`/version.json` ao abrir e se atualiza sozinho quando a publicada é maior.

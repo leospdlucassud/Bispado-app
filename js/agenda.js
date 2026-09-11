@@ -63,32 +63,40 @@ function rotuloStatus(status) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
+// Contas do resumo da agenda. A aba Agenda e o Início usam esta mesma função
+// para nunca mostrarem números diferentes. Sigilosos ficam fora da conta de
+// quem não é o bispo.
+export function resumoAgenda() {
+  const todas = (DADOS.agenda || []).filter(podeVer);
+  const ativas = todas.filter(e => e.status === 'pendente' || e.status === 'agendada');
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const limite = new Date(hoje); limite.setDate(limite.getDate() + 7);
+  const proximas = ativas.filter(e => {
+    if (!e.data) return false;
+    const d = new Date(e.data + 'T12:00:00');
+    return d >= hoje && d < limite;
+  });
+  // "Sem confirmação" é quem ainda não confirmou presença — inclui quem pediu
+  // outra data. Antes o teste era `!e.confirmacao`, e um pedido de remarcação
+  // (confirmacao='reagendar') zerava o contador justamente no caso que precisa
+  // de ação do bispado.
+  const aguardando = ativas.filter(e => e.data && e.confirmacao !== 'confirmado');
+  return { todas, ativas, proximas, aguardando };
+}
+
 export function renderAgenda() {
   const el = document.getElementById('lista-agenda');
   if (!el) return;
   const busca = (document.getElementById('busca-membro')?.value || '').toLowerCase();
 
-  // Painel de resumo — sigilosos ficam fora da conta de quem não é o bispo
+  // Painel de resumo
   const stats = document.getElementById('agenda-stats');
   if (stats) {
-    const todas = (DADOS.agenda || []).filter(podeVer);
-    const ativas = todas.filter(e => e.status === 'pendente' || e.status === 'agendada');
-    const hoje = new Date(); hoje.setHours(0,0,0,0);
-    const limite = new Date(hoje); limite.setDate(limite.getDate() + 7);
-    const proximas = ativas.filter(e => {
-      if (!e.data) return false;
-      const d = new Date(e.data + 'T12:00:00');
-      return d >= hoje && d < limite;
-    }).length;
-    // "Sem confirmação" é quem ainda não confirmou presença — inclui quem pediu
-    // outra data. Antes o teste era `!e.confirmacao`, e um pedido de remarcação
-    // (confirmacao='reagendar') zerava o contador justamente no caso que precisa
-    // de ação do bispado.
-    const aguardando = ativas.filter(e => e.data && e.confirmacao !== 'confirmado').length;
+    const { ativas, proximas, aguardando } = resumoAgenda();
     stats.innerHTML = `
       <div class="membros-stat"><div class="stat-num" style="color:#34d399">${ativas.length}</div><div class="stat-label">Em aberto</div></div>
-      <div class="membros-stat"><div class="stat-num" style="color:#60a5fa">${proximas}</div><div class="stat-label">Próximos 7 dias</div></div>
-      <div class="membros-stat"><div class="stat-num" style="color:${aguardando ? '#e8b040' : '#34d399'}">${aguardando}</div><div class="stat-label">Sem confirmação</div></div>`;
+      <div class="membros-stat"><div class="stat-num" style="color:#60a5fa">${proximas.length}</div><div class="stat-label">Próximos 7 dias</div></div>
+      <div class="membros-stat"><div class="stat-num" style="color:${aguardando.length ? '#e8b040' : '#34d399'}">${aguardando.length}</div><div class="stat-label">Sem confirmação</div></div>`;
   }
   let lista = DADOS.agenda.filter(podeVer).filter(e => {
     const matchBusca = !busca || e.membro.toLowerCase().includes(busca);
@@ -388,21 +396,20 @@ export function botaoConvite(e) {
             style="text-decoration:none;color:#25d366;border-color:#25d366">${rotulo}</a>` + outroMeio;
 }
 
+// A cor de cada resposta vem do css (.selo-conf-*), que tem variante para o
+// tema claro — inline, o verde e o âmbar ficavam ilegíveis sobre o creme.
+const SELO_CONF = { confirmado: '✅ Confirmou', recusado: '❌ Não poderá', reagendar: '🔄 Pediu outra data' };
+
 export function selosConfirmacao(e) {
-  if (!e.confirmacao) return '';
-  const sel = {
-    confirmado: ['#34d399', '✅ Confirmou'],
-    recusado:   ['#e05555', '❌ Não poderá'],
-    reagendar:  ['#e8b040', '🔄 Pediu outra data'],
-  }[e.confirmacao];
-  if (!sel) return '';
+  // hasOwnProperty: um valor como 'constructor' vindo da API não vira selo
+  if (!Object.prototype.hasOwnProperty.call(SELO_CONF, e.confirmacao)) return '';
   const qdo = e.confirmadoEm ? new Date(e.confirmadoEm).toLocaleDateString('pt-BR') : '';
   // Quando o membro sugeriu data/hora, mostra o que ele pediu — é o que o
   // bispado precisa ver para reagendar (o botão Reagendar já abre com isso).
   const pedido = e.confirmacao === 'reagendar' && e.sugestaoData
     ? ` para ${formatarData(e.sugestaoData)}${e.sugestaoHora ? ` às ${e.sugestaoHora}` : ''}`
     : '';
-  return `<span style="color:${sel[0]}" title="${esc(qdo)}">${sel[1]}${esc(pedido)}</span>`;
+  return `<span class="selo-conf-${e.confirmacao}" title="${esc(qdo)}">${SELO_CONF[e.confirmacao]}${esc(pedido)}</span>`;
 }
 
 // --- Tela que o membro vê ao abrir o link do WhatsApp ---

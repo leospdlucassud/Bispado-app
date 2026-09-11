@@ -34,6 +34,14 @@
      — por isso o dourado da casa, que nenhum status usa. */
   .selo-reenviar { display:inline-flex;align-items:center;gap:3px;background:rgba(201,168,76,.15);border:1px solid rgba(201,168,76,.5);color:var(--gold);font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px; }
   [data-theme="light"] .selo-reenviar { background:rgba(122,92,15,.12);border-color:rgba(122,92,15,.45); }
+  /* Resposta do membro ao convite (selosConfirmacao). Era cor inline, e no tema
+     claro o verde e o âmbar ficavam em 1,9:1 sobre o creme. */
+  .selo-conf-confirmado { color:#34d399; }
+  .selo-conf-recusado { color:#f87171; }   /* #e05555 ficava em 4,3:1 no cartão escuro */
+  .selo-conf-reagendar { color:#e8b040; }
+  [data-theme="light"] .selo-conf-confirmado { color:#047857; }
+  [data-theme="light"] .selo-conf-recusado { color:#b91c1c; }
+  [data-theme="light"] .selo-conf-reagendar { color:#9a6700; }
   .acomp-card { background:#152233;border-radius:12px;padding:14px;margin-bottom:10px;border-left:3px solid #94a3b8; }
   [data-theme="light"] .acomp-card { background:var(--bg2);border:1px solid var(--border);border-left:3px solid #94a3b8; }
   .acomp-registro { font-size:11.5px;color:#b0c8e0;padding:6px 0 6px 12px;border-left:2px solid rgba(148,163,184,.35);margin-top:6px;line-height:1.6; }
@@ -375,6 +383,60 @@
   .como-usar-item { padding:8px 0 8px 18px;position:relative;font-size:13px;line-height:1.65;color:#c8d8e8;border-bottom:1px solid rgba(255,255,255,.04); }
   .como-usar-item:last-child { border-bottom:none; }
   .como-usar-item::before { content:'→';position:absolute;left:0;color:#c9a84c;font-size:13px; }
+
+  /* === INÍCIO (tela de boas-vindas) === */
+  .tab-btn[data-tab="inicio"] { color:#e8edf2;border-color:#e8edf2; }
+  .tab-btn[data-tab="inicio"].active { background:#e8edf2;color:#0d1b2a; }
+  /* as pílulas das abas continuam escuras no tema claro; a do Início, clara
+     quando ativa, sumiria no creme sem uma borda escura */
+  [data-theme="light"] .tab-btn[data-tab="inicio"].active { border-color:var(--text1); }
+
+  .inicio-hero { text-align:center;padding:2px 8px 16px; }
+  .inicio-saudacao { font-size:20px;font-weight:700;color:var(--text1); }
+  .inicio-data { font-size:13px;color:var(--text2);margin-top:3px; }
+  .inicio-resumo { font-size:13px;color:var(--text1);margin-top:10px;line-height:1.6; }
+  .inicio-meu { font-size:12.5px;color:var(--text2);margin-top:4px;line-height:1.8; }
+  .inicio-resumo:empty, .inicio-meu:empty { display:none; }
+  .inicio-meu .btn-secondary { margin-top:6px; }
+  .inicio-link { background:none;border:none;padding:0;font:inherit;font-weight:700;color:var(--gold);cursor:pointer;text-decoration:underline;text-underline-offset:2px; }
+
+  /* .nova-card existia sem uso e sem variante clara */
+  #panel-inicio .nova-card { padding:14px 16px; }
+  #panel-inicio .nova-card-title { font-size:14px;color:var(--text1);margin-bottom:10px; }
+  [data-theme="light"] .nova-card { background:var(--bg2);border:1px solid var(--border); }
+  [data-theme="light"] .nova-card-title { border-bottom-color:var(--border); }
+
+  /* item de lista: o dia à esquerda, título e detalhe à direita; a borda leva
+     a cor de onde o item vem (status da entrevista, evento, designação) */
+  .inicio-item { display:grid;grid-template-columns:76px minmax(0,1fr);column-gap:10px;align-items:start;width:100%;min-height:44px;text-align:left;background:transparent;border:none;border-left:3px solid var(--ic,#94a3b8);border-radius:0 8px 8px 0;padding:8px 10px;margin-bottom:6px;color:var(--text1);font-family:inherit;font-size:13px;line-height:1.45;cursor:pointer;transition:background-color .2s; }
+  .inicio-item.sem-quando { grid-template-columns:minmax(0,1fr); }
+  .inicio-item:hover { background-color:rgba(255,255,255,.05); }
+  [data-theme="light"] .inicio-item:hover { background-color:var(--bg3); }
+  .inicio-item-quando { grid-row:span 2;font-size:12px;font-weight:700;color:var(--text2); }
+  .inicio-hora { display:block;color:var(--text1);font-weight:600; }
+  /* -2 = a última coluna, com ou sem a coluna do dia */
+  .inicio-item-titulo, .inicio-item-sub { grid-column:-2;overflow-wrap:anywhere; }
+  .inicio-item-titulo { font-weight:600; }
+  .inicio-item-sub { font-size:11.5px;color:var(--text2);margin-top:2px; }
+  .inicio-sem-conf { color:#e8b040; }
+  [data-theme="light"] .inicio-sem-conf { color:#9a6700; }
+  .inicio-mudo { font-size:12px;color:var(--text2);padding:4px 2px; }
+  .inicio-mais { background:none;border:none;padding:6px 2px;min-height:32px;color:var(--gold);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit; }
+  /* a cor de .vazia (#445566) some no fundo do cartão: 2,1:1 */
+  #panel-inicio .inicio-vazia { padding:14px 8px;font-size:13px;color:var(--text2); }
+
+  /* .link-card foi feito para <a>; aqui os atalhos são <button> */
+  .inicio-atalhos .link-card { width:100%;min-width:0;min-height:44px;text-align:left;cursor:pointer;font-family:inherit;color:inherit; }
+  .inicio-atalhos .lc-title { overflow-wrap:anywhere; }
+
+  @media (max-width:640px) {
+    .inicio-saudacao { font-size:18px; }
+    #panel-inicio .nova-card { padding:12px; }
+    /* duas colunas no celular comum; uma só em tela estreita ou com A+ (o zoom
+       encolhe a largura útil, e duas colunas fixas vazavam para o lado) */
+    .inicio-atalhos { grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); }
+    .inicio-atalhos .lc-sub { display:none; }
+  }
 
   /* === LOADING === */
   .loading { text-align:center;padding:30px;color:#8eacc8;font-size:13px; }
