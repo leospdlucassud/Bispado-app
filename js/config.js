@@ -15,9 +15,17 @@ export let DADOS = { agenda:[], reunioes:[], designacoes:[], eventos_extras:[], 
 // agenda.js, filDesig em designacoes.js, calMes/calAno em calendario.js): só ela
 // lê e escreve, e binding importado é somente-leitura.
 
+// Versao do app que esta rodando neste aparelho. Comparada com /version.json
+// (o que esta publicado) para o app instalado se atualizar sozinho.
+// Nao editar a mao: `node scripts/versao.mjs patch|minor|major` atualiza este,
+// o version.json, o CACHE do sw.js e o package.json juntos.
+export const VERSAO = '5.16.0';
+
 // =============================================
 // NOME DA ALA
-// Constante única: outra ala troca só esta linha antes de publicar.
+// Trocar de ala são DUAS linhas: esta (o nome na tela) e ALA_ID em
+// netlify/functions/_ala.js (os stores de dados). Trocar só esta faria a ala
+// nova ler e gravar nos dados da anterior.
 // =============================================
 export const ALA = 'Ala Palmas 4';
 
@@ -30,4 +38,7 @@ export function comAla(txt) {
 export function aplicarNomeAla() {
   document.querySelectorAll('[data-ala]').forEach(el => { el.textContent = ALA; });
   document.title = `Bispado ${ALA} — Painel`;
+  // o rodape vem da constante: assim o que aparece na tela e o que o app usa
+  // para se comparar com o servidor nunca ficam diferentes
+  document.querySelectorAll('[data-versao]').forEach(el => { el.textContent = 'v' + VERSAO; });
 }

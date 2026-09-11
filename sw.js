@@ -1,4 +1,4 @@
-const CACHE = 'bispado-app-v5.13.0';
+const CACHE = 'bispado-app-v5.16.0';
 const ASSETS = [
   '/',
   '/index.html',
@@ -80,8 +80,11 @@ self.addEventListener('message', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // API Netlify — sempre rede, nunca cache
-  if (url.pathname.startsWith('/.netlify/') || url.pathname.startsWith('/api/')) {
+  // API Netlify e o arquivo de versao — sempre rede, nunca cache.
+  // version.json cacheado tornaria a verificacao de atualizacao inutil: o app
+  // compararia sua versao com uma copia velha de si mesmo e nunca atualizaria.
+  if (url.pathname.startsWith('/.netlify/') || url.pathname.startsWith('/api/')
+      || url.pathname === '/version.json') {
     e.respondWith(
       fetch(e.request).catch(() =>
         new Response(JSON.stringify({ error: 'sem_conexao' }),

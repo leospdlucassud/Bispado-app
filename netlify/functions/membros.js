@@ -1,4 +1,5 @@
 import { getStore } from "@netlify/blobs";
+import { ALA_ID } from "./_ala.js";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -7,7 +8,9 @@ const CORS = {
   "Content-Type": "application/json",
 };
 
-const STORE_NAME = "membros";
+// Tinha nome fixo ("membros") e guardava o quadro de qualquer ala que passasse
+// por aqui. Agora e por ala, como o store principal.
+const STORE_NAME = "membros-" + ALA_ID;
 const KEY = "dados";
 
 export default async (req) => {

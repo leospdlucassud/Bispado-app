@@ -177,7 +177,7 @@
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
     <div>
       <h2 style="font-size:18px;color:#34d399">🗓️ Agenda de Entrevistas</h2>
-      <p style="font-size:12px;color:#8eacc8;margin-top:4px">342 membros · <span data-ala></span></p>
+      <p style="font-size:12px;color:#8eacc8;margin-top:4px"><span data-total-membros></span><span data-ala></span></p>
     </div>
   </div>
   <div class="membros-stats" id="agenda-stats"></div>
@@ -781,7 +781,7 @@
   <div class="como-usar-section">
     <div class="como-usar-titulo" style="color:#34d399">🗓️ Agenda de Entrevistas</div>
     <div class="como-usar-item">Toque no botão <strong>+</strong> (canto inferior direito) para agendar uma nova entrevista com qualquer membro da ala.</div>
-    <div class="como-usar-item">Use a busca para encontrar um membro rapidamente entre os 342 cadastrados.</div>
+    <div class="como-usar-item">Use a busca para encontrar um membro rapidamente entre os cadastrados.</div>
     <div class="como-usar-item">Defina a prioridade: 🔴 Alta, 🟡 Média ou 🟢 Normal.</div>
     <div class="como-usar-item">Para reagendar, abra a entrevista e toque em "Reagendar" — o histórico é preservado.</div>
     <div class="como-usar-item">Marque como "Realizada" após a entrevista. "Não Realizada" exige informar o motivo.</div>
@@ -905,7 +905,8 @@
   Bispado <span data-ala></span> · A Igreja de Jesus Cristo dos Santos dos Últimos Dias<br>
   Consulte o <a href="https://www.churchofjesuschrist.org/study/manual/general-handbook?lang=por" target="_blank">Manual Geral</a> na aba 📖 Manual<br>
   <span style="color:#4a6a8a;margin-top:4px;display:inline-block">© 2025 Léo Lucas · Todos os direitos reservados</span><br>
-  <span style="color:#2a4060;font-size:10px;margin-top:6px;display:inline-block">v5.13.0 · 21/08/2026</span>
+  <!-- preenchido por aplicarNomeAla a partir de VERSAO (js/config.js) -->
+  <span data-versao style="color:#2a4060;font-size:10px;margin-top:6px;display:inline-block"></span>
 </footer>
 
 <!-- ES Modules: main.js importa o grafo de módulos (js/) na ordem de dependência -->

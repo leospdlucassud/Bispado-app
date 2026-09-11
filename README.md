@@ -40,7 +40,7 @@ os primeiros definem o que os seguintes usam, e `app.js` fecha a inicialização
 
 | Arquivo | Responsabilidade |
 | --- | --- |
-| `dados-membros.js` | Quadro de membros embutido; substituído ao importar o PDF do LCR |
+| `dados-membros.js` | Começa vazio (o arquivo é público); o quadro vem do PDF do LCR e fica no servidor |
 | `config.js` | Constantes, estado global (`DADOS`) e nome da ala |
 | `utils.js` | Formatação de data e `esc()` (escape de HTML para innerHTML) |
 | `ui.js` | Troca de abas e abertura/fechamento de modais |

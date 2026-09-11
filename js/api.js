@@ -7,6 +7,7 @@ import { renderCalendario } from './calendario.js';
 import { carregarChamados } from './chamados.js';
 import { API_AGENDA, API_DESIG, API_EVENTOS, API_REUNIOES, API_SAC, DADOS } from './config.js';
 import { renderDesignacoes } from './designacoes.js';
+import { carregarMovimentacoes } from './membros.js';
 import { enviarFilaPendente, isOnline, limparCacheApp, salvarNaFila } from './offline-pwa.js';
 import { renderReunioes } from './reunioes.js';
 import { renderSacramentais, sacCarregado, setSacCarregado } from './sacramental.js';
@@ -158,15 +159,16 @@ export async function loadSacramentais() {
 }
 
 async function carregarTudo() {
-  // Os nomes dos chamados vem ANTES: as listas abaixo ja renderizam com eles.
-  // Em paralelo, a agenda renderizava primeiro e o nome so aparecia no proximo
-  // desenho da tela.
-  const okChamados = await carregarChamados();
+  // Nomes dos chamados e quadro de membros vem ANTES: as listas abaixo ja
+  // renderizam com eles (responsavel com nome, telefone do membro no convite).
+  // O quadro antes vinha embutido no app; agora so existe no servidor, entao
+  // esperar a aba Membros ser aberta deixaria a agenda sem membros.
+  const [okChamados, okMembros] = await Promise.all([carregarChamados(), carregarMovimentacoes()]);
   const r = await Promise.all([
     loadAgenda(), loadReunioes(), loadDesignacoes(),
     loadEventos(), loadSacramentais(), loadAcompanhamentos(),
   ]);
-  return okChamados && r.every(Boolean);
+  return okChamados && okMembros && r.every(Boolean);
 }
 
 export async function carregarDados() {

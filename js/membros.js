@@ -47,7 +47,7 @@ export async function carregarMovimentacoes() {
       const data = await res.json();
       if (data.movimentacoes) MOVIMENTACOES = data.movimentacoes;
       if (data.saidos) MEMBROS_SAIDOS = data.saidos;
-      // Quadro importado de PDF tem prioridade sobre a lista embutida
+      // O quadro da ala vem daqui (importado do PDF do LCR); o arquivo embutido é vazio
       if (Array.isArray(data.roster) && data.roster.length) {
         setMembros(data.roster);
         ROSTER_ATUALIZADO = data.rosterAtualizadoEm || null;
@@ -61,6 +61,7 @@ export async function carregarMovimentacoes() {
     }
   } catch(e) {}
   renderMembros();
+  return movimentacoesCarregadas;
 }
 
 export async function salvarDadosMembros() {
@@ -98,7 +99,9 @@ export function renderMembros() {
     const comTel = MEMBROS.filter(m => m.telefone).length;
     info.innerHTML = ROSTER_ATUALIZADO
       ? `📄 Quadro importado do LCR em ${new Date(ROSTER_ATUALIZADO).toLocaleDateString('pt-BR')} · ${comTel} com telefone`
-      : 'Lista embutida no app. Importe o PDF do LCR para atualizar e trazer telefones e e-mails.';
+      : MEMBROS.length
+        ? 'Quadro sem data de importação. Importe o PDF do LCR para atualizar telefones e e-mails.'
+        : '📄 Nenhum quadro de membros ainda. Toque em <strong>Importar PDF do LCR</strong> para carregar os membros da ala.';
   }
 
   // Stats
@@ -115,6 +118,11 @@ export function renderMembros() {
     <div class="membros-stat"><div class="stat-num" style="color:#a78bfa">${MOVIMENTACOES.length}</div><div class="stat-label">Movimentações</div></div>
   `;
 
+  // cabeçalho da Agenda: antes era "342 membros" escrito no HTML
+  document.querySelectorAll('[data-total-membros]').forEach(el => {
+    el.textContent = MEMBROS.length ? `${MEMBROS.length} membros · ` : '';
+  });
+
   if (filMembros === 'historico') {
     renderHistorico(el, busca);
     return;
@@ -126,7 +134,12 @@ export function renderMembros() {
     return matchBusca; // todos
   }).sort((a, b) => a.name.localeCompare(b.name));
 
-  if (!lista.length) { el.innerHTML = '<div class="vazia">📭 Nenhum membro encontrado</div>'; return; }
+  if (!lista.length) {
+    el.innerHTML = MEMBROS.length
+      ? '<div class="vazia">📭 Nenhum membro encontrado</div>'
+      : '<div class="vazia">📭 Nenhum membro cadastrado<br><span style="font-size:12px;opacity:.7">Importe o PDF do LCR pelo botão acima</span></div>';
+    return;
+  }
 
   el.innerHTML = `<div style="font-size:11px;color:#445566;margin-bottom:8px">${lista.length} membro${lista.length>1?'s':''}</div>` +
     lista.map(m => {

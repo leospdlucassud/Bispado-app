@@ -1,4 +1,5 @@
 import { getStore } from "@netlify/blobs";
+import { ALA_ID } from "./_ala.js";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -7,7 +8,7 @@ const CORS = {
   "Content-Type": "application/json",
 };
 
-const STORE_NAME = "notas";
+const STORE_NAME = "notas-" + ALA_ID;   // por ala (ver _ala.js)
 const KEY = "all";
 
 // Lê as notas com o ETag. Erro de leitura sobe: tratar falha como "lista vazia"

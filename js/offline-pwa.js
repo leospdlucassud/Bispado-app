@@ -1,5 +1,6 @@
 // ── FILA OFFLINE (IndexedDB) ──
 import { atualizarUltimaSinc, carregarDados, rotuloSync, setSyncStatus } from './api.js';
+import { VERSAO } from './config.js';
 import { toast } from './usuario.js';
 
 export const DB_NAME = 'bispado-offline';
@@ -188,9 +189,79 @@ document.addEventListener('visibilitychange', () => {
       verificarAtualizacaoSilenciosa(swRegistration);
       limparCacheApp(); // renova cache ao retornar ao app
     }
+    // instalado, voltar para o app conta como abrir: confere a versao publicada
+    verificarVersaoServidor();
     if (isOnline) carregarDados();
   }
 });
+
+// =============================================
+// ATUALIZACAO DO APP INSTALADO
+// No navegador a pessoa recarrega e pronto. Instalado (PWA) a tela fica aberta
+// por dias e pode ficar presa numa versao antiga se o service worker nao
+// atualizar. Entao, ao abrir e ao voltar para o app, comparamos a versao que
+// esta rodando com a publicada em /version.json e buscamos a nova se for o caso.
+// =============================================
+
+// Rodando como app instalado? (Android/desktop usam display-mode; iOS usa navigator.standalone)
+export function estaInstalado() {
+  return window.matchMedia?.('(display-mode: standalone)')?.matches === true
+      || window.navigator.standalone === true;
+}
+
+// Compara "5.9.0" com "5.13.0" por NUMERO, nao por texto: como texto, "5.9.0"
+// seria "maior" que "5.13.0" e o app nunca atualizaria.
+export function compararVersoes(a, b) {
+  const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b).split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d) return d > 0 ? 1 : -1;
+  }
+  return 0;
+}
+
+const CHAVE_TENTATIVA = 'atualizacao-tentada';
+
+export async function verificarVersaoServidor() {
+  if (!estaInstalado() || !isOnline) return;
+  let publicada;
+  try {
+    const res = await fetch('/version.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    publicada = (await res.json())?.versao;
+  } catch (e) { return; }
+  if (!publicada || compararVersoes(publicada, VERSAO) <= 0) return;
+
+  // Trava anti-loop: se recarregar nao trouxer a versao nova (cache de CDN, por
+  // exemplo), sem isso o app ficaria recarregando para sempre.
+  try {
+    if (sessionStorage.getItem(CHAVE_TENTATIVA) === publicada) return;
+    sessionStorage.setItem(CHAVE_TENTATIVA, publicada);
+  } catch (e) { /* sem sessionStorage: segue sem a trava */ }
+
+  toast(`Atualizando para a versão ${publicada}…`);
+  await aplicarAtualizacao();
+}
+
+// Busca a versao nova: limpa o cache do app, pede ao service worker que assuma
+// e recarrega. O reload fica mesmo sem service worker (navegador sem suporte).
+export async function aplicarAtualizacao() {
+  try {
+    if (window.caches) {
+      for (const k of await caches.keys()) await caches.delete(k);
+    }
+  } catch (e) {}
+  try {
+    const reg = swRegistration || await navigator.serviceWorker?.getRegistration();
+    await reg?.update();
+    (reg?.waiting || reg?.installing)?.postMessage({ type: 'SKIP_WAITING' });
+  } catch (e) {}
+  setTimeout(() => window.location.reload(), 600);
+}
+
+// Na abertura do app instalado
+window.addEventListener('load', () => { verificarVersaoServidor(); });
 
 export let dp=null;
 export const banner=document.createElement('div');

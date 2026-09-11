@@ -1,6 +1,8 @@
 import { getStore } from "@netlify/blobs";
+import { ALA_ID } from "./_ala.js";
 
-const STORE = "bispado-queimados";
+// Um store por ala (ver _ala.js).
+const STORE = "bispado-" + ALA_ID;
 
 const H = {
   "Content-Type": "application/json",
