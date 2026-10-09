@@ -17,6 +17,7 @@ import './chamados.js';
 import './usuario.js';
 import './api.js';
 import './offline-pwa.js';
+import './pendentes.js';
 import './tema.js';
 import './agenda.js';
 import './acompanhamento.js';

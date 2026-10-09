@@ -59,8 +59,13 @@ export default async (req) => {
     // PUT — update
     if (req.method === "PUT" && id) {
       const body = await req.json();
-      if (!await alterarNotas(store, data => data.map(n => (n.id === id ? { ...n, ...body, id } : n)))) return conflito();
-      return new Response(JSON.stringify(body), { headers: CORS });
+      // Nota que não existe é 404: responder 200 fazia o app mostrar
+      // "Sincronizado" para uma edição que não foi a lugar nenhum.
+      let achou = false;
+      const mutar = data => data.map(n => (n.id === id ? (achou = true, { ...n, ...body, id }) : n));
+      if (!await alterarNotas(store, data => { achou = false; return mutar(data); })) return conflito();
+      if (!achou) return new Response(JSON.stringify({ error: "Nota não encontrada" }), { status: 404, headers: CORS });
+      return new Response(JSON.stringify({ ...body, id }), { headers: CORS });
     }
 
     // DELETE

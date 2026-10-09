@@ -1,7 +1,7 @@
 // =============================================
 // DESIGNAÇÕES
 // =============================================
-import { apiFetch, atualizarUltimaSinc, avisarPendente, setSyncStatus } from './api.js';
+import { apiFetch, atualizarUltimaSinc, avisarPendente, idProvisorioDo, setSyncStatus } from './api.js';
 import { comNome } from './chamados.js';
 import { reativarAbaAtual } from './app.js';
 import { API_DESIG, CARGOS, DADOS } from './config.js';
@@ -137,9 +137,11 @@ export async function salvarDesig(id) {
       DADOS.designacoes.push(criado);
     }
     atualizarUltimaSinc(); setSyncStatus('ok');
+    toast('Designação salva');
   } catch(e) {
     if (id) DADOS.designacoes = DADOS.designacoes.map(x => x.id===id ? { ...x, ...payload } : x);
-    else DADOS.designacoes.push({ ...payload, id: 'local_' + Date.now() });
+    else DADOS.designacoes.push({ ...payload, id: idProvisorioDo(e) });
+    avisarPendente('designação');
   }
   renderDesignacoes();
 }
@@ -165,6 +167,7 @@ export async function avancarDesig(id) {
     atualizarUltimaSinc(); setSyncStatus('ok');
   } catch(e) {
     DADOS.designacoes = DADOS.designacoes.map(d => d.id===id ? { ...d, status: novoStatus, obs_conclusao } : d);
+    avisarPendente('alteração');
   }
   renderDesignacoes();
 }
@@ -186,6 +189,7 @@ export async function togglePermDesig(id) {
     atualizarUltimaSinc(); setSyncStatus('ok');
   } catch(e) {
     DADOS.designacoes = DADOS.designacoes.map(d => d.id===id ? { ...d, status: novoStatus } : d);
+    avisarPendente('alteração');
   }
   renderDesignacoes();
 }

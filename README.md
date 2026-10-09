@@ -60,6 +60,7 @@ módulos; cada um declara as próprias dependências com `import`.
 | --- | --- |
 | `dados-membros.js` | Começa vazio (o arquivo é público); o quadro vem do PDF do LCR e fica no servidor |
 | `config.js` | Constantes, estado global (`DADOS`), nome da ala e `MODO_CONVITE` |
+| `pendentes.js` | Reaplica a fila offline sobre o que veio do servidor (sem DOM, testado) |
 | `convite-regras.js` | Regras do convite sem DOM: o que o membro pode ler (`tipoNoConvite`) e o que a resposta grava |
 | `utils.js` | Formatação de data e `esc()` (escape de HTML para innerHTML) |
 | `ui.js` | Troca de abas e abertura/fechamento de modais |
@@ -117,6 +118,22 @@ com `data-act` e cada módulo liga os seus numa função `ligar<Área>()`.
   status, de responsável) escrita no HTML vai como `style="--c:#34d399"`, não
   `color:#34d399`: uma regra no fim do `style.css` aplica e escurece no tema
   claro. Cor escrita direto fica presa ao tema escuro e some no creme.
+- **Modais: sempre por `abrirModal(id, opções)` e `fecharModal(id)`** (de `ui.js`),
+  nunca mexendo na classe `open` à mão. A pilha de `ui.js` dá a todos o Esc, o
+  Voltar do Android (cada modal tem uma entrada no histórico), o ✕, o toque fora,
+  o "Descartar o que foi digitado?" e a volta do foco. Opções: `obrigatorio`
+  (não fecha por gesto), `semConfirmacao`, `travarSeSujo` (diálogo curto que,
+  com texto digitado, só fecha por ✕/Esc), `aoFechar`. Nunca chame `history.pushState`
+  direto: use `registrarNoHistorico` (de `ui.js`), que respeita um Voltar em andamento. `confirmar()` e
+  `pedirTexto()` (de `dialogo.js`) já usam a pilha.
+- **Abas:** `switchTab(aba)` grava `#aba` no histórico — o Voltar volta para a aba
+  anterior. Para só redesenhar a aba atual, nada muda (`reativarAbaAtual`).
+- **Gravação sem sinal:** toda escrita passa por `apiFetch` (de `api.js`) — sem
+  sinal ela vai para a fila (IndexedDB) e o módulo chama `avisarPendente()` no
+  `catch`. Com algo na fila, uma escrita nova espera a fila sair. A cada carga, o
+  que está na fila é reaplicado por cima dos dados (`js/pendentes.js`), e a barra
+  mostra "⚠ N alterações não enviadas". Não use `fetch` direto para gravar: a
+  alteração se perderia sem aviso (era o caso das notas compartilhadas).
 - **Datas:** "hoje" é `dataLocal()` (de `utils.js`); `toISOString()` está em UTC
   e, depois das 21h, devolve o dia seguinte.
 - **Ao inserir dados do usuário via `innerHTML`**, passe por `esc()` (de `utils.js`).

@@ -13,11 +13,11 @@ import { renderInicio } from './inicio.js';
 import { renderManual, renderRoteiros } from './manual.js';
 import { carregarMovimentacoes } from './membros.js';
 import { carregarNotasCompartilhadas } from './notas.js';
-import { installPWA } from './offline-pwa.js';
+import { installPWA, verRecusadas } from './offline-pwa.js';
 import { abrirModalReuniao } from './reunioes.js';
 import { abrirModalSac, carregarSacramentais, formatDateKey, sacCarregado } from './sacramental.js';
 import { changeFontSize, toggleTheme } from './tema.js';
-import { ativarAba } from './ui.js';
+import { ativarAba, definirVoltarAba, registrarNoHistorico } from './ui.js';
 import { abrirEscolhaCargo, initUsuario } from './usuario.js';
 
 export let fabTab = '';
@@ -68,6 +68,9 @@ function ligarCasca() {
 
   // sincronização
   document.getElementById('sync-btn')?.addEventListener('click', () => sincronizarManual());
+  // o botão também avisa de alterações recusadas: tocar mostra o aviso; senão, envia
+  // tocar no aviso mostra as recusadas E envia o que estiver pendente
+  document.getElementById('sync-pendentes')?.addEventListener('click', () => { verRecusadas(); sincronizarManual(); });
 
   // busca
   const busca = document.getElementById('search-input');
@@ -76,9 +79,16 @@ function ligarCasca() {
 }
 ligarCasca();
 
+const abaExiste = t => !!(t && document.getElementById('panel-' + t) && document.querySelector(`.tab-btn[data-tab="${t}"]`));
+
 // switchTab completo: troca a aba (ativarAba, do ui.js), avisa o FAB, sincroniza
 // o select das telas estreitas e faz o lazy-load de abas que carregam sob demanda.
-export function switchTab(t) {
+// Cada troca de aba entra no histórico (#agenda, #notas…): o Voltar do Android
+// volta para a aba anterior, em vez de sair do app. `historico: false` é para
+// quem já veio do histórico (o próprio Voltar) ou só redesenha a mesma aba.
+export function switchTab(t, { historico = true } = {}) {
+  if (!abaExiste(t)) return;
+  const mudou = fabTab !== t;
   ativarAba(t);
   onTabChange(t);
   const sel = document.getElementById('tabs-select');
@@ -88,6 +98,11 @@ export function switchTab(t) {
   if (t === 'notas') carregarNotasCompartilhadas();
   if (t === 'membros') carregarMovimentacoes();
   if (t === 'sacramental' && !sacCarregado) carregarSacramentais();
+  if (mudou) {
+    if (historico) registrarNoHistorico({ aba: t }, '#' + t);
+    // com a barra de abas fixa no topo, a aba nova abre do começo
+    window.scrollTo(0, 0);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -96,14 +111,25 @@ document.addEventListener('DOMContentLoaded', () => {
   if (convite) { abrirTelaConfirmacao(convite); return; }
 
   aplicarNomeAla();
+  // A entrada de histórico da aba vem ANTES do "Quem está usando?": o modal
+  // empilha a dele por cima. Na ordem inversa, o replaceState apagava a do
+  // modal e o primeiro Voltar não fazia nada.
+  onTabChange('inicio');
+  const daUrl = decodeURIComponent(location.hash.slice(1));
+  if (daUrl !== 'inicio' && abaExiste(daUrl)) switchTab(daUrl, { historico: false });
+  try { history.replaceState({ ...(history.state || {}), aba: fabTab }, ''); } catch (e) {}
   initUsuario();
   renderCalendario();
   renderManual();
   renderRoteiros();
   // abre na tela de boas-vindas (o index.html já a traz marcada como ativa);
   // antes o app abria direto na Agenda
-  onTabChange('inicio');
   renderInicio();
+  // Voltar sem modal aberto: a aba da entrada anterior do histórico
+  definirVoltarAba(estado => {
+    const t = estado?.aba || decodeURIComponent(location.hash.slice(1)) || 'inicio';
+    switchTab(abaExiste(t) ? t : 'inicio', { historico: false });
+  });
   carregarDados();
   iniciarAtualizacaoAutomatica();
 });

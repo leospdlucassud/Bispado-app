@@ -7,6 +7,7 @@ import { renderAcompanhamentos } from './acompanhamento.js';
 import { renderAgenda } from './agenda.js';
 import { abrirEdicaoChamados, nomeDoCargo } from './chamados.js';
 import { CARGOS } from './config.js';
+import { abrirModal, fecharModal } from './ui.js';
 import { renderInicio } from './inicio.js';
 import { esc } from './utils.js';
 
@@ -32,22 +33,26 @@ export function renderQuemBadge() {
 export function abrirEscolhaCargo() {
   const cx = document.getElementById('quem-opcoes');
   cx.innerHTML = CARGOS.map(c => `
-    <div class="quem-opt" data-cargo="${c}">
+    <button type="button" class="quem-opt" data-cargo="${c}">
       <span class="qi">${ICONE_CARGO[c] || '👤'}</span>
       <span style="font-size:13.5px;font-weight:600">${c}${nomeDoCargo(c) ? `<span style="font-weight:400;color:var(--text2)"> · ${esc(nomeDoCargo(c))}</span>` : ''}</span>
       ${c === 'Bispo' ? '<span style="margin-left:auto;font-size:10px;--c:#e05555">vê sigilosos</span>' : ''}
-    </div>`).join('');
+    </button>`).join('');
   // Chamados sao temporarios: da para corrigir os nomes sem mexer no codigo.
   cx.insertAdjacentHTML('beforeend', `
     <button id="quem-editar"
       style="display:block;width:100%;margin-top:10px;background:none;border:none;--c:#5b7a99;font-size:12px;text-decoration:underline;cursor:pointer;font-family:inherit">✏️ Editar os nomes dos chamados</button>`);
-  document.getElementById('quem-modal').style.display = 'flex';
+  // Sem cargo escolhido a janela é obrigatória (não fecha por Esc nem Voltar);
+  // com cargo, quem tocou no crachá só para conferir pode sair pelo ✕.
+  const fechar = document.getElementById('quem-fechar');
+  if (fechar) fechar.hidden = !USUARIO;
+  abrirModal('quem-modal', { obrigatorio: !USUARIO, semConfirmacao: true });
 }
 
 export function definirCargo(cargo) {
   USUARIO = cargo;
   localStorage.setItem(CARGO_KEY, cargo);
-  document.getElementById('quem-modal').style.display = 'none';
+  fecharModal('quem-modal');
   renderQuemBadge();
   // o que está na tela muda conforme o sigilo
   renderAgenda();
@@ -81,8 +86,11 @@ function ligarUsuario() {
   // as opções são recriadas a cada abrirEscolhaCargo()
   document.getElementById('quem-opcoes')?.addEventListener('click', e => {
     if (e.target.closest('#quem-editar')) {
-      document.getElementById('quem-modal').style.display = 'none';
-      abrirEdicaoChamados();
+      // Depois de editar (ou cancelar), volta para a escolha do cargo com os
+      // nomes novos — na primeira vez, sem cargo, cancelar deixava o app sem
+      // cargo e sem a janela.
+      fecharModal('quem-modal');
+      abrirEdicaoChamados().finally(() => abrirEscolhaCargo());
       return;
     }
     const opt = e.target.closest('.quem-opt');

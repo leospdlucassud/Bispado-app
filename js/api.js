@@ -1,7 +1,7 @@
 // =============================================
 // STATUS / SYNC UI
 // =============================================
-import { loadAcompanhamentos } from './acompanhamento.js';
+import { loadAcompanhamentos, renderAcompanhamentos } from './acompanhamento.js';
 import { renderAgenda } from './agenda.js';
 import { renderCalendario } from './calendario.js';
 import { carregarChamados } from './chamados.js';
@@ -9,9 +9,11 @@ import { API_AGENDA, API_DESIG, API_EVENTOS, API_REUNIOES, API_SAC, DADOS } from
 import { renderDesignacoes } from './designacoes.js';
 import { inicioAposCarga } from './inicio.js';
 import { carregarMovimentacoes } from './membros.js';
-import { enviarFilaPendente, isOnline, limparCacheApp, salvarNaFila } from './offline-pwa.js';
+import { ajustarCriacaoNaFila, comIdReal, enviarFilaPendente, esperarEnvio, isOnline, lerFila, limparCacheApp, salvarNaFila } from './offline-pwa.js';
+import { aplicarPendentes } from './pendentes.js';
 import { renderReunioes } from './reunioes.js';
 import { renderSacramentais, sacCarregado, setSacCarregado } from './sacramental.js';
+import { haModalAberto } from './ui.js';
 import { toast } from './usuario.js';
 
 export function showSync(msg) {}  // mantido por compatibilidade
@@ -96,20 +98,66 @@ export function atualizarUltimaSinc() {
 // =============================================
 // API — fetch com fallback para fila offline
 // =============================================
-export async function apiFetch(url, method = 'GET', body = null) {
+// Gravações em andamento: a recarga que aplica uma versão nova do app espera
+// por elas (ver esperarGravacoes) — recarregar no meio de um "Salvar" perdia a
+// alteração sem aviso.
+const gravacoes = new Set();
+export const esperarGravacoes = () => Promise.allSettled([...gravacoes]);
+export const haGravacoes = () => gravacoes.size > 0;
+
+// O id que o módulo deve pôr na tela para o que foi criado sem sinal: o mesmo
+// que a fila guarda (local_<ts>). Com um id diferente do da fila, editar ou
+// excluir o item antes de ele sair não achava nada, e ele aparecia duplicado.
+export const idProvisorioDo = erro => erro?.idLocal || ('local_' + Date.now());
+
+// Põe na fila e devolve o erro já com o id provisório (para POST)
+async function enfileirar(url, method, body, erro) {
+  const ts = await salvarNaFila(url, method, body);
+  if (method === 'POST') erro.idLocal = 'local_' + ts;
+  return erro;
+}
+
+export function apiFetch(url, method = 'GET', body = null) {
+  if (method === 'GET') return enviar(url, method, body);
+  const p = enviar(url, method, body);   // registrada já no início, de forma síncrona
+  gravacoes.add(p);
+  p.finally(() => gravacoes.delete(p)).catch(() => {});
+  return p;
+}
+
+async function enviar(url, method, body) {
+  const escrita = method !== 'GET';
+  // Criado sem sinal e já enviado: a tela ainda tem o id provisório. Espera um
+  // envio que esteja saindo AGORA — ele pode estar criando justamente este item.
+  if (escrita) { await esperarEnvio(); url = comIdReal(url); }
+  // criado sem sinal e ainda na fila: ajusta a própria criação (offline-pwa.js)
+  if (escrita && method !== 'POST') {
+    const ajuste = await ajustarCriacaoNaFila(url, method, body);
+    if (ajuste === 'removido') return null;            // só existia neste aparelho
+    if (ajuste === 'mesclado') throw new Error('pendente');
+  }
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
   if (!isOnline) {
-    if (method !== 'GET') await salvarNaFila(url, method, body);
-    throw new Error('offline');
+    const erro = new Error('offline');
+    throw escrita ? await enfileirar(url, method, body, erro) : erro;
   }
+  // Com alterações esperando na fila, a nova não passa na frente delas: uma
+  // edição chegaria antes da criação que ela edita, ou seria desfeita por uma
+  // alteração mais antiga que saísse depois.
+  if (escrita && (await lerFila()).some(i => i.url)) {
+    await enviarFilaPendente();
+    if ((await lerFila()).some(i => i.url)) throw await enfileirar(url, method, body, new Error('pendente'));
+  }
+  // Prazo: sem ele, uma rede que não responde deixava o "Sincronizando…" e a
+  // atualização do app esperando para sempre. A gravação que estoura vai para a fila.
+  if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) opts.signal = AbortSignal.timeout(15000);
   try {
     const res = await fetch(url, opts);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return res.status === 204 ? null : await res.json();
   } catch(e) {
-    if (method !== 'GET') await salvarNaFila(url, method, body);
-    throw e;
+    throw escrita ? await enfileirar(url, method, body, e) : e;
   }
 }
 
@@ -178,6 +226,15 @@ async function carregarTudo() {
   // voltaram, sabendo quais vieram do servidor. Não usa o `ok` geral abaixo —
   // ele cai se só os chamados ou o quadro de membros falharem, e o Início
   // diria "sem conexão" com a agenda carregada.
+  // O que ainda está na fila (salvo sem sinal) volta por cima do que o servidor
+  // mandou — senão sumia da tela até ser enviado. Ver pendentes.js.
+  const colecoes = ['agenda', 'reunioes', 'designacoes', 'eventos_extras', 'sacramentais', 'acompanhamentos'];
+  const recarregadas = new Set(colecoes.filter((c, i) => r[i]));
+  const fila = recarregadas.size ? await lerFila() : [];
+  if (fila.length && aplicarPendentes(DADOS, fila, recarregadas)) {
+    renderAgenda(); renderReunioes(); renderDesignacoes(); renderCalendario(); renderAcompanhamentos();
+    if (sacCarregado) renderSacramentais();
+  }
   const [agenda, , designacoes, eventos, sacramentais, acomp] = r;
   inicioAposCarga({ agenda, designacoes, eventos, sacramentais, acomp });
   return okChamados && okMembros && r.every(Boolean);
@@ -186,6 +243,8 @@ async function carregarTudo() {
 export async function carregarDados() {
   setSyncStatus('syncing');
   try {
+    // o que ficou na fila de uma sessão anterior vai antes de buscar
+    if (isOnline) await enviarFilaPendente();
     if (await carregarTudo()) { atualizarUltimaSinc(); setSyncStatus('ok'); }
     else setSyncStatus('erro');
   } catch(e) {
@@ -204,8 +263,10 @@ export const INTERVALO_ATUALIZACAO = 30000;
 export async function atualizarEmSegundoPlano() {
   if (document.visibilityState !== 'visible' || !isOnline) return;
   // não troca os dados debaixo de um formulário aberto
-  if (document.querySelector('.modal-overlay.open')) return;
+  if (haModalAberto()) return;
   try {
+    // a fila sai primeiro; o que não sair continua aparecendo (aplicarPendentes)
+    await enviarFilaPendente();
     if (await carregarTudo()) atualizarUltimaSinc();
   } catch (e) { /* silencioso: o botão de sincronizar continua sendo o caminho manual */ }
 }

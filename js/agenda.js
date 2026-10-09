@@ -2,7 +2,7 @@
 // AGENDA DE ENTREVISTAS
 // =============================================
 import { renderAcompanhamentos } from './acompanhamento.js';
-import { apiFetch, atualizarUltimaSinc, avisarPendente, setSyncStatus } from './api.js';
+import { apiFetch, atualizarUltimaSinc, avisarPendente, idProvisorioDo, setSyncStatus } from './api.js';
 import { comNome } from './chamados.js';
 import { reativarAbaAtual } from './app.js';
 import { ALA, API_AGENDA, API_CONVITE, DADOS } from './config.js';
@@ -14,9 +14,9 @@ import { abrirModal, fecharModal } from './ui.js';
 import { podeVer, toast } from './usuario.js';
 import { esc, formatarData } from './utils.js';
 
-// 'todas' para bater com o botão marcado como active no index.html — antes
-// iniciava em 'ativas' e as realizadas sumiam com "Todas" aceso.
-export let filAgenda = 'todas';
+// Começa em "Em aberto" (pendentes e agendadas), o botão marcado como active no
+// index.html. Em "Todas", as realizadas se acumulavam para sempre na frente.
+export let filAgenda = 'abertas';
 
 export const TIPOS_ENTREVISTA = [
   // Recomendações
@@ -103,6 +103,7 @@ export function renderAgenda() {
     const matchBusca = !busca || e.membro.toLowerCase().includes(busca);
     let matchFil;
     if (filAgenda === 'todas') matchFil = true;
+    else if (filAgenda === 'abertas') matchFil = e.status === 'pendente' || e.status === 'agendada';
     else if (filAgenda === 'ativas') matchFil = e.status !== 'realizada';
     else matchFil = e.status === filAgenda;
     return matchBusca && matchFil;
@@ -121,6 +122,7 @@ export function renderAgenda() {
   const respCor = { bispo:'#c9a84c', c1:'#5b9bd5', c2:'#6dbf8c', sec:'#e8b040' };
   const respNome = { bispo:'Bispo', c1:'1º Conselheiro', c2:'2º Conselheiro', sec:'Secretário' };
 
+  const maisAbertos = new Set([...el.querySelectorAll('details.mais-acoes[open]')].map(d => d.dataset.id));
   el.innerHTML = lista.map(e => `
     <div class="entrevista-card" style="border-color:${statusCor[e.status]||'#445566'}">
       <div class="ent-header">
@@ -141,20 +143,10 @@ export function renderAgenda() {
       </div>
       ${e.obs?`<div class="ent-obs">${esc(e.obs)}</div>`:''}
       ${e.obs_conclusao?`<div class="ent-obs" style="border-left:3px solid #34d399;padding-left:8px;margin-top:4px;--c:#34d399">✔ ${esc(e.obs_conclusao)}</div>`:''}
-      <div class="ent-actions">
-        ${e.status==='pendente'||e.status==='agendada'?`
-          ${aguardandoNovaData(e) ? '' : botaoConvite(e)}
-          <button class="btn-secondary" data-act="realizada" data-id="${e.id}">✓ Realizada</button>
-          <button class="btn-secondary" data-act="reagendar" data-id="${e.id}">🔄 Reagendar</button>
-          <button class="btn-secondary" data-act="naorealizada" data-id="${e.id}">✗ Não Realizada</button>
-        `:''}
-        <button class="btn-secondary" title="Corrigir membro, tipo, responsável, data ou contato" data-act="editar" data-id="${e.id}">✏️ Editar</button>
-        <button class="btn-secondary" title="Precisa de acompanhamento" data-act="toggle" data-id="${e.id}" data-campo="acompanhar" style="${e.acompanhar?'--c:#fbbf24;border-color:#fbbf24':''}">🧭 ${e.acompanhar?'Acompanhando':'Acompanhar'}</button>
-        <button class="btn-secondary" title="Assunto sigiloso" data-act="toggle" data-id="${e.id}" data-campo="sigiloso" style="${e.sigiloso?'--c:#e05555;border-color:#e05555':''}">${e.sigiloso?'🔒 Sigiloso':'🔓 Sigilo'}</button>
-        <button class="btn-danger" data-act="excluir" data-id="${e.id}">🗑</button>
-      </div>
+      ${acoesDoCard(e)}
     </div>
   `).join('');
+  for (const d of el.querySelectorAll('details.mais-acoes')) if (maisAbertos.has(d.dataset.id)) d.open = true;
 }
 
 // O membro pediu outra data e o bispado ainda não fechou nenhuma. Enquanto isso,
@@ -390,10 +382,6 @@ export const assuntoConvite = e => {
 export function botaoConvite(e) {
   const tel = digitosTelefone(e.telefone || telefoneDoMembro(e.membro));
   const rotulo = precisaReenviarConvite(e) ? '📨 Reenviar convite' : '💬 Convidar';
-  const outroMeio = `<button class="btn-secondary" data-act="convite" data-id="${e.id}"
-      title="Enviar por e-mail, copiar o link ou usar outro número"
-      style="font-size:11px;padding:4px 10px">✉️ Outro meio</button>`;
-
   if (!tel) {
     return `<button class="btn-secondary" data-act="convite" data-id="${e.id}"
               style="--c:#25d366;border-color:#25d366">${rotulo}</button>`;
@@ -401,7 +389,39 @@ export function botaoConvite(e) {
   const url = `https://wa.me/${tel}?text=${encodeURIComponent(mensagemConvite(e))}`;
   return `<a class="btn-secondary" href="${url}" target="_blank" rel="noopener"
             data-act="convidar" data-id="${e.id}"
-            style="text-decoration:none;--c:#25d366;border-color:#25d366">${rotulo}</a>` + outroMeio;
+            style="text-decoration:none;--c:#25d366;border-color:#25d366">${rotulo}</a>`;
+}
+
+// Ações do card. Antes eram 7 botões do mesmo peso (3 linhas no celular), e o
+// próximo passo se perdia entre eles. Agora: na frente, só o que se faz em
+// seguida — convidar (ou definir a nova data, se o membro pediu outra), marcar
+// como realizada, reagendar — e o resto num "⋯ Mais" (<details>, sem JS).
+function acoesDoCard(e) {
+  const aberta = e.status === 'pendente' || e.status === 'agendada';
+  const id = esc(e.id);
+  const pediuOutra = aberta && aguardandoNovaData(e);
+  const temTelefone = !!digitosTelefone(e.telefone || telefoneDoMembro(e.membro));
+  const frente = !aberta ? '' : pediuOutra
+    ? `<button class="btn-secondary btn-destaque" data-act="reagendar" data-id="${id}">🔄 Definir a nova data</button>
+       <button class="btn-secondary" data-act="realizada" data-id="${id}">✓ Realizada</button>`
+    : `${botaoConvite(e)}
+       <button class="btn-secondary" data-act="realizada" data-id="${id}">✓ Realizada</button>
+       <button class="btn-secondary" data-act="reagendar" data-id="${id}">🔄 Reagendar</button>`;
+  const item = (act, rotulo, extra = '') => `<button class="btn-secondary" data-act="${act}" data-id="${id}" ${extra}>${rotulo}</button>`;
+  const mais = [
+    item('editar', '✏️ Editar', 'title="Corrigir membro, tipo, responsável, data ou contato"'),
+    aberta && temTelefone && !pediuOutra ? item('convite', '✉️ Outro meio de convite', 'title="E-mail, copiar o link ou outro número"') : '',
+    aberta ? item('naorealizada', '✗ Não realizada') : '',
+    item('toggle', e.acompanhar ? '🧭 Parar de acompanhar' : '🧭 Acompanhar', 'data-campo="acompanhar"'),
+    item('toggle', e.sigiloso ? '🔓 Tirar o sigilo' : '🔒 Marcar como sigilosa', 'data-campo="sigiloso"'),
+    `<button class="btn-danger" data-act="excluir" data-id="${id}">🗑 Excluir</button>`,
+  ].filter(Boolean).join('');
+  return `<div class="ent-actions">${frente}
+      <details class="mais-acoes" data-id="${id}">
+        <summary class="btn-secondary">⋯ Mais</summary>
+        <div class="mais-acoes-lista">${mais}</div>
+      </details>
+    </div>`;
 }
 
 // A cor de cada resposta vem do css (.selo-conf-*), que tem variante para o
@@ -781,7 +801,7 @@ export async function salvarEntrevista(id) {
     toast(id ? 'Entrevista atualizada' : 'Entrevista criada');
   } catch(e) {
     if (id) DADOS.agenda = DADOS.agenda.map(x => x.id === id ? { ...x, ...payload } : x);
-    else DADOS.agenda.push({ ...payload, id: 'local_' + Date.now(), status: 'pendente', reagendamentos: [] });
+    else DADOS.agenda.push({ ...payload, id: idProvisorioDo(e), status: 'pendente', reagendamentos: [] });
     avisarPendente('entrevista');
   }
   renderAgenda();
@@ -897,10 +917,20 @@ function ligarAgenda() {
     if (btn?.dataset.fil) setFilAgenda(btn.dataset.fil, btn);
   });
 
+  // tocar fora fecha o "⋯ Mais" que estiver aberto
+  document.addEventListener('click', e => {
+    for (const d of document.querySelectorAll('#lista-agenda details.mais-acoes[open]')) if (!d.contains(e.target)) d.removeAttribute('open');
+  });
+
   // `[data-act]` e não `button[data-act]`: o "Convidar" é um link para o WhatsApp
   document.getElementById('lista-agenda')?.addEventListener('click', e => {
     const alvo = e.target.closest('[data-act]');
     if (!alvo) return;
+    // Escolheu uma ação do "⋯ Mais": o menu fecha, e o foco vai para o "⋯ Mais"
+    // ANTES da ação — é para ele que o modal da ação devolve o foco ao fechar
+    // (o botão da ação some dentro do menu fechado).
+    const menu = alvo.closest('details.mais-acoes');
+    if (menu) { menu.removeAttribute('open'); menu.querySelector('summary')?.focus({ preventScroll: true }); }
     const id = alvo.dataset.id;
     switch (alvo.dataset.act) {
       case 'editar':        abrirModalAgenda(id); break;

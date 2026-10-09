@@ -1,7 +1,10 @@
 // =============================================
 // ABA NOTAS — Privadas (localStorage) + Compartilhadas (Blobs)
 // =============================================
+import { apiFetch, atualizarUltimaSinc, avisarPendente, idProvisorioDo, setSyncStatus } from './api.js';
 import { confirmar, pedirTexto } from './dialogo.js';
+import { lerFila } from './offline-pwa.js';
+import { aplicarPendentes } from './pendentes.js';
 import { USUARIO, toast } from './usuario.js';
 import { esc } from './utils.js';
 
@@ -55,7 +58,15 @@ export function setFilNotas(val, btn) {
 export async function carregarNotasCompartilhadas() {
   try {
     const res = await fetch(API_NOTAS);
-    if (res.ok) { const data = await res.json(); if (Array.isArray(data)) NOTAS_COMPARTILHADAS = data; }
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        // o que foi salvo sem sinal continua aparecendo até sair (pendentes.js)
+        const d = { notas: data };
+        aplicarPendentes(d, await lerFila(), new Set(['notas']));
+        NOTAS_COMPARTILHADAS = d.notas;
+      }
+    }
   } catch (e) {}
   renderNotas();
 }
@@ -111,11 +122,28 @@ export async function novaNota(scope) {
     NOTAS_PRIVADAS.push(nota);
     salvarNotasPrivadas();
   } else {
+    // Pela fila do apiFetch: sem sinal, sai ao sincronizar (antes, um fetch
+    // solto — a nota se perdia). E fica com o id que o servidor deu: com o id
+    // daqui, editar ou excluir a nota recém-criada não achava nada lá.
     NOTAS_COMPARTILHADAS.push(nota);
-    fetch(API_NOTAS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nota) }).catch(() => {});
+    renderNotas();
+    try {
+      const criada = await apiFetch(API_NOTAS, 'POST', nota);
+      if (criada?.id) {
+        // a lista pode ter sido recarregada enquanto a nota saía
+        if (NOTAS_COMPARTILHADAS.includes(nota)) NOTAS_COMPARTILHADAS = NOTAS_COMPARTILHADAS.map(n => n === nota ? criada : n);
+        else if (!NOTAS_COMPARTILHADAS.some(n => n.id === criada.id)) NOTAS_COMPARTILHADAS.push(criada);
+      }
+      atualizarUltimaSinc(); setSyncStatus('ok');
+      toast('Nota adicionada');
+    } catch (e) {
+      nota.id = idProvisorioDo(e);   // o mesmo id da fila (pendentes.js)
+      if (!NOTAS_COMPARTILHADAS.some(n => n.id === nota.id)) NOTAS_COMPARTILHADAS.push(nota);
+      avisarPendente('nota');
+    }
   }
   renderNotas();
-  toast('Nota adicionada');
+  if (scope === 'privada') toast('Nota adicionada');
 }
 
 export async function editarNota(id, scope) {
@@ -132,7 +160,11 @@ export async function editarNota(id, scope) {
   if (scope === 'privada') {
     salvarNotasPrivadas();
   } else {
-    fetch(API_NOTAS + '?id=' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nota) }).catch(() => {});
+    renderNotas();
+    try {
+      await apiFetch(API_NOTAS + '?id=' + encodeURIComponent(id), 'PUT', { titulo: nota.titulo, texto: nota.texto });
+      atualizarUltimaSinc(); setSyncStatus('ok');
+    } catch (e) { avisarPendente('alteração da nota'); }
   }
   renderNotas();
 }
@@ -144,7 +176,9 @@ export async function excluirNota(id, scope) {
     salvarNotasPrivadas();
   } else {
     NOTAS_COMPARTILHADAS = NOTAS_COMPARTILHADAS.filter(n => n.id !== id);
-    try { await fetch(API_NOTAS + '?id=' + id, { method: 'DELETE' }); } catch (e) {}
+    renderNotas();
+    try { await apiFetch(API_NOTAS + '?id=' + encodeURIComponent(id), 'DELETE'); atualizarUltimaSinc(); setSyncStatus('ok'); }
+    catch (e) { avisarPendente('exclusão da nota'); }
   }
   renderNotas();
 }

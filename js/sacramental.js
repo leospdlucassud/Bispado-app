@@ -1,13 +1,14 @@
 // =============================================
 // PLANEJADOR DE SACRAMENTAIS
 // =============================================
-import { apiFetch, avisarPendente } from './api.js';
+import { apiFetch, atualizarUltimaSinc, avisarPendente, idProvisorioDo, setSyncStatus } from './api.js';
 import { API_SAC, DADOS } from './config.js';
 import { MEMBROS } from './dados-membros.js';
 import { confirmar } from './dialogo.js';
 import { inicioColecaoCarregada } from './inicio.js';
 import { imprimirAtaSacramental } from './pdf.js';
 import { abrirModal, fecharModal } from './ui.js';
+import { toast } from './usuario.js';
 import { dataLocal, esc } from './utils.js';
 
 export let sacCarregado = false;
@@ -304,10 +305,13 @@ export async function salvarSac(dataKey) {
     } else {
       DADOS.sacramentais.push(await apiFetch(API_SAC, 'POST', obj));
     }
-  } catch {
-    // offline: mantém no aparelho
+    atualizarUltimaSinc(); setSyncStatus('ok');
+    toast('Programação salva');
+  } catch (e) {
+    // sem sinal: fica na tela e na fila, e sai ao sincronizar
     if (existente) Object.assign(existente, obj);
-    else { obj.id = Date.now().toString(); DADOS.sacramentais.push(obj); }
+    else { obj.id = idProvisorioDo(e); DADOS.sacramentais.push(obj); }
+    avisarPendente('programação');
   }
 
   fecharModal('modal-sacramental');
@@ -316,7 +320,7 @@ export async function salvarSac(dataKey) {
 
 export async function excluirSac(id) {
   if (!await confirmar('Excluir esta programação?', { perigo: true, okLabel: 'Excluir' })) return;
-  try { await apiFetch(API_SAC + '?id=' + id, 'DELETE'); } catch { avisarPendente('exclusão'); }
+  try { await apiFetch(API_SAC + '?id=' + id, 'DELETE'); atualizarUltimaSinc(); setSyncStatus('ok'); } catch { avisarPendente('exclusão'); }
   if (DADOS.sacramentais) DADOS.sacramentais = DADOS.sacramentais.filter(s => s.id !== id);
   fecharModal('modal-sacramental');
   renderSacramentais();

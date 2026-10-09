@@ -1,6 +1,8 @@
 // ── FILA OFFLINE (IndexedDB) ──
-import { atualizarUltimaSinc, carregarDados, rotuloSync, setSyncStatus } from './api.js';
+import { atualizarUltimaSinc, carregarDados, esperarGravacoes, haGravacoes, rotuloSync, setSyncStatus } from './api.js';
 import { MODO_CONVITE, VERSAO } from './config.js';
+import { idProvisorio } from './pendentes.js';
+import { haModalAberto, quandoSemModal } from './ui.js';
 import { toast } from './usuario.js';
 
 export const DB_NAME = 'bispado-offline';
@@ -20,16 +22,79 @@ export function abrirDB() {
 // Guarda a requisição inteira (url + método + corpo) para reenviar depois.
 // A assinatura antiga era (chave, dados) e recebia 3 argumentos de apiFetch:
 // o corpo era descartado e a fila guardava o método no lugar dele.
+// Devolve o ts do item: 'local_' + ts é o id provisório do que foi criado sem
+// sinal (ver pendentes.js) — o mesmo que o módulo põe na tela, para os dois
+// lados falarem do mesmo item. Estritamente crescente: dois itens no mesmo
+// milissegundo teriam o mesmo id.
+let ultimoTs = 0;
 export async function salvarNaFila(url, method, body) {
+  const ts = ultimoTs = Math.max(Date.now(), ultimoTs + 1);
   try {
     const db = await abrirDB();
-    return new Promise((resolve, reject) => {
+    await new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_Q, 'readwrite');
-      tx.objectStore(STORE_Q).add({ url, method, body, ts: Date.now() });
+      tx.objectStore(STORE_Q).add({ url, method, body, ts });
       tx.oncomplete = resolve;
-      tx.onerror = reject;
+      tx.onerror = () => reject(tx.error);
     });
   } catch(e) {}
+  atualizarContadorPendentes();
+  return ts;
+}
+
+const idDaUrl = url => { try { return new URL(url, location.href).searchParams.get('id'); } catch (e) { return null; } };
+const caminhoDa = url => { try { return new URL(url, location.href).pathname; } catch (e) { return ''; } };
+
+// Ids definitivos do que foi criado sem sinal e já saiu da fila: até a próxima
+// carga, a tela ainda usa o provisório (local_…), e uma edição tem de ir para o
+// id que o servidor deu.
+const idsReais = new Map();
+export function comIdReal(url) {
+  const id = idDaUrl(url);
+  if (!id || !idsReais.has(id)) return url;
+  const u = new URL(url, location.href);
+  u.searchParams.set('id', idsReais.get(id));
+  return u.pathname + u.search;
+}
+
+// Editar ou excluir algo criado sem sinal, cuja criação ainda está na fila: em
+// vez de mandar um PUT/DELETE para um id que o servidor nunca viu (que voltava
+// 404 e era descartado — a edição sumia e o excluído reaparecia), ajusta a
+// própria criação. Devolve 'mesclado', 'removido' ou false (não era o caso).
+export async function ajustarCriacaoNaFila(url, method, body) {
+  const id = idDaUrl(url);
+  if (!id || !id.startsWith('local_')) return false;
+  if (envioEmCurso) await envioEmCurso.catch(() => {});   // a criação pode estar saindo agora
+  // e um envio não começa no meio do ajuste (mandaria a criação sem a edição)
+  let liberar;
+  ajusteEmCurso = new Promise(r => { liberar = r; });
+  try { return await ajustar(url, method, body, id); }
+  finally { ajusteEmCurso = null; liberar(); }
+}
+
+let ajusteEmCurso = null;
+
+async function ajustar(url, method, body, id) {
+  const fila = await lerFila();
+  const criacao = fila.find(i => i.method === 'POST' && idProvisorio(i) === id && caminhoDa(i.url) === caminhoDa(url));
+  if (!criacao) return false;
+  try {
+    const db = await abrirDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_Q, 'readwrite');
+      const st = tx.objectStore(STORE_Q);
+      if (method === 'DELETE') {
+        // nunca chegou ao servidor: some da fila, com o que mais houver para ele
+        for (const i of fila) if (i === criacao || idDaUrl(i.url) === id) st.delete(i.id);
+      } else {
+        st.put({ ...criacao, body: { ...(criacao.body || {}), ...(body || {}) } });
+      }
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) { return false; }
+  atualizarContadorPendentes();
+  return method === 'DELETE' ? 'removido' : 'mesclado';
 }
 
 export async function lerFila() {
@@ -55,7 +120,75 @@ export async function removerDaFila(id) {
   } catch(e) {}
 }
 
-export async function enviarFilaPendente() {
+// Alterações recusadas de vez pelo servidor (ex.: editar algo já excluído em
+// outro aparelho). Um toast sumia — coberto pelo toast da gravação seguinte —
+// e a perda passava despercebida: fica no botão da barra até a pessoa tocar.
+const CHAVE_RECUSADAS = 'recusadas_nao_vistas';
+let recusadasNaoVistas = (() => { try { return parseInt(localStorage.getItem(CHAVE_RECUSADAS), 10) || 0; } catch (e) { return 0; } })();
+const guardarRecusadas = () => { try { localStorage.setItem(CHAVE_RECUSADAS, String(recusadasNaoVistas)); } catch (e) {} };
+function mostrarRecusadas() {
+  guardarRecusadas();
+  toast(recusadasNaoVistas === 1
+    ? 'Uma alteração foi recusada pelo servidor e descartada'
+    : `${recusadasNaoVistas} alterações foram recusadas pelo servidor e descartadas`);
+  atualizarContadorPendentes();
+}
+export function verRecusadas() {
+  if (!recusadasNaoVistas) return false;
+  toast(recusadasNaoVistas === 1
+    ? 'Uma alteração foi recusada pelo servidor (o item já não existia lá) e não foi salva'
+    : `${recusadasNaoVistas} alterações foram recusadas pelo servidor (os itens já não existiam lá) e não foram salvas`);
+  recusadasNaoVistas = 0;
+  guardarRecusadas();
+  atualizarContadorPendentes();
+  return true;
+}
+
+// Quantas alterações esperam o servidor — fica à mostra na barra de
+// sincronização até sair (o aviso de "sem conexão" somia em 4 s).
+export async function atualizarContadorPendentes() {
+  const el = document.getElementById('sync-pendentes');
+  if (!el) return;
+  const n = (await lerFila()).filter(i => i.url).length;
+  const r = recusadasNaoVistas;
+  el.hidden = !n && !r;
+  // Recusada tem cara própria (✕, vermelho, texto curto que aparece também no
+  // celular): igual a "⚠ 1 não enviada", parecia algo que ainda ia sair.
+  el.classList.toggle('recusadas', !!r);
+  const partes = [];
+  if (n) partes.push(`<span class="pend-num">⚠ ${n}</span><span class="pend-txt">${n === 1 ? ' alteração não enviada' : ' alterações não enviadas'}</span>`);
+  if (r) partes.push(`<span class="pend-rec">✕ ${r} ${r === 1 ? 'recusada' : 'recusadas'}</span>`);
+  // só números e textos fixos: nada de texto de usuário aqui
+  el.innerHTML = partes.join('<span class="pend-sep"> · </span>');
+  const descricao = [
+    n && `${n} ${n === 1 ? 'alteração não enviada' : 'alterações não enviadas'} (guardada neste aparelho)`,
+    r && `${r} ${r === 1 ? 'recusada' : 'recusadas'} pelo servidor`,
+  ].filter(Boolean).join('; ');
+  el.title = descricao + ' — toque para ver e enviar';
+  el.setAttribute('aria-label', el.title);
+  return;
+  const txt = n === 1 ? ' alteração não enviada' : ' alterações não enviadas';
+  // n é número: não há texto de usuário aqui
+  el.innerHTML = `<span class="pend-num">⚠ ${n}</span><span class="pend-txt">${txt}</span>`;
+  el.title = `${n}${txt} — ficou guardada neste aparelho. Toque para enviar agora.`;
+}
+
+// Uma remessa por vez: o "voltou a rede" e o Sincronizar ao mesmo tempo
+// mandavam a mesma alteração duas vezes (e duplicavam o que era criado).
+let envioEmCurso = null;
+export function enviarFilaPendente() {
+  if (!envioEmCurso) {
+    envioEmCurso = (async () => {
+      if (ajusteEmCurso) await ajusteEmCurso;
+      return enviarFila();
+    })().finally(() => { envioEmCurso = null; atualizarContadorPendentes(); });
+  }
+  return envioEmCurso;
+}
+// Espera um envio da fila que já esteja em andamento (sem começar um novo)
+export const esperarEnvio = () => (envioEmCurso ? envioEmCurso.catch(() => {}) : Promise.resolve());
+
+async function enviarFila() {
   const fila = await lerFila();
   // Itens do formato antigo ({chave, dados}) não têm o corpo da alteração e são
   // impossíveis de reenviar — descarta para a fila não crescer para sempre.
@@ -68,24 +201,37 @@ export async function enviarFilaPendente() {
   setSyncStatus('syncing');
   rotuloSync(` Enviando ${pendentes.length} pendente${pendentes.length > 1 ? 's' : ''}…`);
 
-  let enviados = 0, falhou = false;
+  let enviados = 0, recusados = 0, falhou = false, enviouNotas = false;
   for (const item of pendentes) {
     try {
-      const res = await fetch(item.url, {
+      const res = await fetch(comIdReal(item.url), {
         method: item.method,
         headers: { 'Content-Type': 'application/json' },
         body: item.body != null ? JSON.stringify(item.body) : undefined,
       });
-      if (res.ok) { await removerDaFila(item.id); enviados++; continue; }
+      if (res.ok) {
+        if (item.method === 'POST') {
+          const criado = await res.clone().json().catch(() => null);
+          if (criado?.id != null) idsReais.set(idProvisorio(item), String(criado.id));
+        }
+        if (caminhoDa(item.url) === '/api/notas') enviouNotas = true;
+        await removerDaFila(item.id); enviados++; continue;
+      }
       // 409 é conflito de escrita simultânea e 429 é excesso de chamadas:
       // nos dois casos vale tentar de novo depois
       if (res.status === 409 || res.status === 408 || res.status === 429) { falhou = true; break; }
       // demais 4xx não adianta repetir (ex.: PUT num id que só existia aqui)
-      if (res.status >= 400 && res.status < 500) { await removerDaFila(item.id); continue; }
+      if (res.status >= 400 && res.status < 500) { await removerDaFila(item.id); recusados++; continue; }
       falhou = true; break;   // servidor fora do ar: guarda o resto para depois
     } catch(e) { falhou = true; break; }
   }
 
+  // o servidor recusou de vez (ex.: editar algo que já foi excluído em outro
+  // aparelho): sai da fila, mas sem fingir que deu certo
+  if (recusados) { recusadasNaoVistas += recusados; mostrarRecusadas(); }
+  // as notas compartilhadas não estão no carregarTudo: recarrega para pegar o id do servidor
+  // ...depois das gravações em voo (uma nota nova pode estar saindo agora)
+  if (enviouNotas) import('./notas.js').then(async m => { await esperarGravacoes(); m.carregarNotasCompartilhadas(); }).catch(() => {});
   if (falhou) { setSyncStatus('erro'); return 0; }
   atualizarUltimaSinc();
   setSyncStatus('ok');
@@ -93,6 +239,7 @@ export async function enviarFilaPendente() {
 }
 
 abrirDB().catch(() => {});
+if (!MODO_CONVITE) document.addEventListener('DOMContentLoaded', () => atualizarContadorPendentes());
 
 // ── PWA — Service Worker externo + detecção de nova versão ──
 export let swRegistration = null;
@@ -148,10 +295,16 @@ if ('serviceWorker' in navigator && !MODO_CONVITE) {
 
     // Quando SW troca (nova versão ativada) → recarrega a página imediatamente
     let reloading = false;
+    // Só recarrega quando uma versão nova substitui uma que já controlava a
+    // página. Na primeira visita não há versão antiga: o service worker só
+    // assume a página (clients.claim), e recarregar ali reabria o app sozinho
+    // segundos depois de aberto.
+    const tinhaVersaoAnterior = !!navigator.serviceWorker.controller;
+    // com um formulário aberto, espera ele fechar: recarregar perdia o digitado
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (reloading) return;
+      if (reloading || !tinhaVersaoAnterior) return;
       reloading = true;
-      window.location.reload();
+      quandoSemModal(recarregarParaAtualizar);
     });
 
     // Confirmação do SW que o cache foi limpo e renovado
@@ -265,7 +418,22 @@ export async function aplicarAtualizacao() {
     await reg?.update();
     (reg?.waiting || reg?.installing)?.postMessage({ type: 'SKIP_WAITING' });
   } catch (e) {}
-  setTimeout(() => window.location.reload(), 600);
+  setTimeout(() => quandoSemModal(recarregarParaAtualizar), 600);
+}
+
+// Recarrega para a versão nova sem atropelar nada: espera o formulário fechar
+// (quandoSemModal) e as gravações em andamento terminarem — inclusive a da
+// fila. Recarregar no meio de um "Salvar" perdia a alteração sem aviso.
+async function recarregarParaAtualizar() {
+  // em laço: durante a espera a pessoa pode ter aberto outro formulário ou
+  // começado outra gravação (cada fetch tem prazo de 15 s, ver api.js)
+  for (let i = 0; i < 20; i++) {
+    if (haModalAberto()) return quandoSemModal(recarregarParaAtualizar);
+    if (!haGravacoes() && !envioEmCurso) return window.location.reload();
+    await esperarGravacoes();
+    if (envioEmCurso) await envioEmCurso.catch(() => {});
+  }
+  window.location.reload();
 }
 
 // Na abertura do app instalado

@@ -1,7 +1,7 @@
 // =============================================
 // CALENDÁRIO
 // =============================================
-import { apiFetch, atualizarUltimaSinc, avisarPendente, setSyncStatus } from './api.js';
+import { apiFetch, atualizarUltimaSinc, avisarPendente, idProvisorioDo, setSyncStatus } from './api.js';
 import { reativarAbaAtual } from './app.js';
 import { API_EVENTOS, DADOS, comAla } from './config.js';
 import { confirmar } from './dialogo.js';
@@ -210,8 +210,10 @@ export async function salvarEvento() {
     const criado = await apiFetch(API_EVENTOS, 'POST', payload);
     DADOS.eventos_extras.push(criado);
     atualizarUltimaSinc(); setSyncStatus('ok');
+    toast('Evento salvo');
   } catch(e) {
-    DADOS.eventos_extras.push({ ...payload, id: 'local_' + Date.now() });
+    DADOS.eventos_extras.push({ ...payload, id: idProvisorioDo(e) });
+    avisarPendente('evento');
   }
   renderCalendario();
 }

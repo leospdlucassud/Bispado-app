@@ -18,11 +18,13 @@
   /* Identificação de quem está usando */
   .quem-badge { display:inline-flex;align-items:center;gap:6px;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(201,168,76,.18);color:#c9a84c;border:1px solid rgba(201,168,76,.5);font-family:inherit;margin-bottom:8px; }
   .quem-badge:hover { filter:brightness(1.15); }
-  #quem-modal { position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px; }
-  .quem-box { background:var(--bg3);border-radius:18px;padding:28px;max-width:360px;width:100%;text-align:center;border:1px solid #2a4060; }
+  #quem-modal { position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9000;display:none;align-items:center;justify-content:center;padding:20px; }
+  #quem-modal.open { display:flex; }
+  .quem-fechar { position:absolute;top:12px;right:14px; }
+  .quem-box { position:relative;background:var(--bg3);border-radius:18px;padding:28px;max-width:360px;width:100%;text-align:center;border:1px solid #2a4060; }
   .quem-box h2 { color:var(--gold);font-size:18px;margin-bottom:6px; }
   .quem-box p { color:var(--text2);font-size:12.5px;margin-bottom:18px;line-height:1.6; }
-  .quem-opt { display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;border:2px solid #2a4060;margin-bottom:8px;cursor:pointer;transition:all .2s;text-align:left; }
+  .quem-opt { width:100%;background:none;color:inherit;font:inherit;display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;border:2px solid #2a4060;margin-bottom:8px;cursor:pointer;transition:all .2s;text-align:left; }
   .quem-opt:hover { border-color:#c9a84c;background:rgba(201,168,76,.08); }
   .quem-opt .qi { font-size:18px;flex-shrink:0; }
   [data-theme="light"] .quem-box { background:var(--bg2);border-color:var(--border); }
@@ -55,7 +57,7 @@
   .manual-hero { display: block; background: linear-gradient(135deg, rgba(201,168,76,.18), rgba(201,168,76,.06)); border: 1px solid rgba(201,168,76,.35); border-radius: 14px; padding: 16px; text-decoration: none; margin-bottom: 18px; }
   .manual-hero .mh-title { color: #c9a84c; font-weight: 700; font-size: 15px; }
   .manual-hero .mh-sub { color:var(--text2); font-size: 12px; margin-top: 4px; }
-  .link-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin-top: 10px; }
+  .link-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: 8px; margin-top: 10px; }
   .link-card { display: flex; align-items: center; gap: 10px; background-color: rgba(255,255,255,.03); border: 1px solid rgba(74,106,138,.3); border-left: 3px solid var(--lc, #c9a84c); border-radius: 10px; padding: 10px 12px; text-decoration: none; transition: background-color .2s; }
   .link-card:hover { background-color: rgba(255,255,255,.08); }
   .link-card .lc-ico { font-size: 16px; flex-shrink: 0; }
@@ -500,7 +502,7 @@
   .tab-btn[data-tab="ordenancas"] { color:#a78bfa;border-color:#a78bfa; }
   .tab-btn[data-tab="ordenancas"].active { background:#a78bfa;color:#0d1b2a; }
 
-  .ord-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; margin-top:16px; }
+  .ord-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr)); gap:14px; margin-top:16px; }
   .ord-card { background:#0f2035; border:1.5px solid #1e3a5a; border-radius:14px; overflow:hidden; transition:border-color .2s; }
   .ord-card:hover { border-color:#f8c56d44; }
   .ord-header { padding:14px 16px; display:flex; align-items:center; gap:12px; cursor:pointer; user-select:none; }
@@ -588,3 +590,80 @@
   [data-theme="light"] .search-result-who { opacity:1; }
   [data-theme="light"] .nota-tipo.privada { color:#7a5200; background:rgba(154,103,0,.1); }
   [data-theme="light"] .nota-tipo.compartilhada { color:#1d4ed8; background:rgba(29,78,216,.08); }
+
+  /* === CABEÇALHO E NAVEGAÇÃO FIXA ===
+     A navegação (abas, seletor do celular, sincronização) fica presa no topo:
+     antes, trocar de aba no meio de uma lista longa exigia rolar até o topo.
+     No celular o cabeçalho vira uma linha — antes, logo, nome da Igreja,
+     subtítulo e botões ocupavam metade da tela (o conteúdo começava a 414 px). */
+  .header-logo { display:flex; justify-content:center; margin-bottom:10px; }
+  .header-quem { margin-top:10px; }
+  .barra-nav { position:sticky; top:0; z-index:60; background:var(--bg1); box-shadow:0 2px 10px rgba(0,0,0,.3); }
+  [data-theme="light"] .barra-nav { box-shadow:0 2px 10px rgba(0,0,0,.08); }
+  .barra-nav .tabs { padding:12px 12px 10px; }
+  .sync-pendentes { background:rgba(232,176,64,.15); color:#e8b040; border:1px solid rgba(232,176,64,.45); border-radius:20px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap; font-family:inherit; }
+  [data-theme="light"] .sync-pendentes { color:#7a5200; background:rgba(154,103,0,.1); border-color:rgba(154,103,0,.4); }
+  /* recusada: vermelho e "✕", diferente de "⚠ pendente" — o texto curto
+     ("1 recusada") aparece também no celular */
+  .sync-pendentes .pend-rec { color:#fca5a5; }
+  .sync-pendentes.recusadas { border-color:rgba(248,113,113,.6); background:rgba(248,113,113,.12); }
+  [data-theme="light"] .sync-pendentes .pend-rec { color:#b91c1c; }
+  [data-theme="light"] .sync-pendentes.recusadas { border-color:rgba(185,28,28,.45); background:rgba(185,28,28,.08); }
+
+  @media (max-width:640px) {
+    /* o crachá não passa de 45% da linha: com cargo e nome longos, ou com A+,
+       ele empurrava o título por cima de si */
+    header { display:grid; grid-template-columns:auto minmax(0,1fr) fit-content(45%); align-items:center; gap:4px 10px; padding:10px 14px; text-align:left; }
+    header .header-logo { grid-row:1; grid-column:1; margin:0; }
+    header .header-logo svg { width:30px; height:28px; }
+    header .church-logo, header > p { display:none; }
+    header h1 { grid-row:1; grid-column:2; font-size:17px; line-height:1.2; }
+    header .header-quem { grid-row:1; grid-column:3; margin:0; min-width:0; }
+    header .quem-badge { margin:0; padding:4px 10px; font-size:11.5px; display:block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    header #btn-instalar-header { grid-column:1 / -1; margin:2px 0 0; justify-self:start; }
+    header .theme-controls { grid-column:1 / -1; justify-content:flex-end; margin-top:2px; }
+    .barra-nav { display:flex; align-items:center; gap:8px; padding:8px 12px; }
+    .barra-nav .tabs-select-wrap { flex:1; min-width:0; padding:0; margin:0; background:none; }
+    .barra-nav .tabs-select { padding:9px 36px 9px 14px; }
+    .barra-nav .sync-bar { padding:0; gap:6px; flex-shrink:0; background:none; border:none; }
+    .barra-nav .sync-bar .ultima { display:none; }
+    /* só o ícone: com A+ e o "⚠ N", o rótulo apertava o seletor até sumir o
+       nome da aba (o estado continua na cor do botão e no title) */
+    /* escondido só da vista: o leitor de tela continua ouvindo o estado
+       ("Sincronizado", "Sem conexão"), que o setSyncStatus escreve aqui */
+    .barra-nav .sync-btn .sync-label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+    .barra-nav .sync-btn { min-width:40px; min-height:36px; justify-content:center; }
+    .sync-pendentes .pend-txt { display:none; }   /* no celular, só "⚠ 2" (o texto inteiro vai no title) */
+    .search-wrap { padding-top:10px; }
+  }
+
+  /* === AÇÕES DO CARD DA AGENDA === */
+  /* .btn-secondary.btn-destaque: mais específico que o .btn-secondary do tema claro */
+  .btn-secondary.btn-destaque { border-color:var(--gold); color:var(--gold); font-weight:700; }
+  /* "⋯ Mais": menu que abre por cima, sem empurrar os botões da frente */
+  /* sempre na ponta direita da linha: o menu abre para dentro do card (num card
+     encerrado, sozinho à esquerda, ele saía da tela) */
+  .mais-acoes { position:relative; margin-left:auto; }
+  .mais-acoes > summary { list-style:none; cursor:pointer; display:inline-flex; align-items:center; }
+  .mais-acoes > summary::-webkit-details-marker { display:none; }
+  .mais-acoes[open] > summary { border-color:var(--gold); color:var(--gold); }
+  .mais-acoes-lista { position:absolute; right:0; top:calc(100% + 6px); z-index:30; min-width:min(220px, calc(100vw / var(--zoom) - 32px)); max-width:calc(100vw / var(--zoom) - 32px); display:flex; flex-direction:column; gap:6px; padding:8px; background:var(--bg3); border:1px solid var(--border); border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.35); }
+  .mais-acoes-lista button { text-align:left; width:100%; }
+  .mais-acoes-lista .btn-danger { margin-top:4px; }
+  [data-theme="light"] .mais-acoes-lista { box-shadow:0 8px 24px rgba(0,0,0,.12); }
+  /* "🗑 Excluir" agora tem texto (antes só o ícone): o vermelho precisa ser legível */
+  .btn-danger { color:#fca5a5; }
+  [data-theme="light"] .btn-danger { color:#b91c1c; background:rgba(185,28,28,.08); border-color:rgba(185,28,28,.35); }
+  /* no computador a barra fixa tem duas linhas de abas: mais compacta para não
+     roubar a tela (era 145 px) */
+  @media (min-width:641px) {
+    .barra-nav .tabs { padding:8px 12px 6px; gap:5px; }
+    .barra-nav .tab-btn { padding:6px 13px; }
+    .barra-nav .sync-bar { padding:3px 14px; }
+  }
+  /* topo do card: com fonte grande (A+), o nome não encolhia e empurrava o selo
+     de status para fora da tela — agora a linha quebra */
+  .ent-header { flex-wrap:wrap; }
+  /* base de 9em: quando sobra menos que isso, os selos descem de linha — com
+     só min-width:0, o nome virava uma coluna de 2 ou 3 letras */
+  .ent-nome { flex:1 1 9em; min-width:0; overflow-wrap:anywhere; }

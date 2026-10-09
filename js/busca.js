@@ -1,5 +1,6 @@
 // ===== BUSCADOR =====
 import { listaAcompanhamentos } from './acompanhamento.js';
+import { renderAgenda, setFilAgenda } from './agenda.js';
 import { switchTab } from './app.js';
 import { DADOS } from './config.js';
 import { NOTAS_COMPARTILHADAS, NOTAS_PRIVADAS } from './notas.js';
@@ -122,7 +123,7 @@ export function doSearch(val){
       <div class="search-result-head"><span style="font-size:16px">🗓️</span><div style="flex:1">
         <div class="search-result-who" style="--c:#34d399">Agenda</div>
         <div class="search-result-title">${highlight(esc(e.membro), val)} — ${highlight(esc(e.tipo), val)}</div>
-      </div><button data-act="ir" data-aba="agenda" style="background:#34d399;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
+      </div><button data-act="ir" data-aba="agenda" data-membro="${esc(e.membro)}" data-status="${esc(e.status || '')}" style="background:#34d399;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
     </div>`;
   }).join('');
@@ -199,9 +200,17 @@ function ligarBusca() {
   document.getElementById('search-hits')?.addEventListener('click', e => {
     const btn = e.target.closest('button[data-act="ir"]');
     if (!btn) return;
-    const { aba, card } = btn.dataset;
+    const { aba, card, membro } = btn.dataset;
     clearSearch();
     switchTab(aba);
+    // A Agenda abre em "Em aberto": uma entrevista realizada achada na busca
+    // não apareceria. Abre em "Todas", já filtrada pelo nome do membro.
+    // Qualquer filtro que não fosse "Todas" podia esconder justamente o resultado.
+    if (aba === 'agenda' && membro) {
+      setFilAgenda('todas', document.querySelector('#filtros-agenda [data-fil="todas"]'));
+      const campo = document.getElementById('busca-membro');
+      if (campo) { campo.value = membro; renderAgenda(); }
+    }
     // ordenanças: abre e rola até o cartão do resultado, depois da troca de aba
     if (card) setTimeout(() => {
       const c = document.getElementById(card);

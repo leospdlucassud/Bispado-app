@@ -4,7 +4,7 @@
 // e acompanhamentos avulsos criados aqui. Itens sigilosos só aparecem ao bispo.
 // =============================================
 import { renderAgenda } from './agenda.js';
-import { apiFetch, atualizarUltimaSinc, avisarPendente, setSyncStatus } from './api.js';
+import { apiFetch, atualizarUltimaSinc, avisarPendente, idProvisorioDo, setSyncStatus } from './api.js';
 import { API_AGENDA, CARGOS, DADOS } from './config.js';
 import { MEMBROS } from './dados-membros.js';
 import { confirmar, pedirTexto } from './dialogo.js';
@@ -243,8 +243,8 @@ export async function salvarNovoAcomp() {
     DADOS.acompanhamentos.push(await apiFetch(API_ACOMP, 'POST', item));
     atualizarUltimaSinc(); setSyncStatus('ok');
     toast('Acompanhamento criado');
-  } catch {
-    DADOS.acompanhamentos.push({ ...item, id: 'local_' + Date.now() });
+  } catch (e) {
+    DADOS.acompanhamentos.push({ ...item, id: idProvisorioDo(e) });
     avisarPendente('criação do acompanhamento');
   }
   renderAcompanhamentos();

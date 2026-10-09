@@ -2,7 +2,7 @@
 // REUNIÕES
 // =============================================
 // Tipos de reunião administrados pelo bispado — fonte única para filtros e formulário
-import { apiFetch, atualizarUltimaSinc, avisarPendente, setSyncStatus } from './api.js';
+import { apiFetch, atualizarUltimaSinc, avisarPendente, idProvisorioDo, setSyncStatus } from './api.js';
 import { API_REUNIOES, DADOS } from './config.js';
 import { confirmar } from './dialogo.js';
 import { imprimirAtaPDF } from './pdf.js';
@@ -113,9 +113,10 @@ export async function toggleItem(reuniaoId, itemIdx) {
   try {
     const atualizado = await apiFetch(`${API_REUNIOES}?id=${reuniaoId}`, 'PUT', { itens });
     DADOS.reunioes = DADOS.reunioes.map(r => r.id===reuniaoId ? atualizado : r);
-    setSyncStatus('ok');
+    atualizarUltimaSinc(); setSyncStatus('ok');
   } catch(e) {
     DADOS.reunioes = DADOS.reunioes.map(r => r.id===reuniaoId ? { ...r, itens } : r);
+    avisarPendente('marcação do item');
   }
   renderReunioes();
 }
@@ -177,9 +178,11 @@ export async function salvarReuniao(id) {
       DADOS.reunioes.push(criado);
     }
     atualizarUltimaSinc(); setSyncStatus('ok');
+    toast('Reunião salva');
   } catch(e) {
     if (id) DADOS.reunioes = DADOS.reunioes.map(x => x.id===id ? { ...x, ...payload } : x);
-    else DADOS.reunioes.push({ ...payload, id: 'local_' + Date.now() });
+    else DADOS.reunioes.push({ ...payload, id: idProvisorioDo(e) });
+    avisarPendente('reunião');
   }
   renderReunioes();
 }
