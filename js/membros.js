@@ -7,7 +7,7 @@ import { confirmar } from './dialogo.js';
 import { importarPdfMembros } from './membros-import.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { USUARIO, toast } from './usuario.js';
-import { esc } from './utils.js';
+import { dataLocal, dataParaExibir, esc } from './utils.js';
 
 export const API_MEMBROS = '/api/membros';
 export const MOTIVOS_ENTRADA = [
@@ -112,10 +112,10 @@ export function renderMembros() {
 
   document.getElementById('membros-stats').innerHTML = `
     <div class="membros-stat"><div class="stat-num">${totalAtivos}</div><div class="stat-label">Ativos</div></div>
-    <div class="membros-stat"><div class="stat-num" style="color:#5b9bd5">${homens}</div><div class="stat-label">Homens</div></div>
-    <div class="membros-stat"><div class="stat-num" style="color:#f472b6">${mulheres}</div><div class="stat-label">Mulheres</div></div>
-    <div class="membros-stat"><div class="stat-num" style="color:#94a3b8">${totalSaidos}</div><div class="stat-label">Saídas</div></div>
-    <div class="membros-stat"><div class="stat-num" style="color:#a78bfa">${MOVIMENTACOES.length}</div><div class="stat-label">Movimentações</div></div>
+    <div class="membros-stat"><div class="stat-num" style="--c:#5b9bd5">${homens}</div><div class="stat-label">Homens</div></div>
+    <div class="membros-stat"><div class="stat-num" style="--c:#f472b6">${mulheres}</div><div class="stat-label">Mulheres</div></div>
+    <div class="membros-stat"><div class="stat-num" style="--c:#94a3b8">${totalSaidos}</div><div class="stat-label">Saídas</div></div>
+    <div class="membros-stat"><div class="stat-num" style="--c:#a78bfa">${MOVIMENTACOES.length}</div><div class="stat-label">Movimentações</div></div>
   `;
 
   // cabeçalho da Agenda: antes era "342 membros" escrito no HTML
@@ -141,7 +141,7 @@ export function renderMembros() {
     return;
   }
 
-  el.innerHTML = `<div style="font-size:11px;color:#445566;margin-bottom:8px">${lista.length} membro${lista.length>1?'s':''}</div>` +
+  el.innerHTML = `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">${lista.length} membro${lista.length>1?'s':''}</div>` +
     lista.map(m => {
       const saiu = MEMBROS_SAIDOS.includes(m.id);
       const mov = MOVIMENTACOES.filter(x => x.membroId === m.id).sort((a,b) => (b.data||'').localeCompare(a.data||''));
@@ -167,12 +167,12 @@ export function renderHistorico(el, busca) {
     const isFalecimento = m.motivo === 'Falecimento';
     return `<div class="mov-card ${isEntrada?'entrada':'saida'}">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <span style="font-weight:700;color:#e8edf2">${esc(m.nome||'—')}</span>
+        <span style="font-weight:700;color:var(--text1)">${esc(m.nome||'—')}</span>
         <span class="membro-badge ${isEntrada?'entrada':isFalecimento?'falecimento':'saida'}">${isEntrada?'↓ Entrada':isFalecimento?'✝ Falecimento':'↑ Saída'}</span>
       </div>
-      <div style="font-size:12px;color:#8eacc8">📋 ${esc(m.motivo)}</div>
-      ${m.obs?`<div style="font-size:11px;color:#6a8fa8;margin-top:4px">📝 ${esc(m.obs)}</div>`:''}
-      <div style="font-size:10px;color:#445566;margin-top:4px">📅 ${m.data?new Date(m.data).toLocaleDateString('pt-BR'):''} · 👤 ${esc(m.registradoPor||'—')}</div>
+      <div style="font-size:12px;color:var(--text2)">📋 ${esc(m.motivo)}</div>
+      ${m.obs?`<div style="font-size:11px;color:var(--text2);margin-top:4px">📝 ${esc(m.obs)}</div>`:''}
+      <div style="font-size:10px;color:var(--text3);margin-top:4px">📅 ${dataParaExibir(m.data)} · 👤 ${esc(m.registradoPor||'—')}</div>
     </div>`;
   }).join('');
 }
@@ -189,7 +189,7 @@ export function abrirModalEntrada() {
       <div class="form-group"><label>Idade</label><input type="number" class="form-input" id="me-idade" min="0" max="120" placeholder="Idade"></div>
     </div>
     <div class="form-group"><label>Motivo da Entrada</label><select class="form-select" id="me-motivo">${motivosOpts}</select></div>
-    <div class="form-group"><label>Data</label><input type="date" class="form-input" id="me-data" value="${new Date().toISOString().slice(0,10)}"></div>
+    <div class="form-group"><label>Data</label><input type="date" class="form-input" id="me-data" value="${dataLocal()}"></div>
     <div class="form-group"><label>Observações</label><input type="text" class="form-input" id="me-obs" maxlength="200" placeholder="Detalhes adicionais…"></div>
     <button class="btn-primary" data-act="mem-entrada">💾 Registrar Entrada</button>
   `;
@@ -209,7 +209,7 @@ export async function salvarEntrada() {
     membroId: novoId,
     nome: nome,
     motivo: document.getElementById('me-motivo').value,
-    data: document.getElementById('me-data').value || new Date().toISOString(),
+    data: document.getElementById('me-data').value || dataLocal(),
     obs: document.getElementById('me-obs').value,
     registradoPor: USUARIO || 'Não identificado'
   };
@@ -234,9 +234,9 @@ export function abrirModalSaida() {
       <input type="hidden" id="ms-membro-id">
     </div>
     <div class="form-group"><label>Motivo da Saída</label><select class="form-select" id="ms-motivo">${motivosOpts}</select></div>
-    <div class="form-group"><label>Data</label><input type="date" class="form-input" id="ms-data" value="${new Date().toISOString().slice(0,10)}"></div>
+    <div class="form-group"><label>Data</label><input type="date" class="form-input" id="ms-data" value="${dataLocal()}"></div>
     <div class="form-group"><label>Observações</label><input type="text" class="form-input" id="ms-obs" maxlength="200" placeholder="Detalhes adicionais…"></div>
-    <button class="btn-primary" style="background:#e07070" data-act="mem-saida">📤 Registrar Saída</button>
+    <button class="btn-primary" style="background:#e07070;color:#0d1b2a" data-act="mem-saida">📤 Registrar Saída</button>
   `;
   abrirModal('modal-agenda');
 }
@@ -261,7 +261,7 @@ export async function salvarSaida() {
     membroId: membro.id,
     nome: nome,
     motivo: document.getElementById('ms-motivo').value,
-    data: document.getElementById('ms-data').value || new Date().toISOString(),
+    data: document.getElementById('ms-data').value || dataLocal(),
     obs: document.getElementById('ms-obs').value,
     registradoPor: USUARIO || 'Não identificado'
   };

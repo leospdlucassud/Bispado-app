@@ -36,12 +36,20 @@ netlify/functions/  API — CRUD compartilhado em _crud.js; um arquivo curto por
 sw.js               service worker: cache offline e atualização
 version.json        versão publicada — o app instalado se compara com ela
 scripts/versao.mjs  sobe a versão nos quatro lugares de uma vez
+tests/              testes das regras puras (`npm test`, sem dependências)
 ```
 
 As seis coleções simples (agenda, reuniões, designações, sacramentais,
 acompanhamentos, eventos) são funções de 3 linhas que delegam a
 `netlify/functions/_crud.js` (o prefixo `_` faz o Netlify não tratá-lo como rota).
 `membros` e `notas` têm lógica própria. Todas respondem em `/api/<recurso>`.
+
+**`/api/convite`** é o único caminho da tela que o membro abre pelo link
+(`?confirmar=<id>`): o GET devolve só os campos daquela entrevista que a tela
+mostra, e o PUT aceita só a resposta (`{ resposta, sugestao }`) — o status é
+decidido no servidor. As regras ficam em `js/convite-regras.js`, sem DOM,
+usadas pelo app e pela function. Não faça a tela do membro ler `/api/agenda`:
+ela levaria para o celular dele as entrevistas sigilosas e as anotações do bispado.
 
 ### Módulos JavaScript
 
@@ -51,7 +59,8 @@ módulos; cada um declara as próprias dependências com `import`.
 | Arquivo | Responsabilidade |
 | --- | --- |
 | `dados-membros.js` | Começa vazio (o arquivo é público); o quadro vem do PDF do LCR e fica no servidor |
-| `config.js` | Constantes, estado global (`DADOS`) e nome da ala |
+| `config.js` | Constantes, estado global (`DADOS`), nome da ala e `MODO_CONVITE` |
+| `convite-regras.js` | Regras do convite sem DOM: o que o membro pode ler (`tipoNoConvite`) e o que a resposta grava |
 | `utils.js` | Formatação de data e `esc()` (escape de HTML para innerHTML) |
 | `ui.js` | Troca de abas e abertura/fechamento de modais |
 | `dialogo.js` | `confirmar()` e `pedirTexto()` — substituem prompt/confirm nativos |
@@ -102,6 +111,14 @@ com `data-act` e cada módulo liga os seus numa função `ligar<Área>()`.
   para continuar disponível offline.
 - Medidas em `vh` precisam ser divididas por `var(--zoom)`, porque o controle
   de tamanho de fonte usa `zoom` e o `vh` ignora essa escala.
+- **Cores: use os tokens, não hex.** Texto e fundo usam `var(--text1)`,
+  `var(--text-corpo)`, `var(--text2)`, `var(--text3)`, `var(--bg1..4)` — o tema
+  claro só redefine esses valores no `:root`. Cor de destaque (de área, de
+  status, de responsável) escrita no HTML vai como `style="--c:#34d399"`, não
+  `color:#34d399`: uma regra no fim do `style.css` aplica e escurece no tema
+  claro. Cor escrita direto fica presa ao tema escuro e some no creme.
+- **Datas:** "hoje" é `dataLocal()` (de `utils.js`); `toISOString()` está em UTC
+  e, depois das 21h, devolve o dia seguinte.
 - **Ao inserir dados do usuário via `innerHTML`**, passe por `esc()` (de `utils.js`).
   Não crie funções de escape locais — havia 7 e foram unificadas numa só.
 - **Não use `prompt`, `alert` nem `confirm` nativos.** Para perguntar algo use

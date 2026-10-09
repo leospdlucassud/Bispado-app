@@ -25,7 +25,7 @@ export function renderQuemBadge() {
   // mostra tambem o nome de quem ocupa o chamado, quando estiver preenchido
   const nome = nomeDoCargo(USUARIO);
   b.innerHTML = USUARIO
-    ? `${ICONE_CARGO[USUARIO] || '👤'} ${USUARIO}${nome ? ` · ${nome}` : ''}`
+    ? `${ICONE_CARGO[USUARIO] || '👤'} ${esc(USUARIO)}${nome ? ` · ${esc(nome)}` : ''}`
     : '👤 Identificar-se';
 }
 
@@ -34,13 +34,13 @@ export function abrirEscolhaCargo() {
   cx.innerHTML = CARGOS.map(c => `
     <div class="quem-opt" data-cargo="${c}">
       <span class="qi">${ICONE_CARGO[c] || '👤'}</span>
-      <span style="font-size:13.5px;font-weight:600">${c}${nomeDoCargo(c) ? `<span style="font-weight:400;color:#8eacc8"> · ${esc(nomeDoCargo(c))}</span>` : ''}</span>
-      ${c === 'Bispo' ? '<span style="margin-left:auto;font-size:10px;color:#e05555">vê sigilosos</span>' : ''}
+      <span style="font-size:13.5px;font-weight:600">${c}${nomeDoCargo(c) ? `<span style="font-weight:400;color:var(--text2)"> · ${esc(nomeDoCargo(c))}</span>` : ''}</span>
+      ${c === 'Bispo' ? '<span style="margin-left:auto;font-size:10px;--c:#e05555">vê sigilosos</span>' : ''}
     </div>`).join('');
   // Chamados sao temporarios: da para corrigir os nomes sem mexer no codigo.
   cx.insertAdjacentHTML('beforeend', `
     <button id="quem-editar"
-      style="display:block;width:100%;margin-top:10px;background:none;border:none;color:#5b7a99;font-size:12px;text-decoration:underline;cursor:pointer;font-family:inherit">✏️ Editar os nomes dos chamados</button>`);
+      style="display:block;width:100%;margin-top:10px;background:none;border:none;--c:#5b7a99;font-size:12px;text-decoration:underline;cursor:pointer;font-family:inherit">✏️ Editar os nomes dos chamados</button>`);
   document.getElementById('quem-modal').style.display = 'flex';
 }
 

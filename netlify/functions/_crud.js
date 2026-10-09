@@ -3,8 +3,9 @@ import { ALA_ID } from "./_ala.js";
 
 // Um store por ala (ver _ala.js).
 const STORE = "bispado-" + ALA_ID;
+export const abrirStore = () => getStore(STORE);
 
-const H = {
+export const H = {
   "Content-Type": "application/json",
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
@@ -14,7 +15,7 @@ const H = {
 // Lê a coleção junto com o ETag, usado depois para gravar sem atropelar
 // escrita de outra pessoa. NUNCA grava aqui: falha de leitura tem de virar erro,
 // senão um problema momentâneo do Blobs apagaria a coleção inteira.
-async function lerColecao(store, key) {
+export async function lerColecao(store, key) {
   const res = await store.getWithMetadata(key, { type: "json" });
   if (!res || res.data == null) return { data: [], etag: null }; // ainda não existe
   if (!Array.isArray(res.data)) throw new Error(`Conteúdo inesperado em "${key}"`);
@@ -31,7 +32,7 @@ async function gravarSeIntacto(store, key, data, etag) {
 
 // Repete ler→alterar→gravar enquanto outra escrita ganhar a corrida.
 // `mutar` recebe a lista atual e devolve { data, resposta }.
-async function alterar(store, key, mutar, tentativas = 4) {
+export async function alterar(store, key, mutar, tentativas = 4) {
   for (let i = 0; i < tentativas; i++) {
     const { data, etag } = await lerColecao(store, key);
     const r = mutar(data);
@@ -52,7 +53,7 @@ export function crudHandler(key) {
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: H });
 
     let store;
-    try { store = getStore(STORE); }
+    try { store = abrirStore(); }
     catch (e) { return new Response(JSON.stringify({ error: "Blobs: " + e.message }), { status: 500, headers: H }); }
 
     const id = new URL(req.url).searchParams.get("id");

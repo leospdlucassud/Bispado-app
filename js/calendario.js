@@ -7,7 +7,7 @@ import { API_EVENTOS, DADOS, comAla } from './config.js';
 import { confirmar } from './dialogo.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
-import { esc } from './utils.js';
+import { corSegura, esc } from './utils.js';
 
 export let calMes = new Date().getMonth(), calAno = new Date().getFullYear();
 
@@ -141,9 +141,9 @@ export function renderCalendario() {
     const evsDia = todosEventos.filter(e=>e.data===dataStr);
     const eHoje = hoje.getDate()===d && hoje.getMonth()===calMes && hoje.getFullYear()===calAno;
     html += `<div class="cal-dia${eHoje?' hoje':''}${evsDia.length?' tem-evento':''}" data-dia="${dataStr}">
-      <div class="cal-num" style="${eHoje?'color:#c9a84c;font-weight:800':''}">${d}</div>
-      ${evsDia.slice(0,2).map(e=>`<div class="cal-evento-dot" style="color:${e.cor}">${esc(comAla(e.txt))}</div>`).join('')}
-      ${evsDia.length>2?`<div style="font-size:9px;color:#8eacc8">+${evsDia.length-2}</div>`:''}
+      <div class="cal-num" style="${eHoje?'--c:#c9a84c;font-weight:800':''}">${d}</div>
+      ${evsDia.slice(0,2).map(e=>`<div class="cal-evento-dot" style="--c:${corSegura(e.cor)}">${esc(comAla(e.txt))}</div>`).join('')}
+      ${evsDia.length>2?`<div style="font-size:9px;color:var(--text2)">+${evsDia.length-2}</div>`:''}
     </div>`;
   }
 
@@ -161,11 +161,11 @@ export function verDia(dataStr) {
   const [ano,mes,dia] = dataStr.split('-');
   titulo.textContent = `${parseInt(dia)} de ${MESES[parseInt(mes)-1]} de ${ano}`;
   if (!evs.length) {
-    items.innerHTML = '<div style="font-size:13px;color:#8eacc8">Sem eventos cadastrados neste dia.</div>';
+    items.innerHTML = '<div style="font-size:13px;color:var(--text2)">Sem eventos cadastrados neste dia.</div>';
   } else {
     items.innerHTML = evs.map(e=>`
       <div class="cal-ev-item">
-        <span style="color:${e.cor};margin-right:8px">●</span>${esc(comAla(e.txt))}
+        <span style="--c:${corSegura(e.cor)};margin-right:8px">●</span>${esc(comAla(e.txt))}
         ${e.extra?`<button class="btn-danger" style="margin-left:8px;padding:2px 8px;font-size:10px" data-act="excluir" data-id="${e.id}">🗑</button>`:''}
       </div>
     `).join('');

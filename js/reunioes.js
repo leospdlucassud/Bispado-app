@@ -8,7 +8,7 @@ import { confirmar } from './dialogo.js';
 import { imprimirAtaPDF } from './pdf.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
-import { esc, formatarData } from './utils.js';
+import { dataLocal, esc, formatarData } from './utils.js';
 
 export const TIPOS_REUNIAO = [
   { k:'conselho',   r:'Conselho da Ala',              c:'#a78bfa' },
@@ -38,13 +38,13 @@ export function renderReunioes() {
   // Painel de resumo
   const stats = document.getElementById('reuniao-stats');
   if (stats) {
-    const mes = new Date().toISOString().slice(0,7);
+    const mes = dataLocal().slice(0,7);
     const noMes = todas.filter(r => (r.data||'').startsWith(mes)).length;
     const pendentes = todas.reduce((n,r) => n + (r.itens||[]).filter(i => !i.feito).length, 0);
     stats.innerHTML = `
-      <div class="membros-stat"><div class="stat-num" style="color:#a78bfa">${todas.length}</div><div class="stat-label">Registradas</div></div>
-      <div class="membros-stat"><div class="stat-num" style="color:#34d399">${noMes}</div><div class="stat-label">Neste mês</div></div>
-      <div class="membros-stat"><div class="stat-num" style="color:${pendentes ? '#e8b040' : '#34d399'}">${pendentes}</div><div class="stat-label">Itens em aberto</div></div>`;
+      <div class="membros-stat"><div class="stat-num" style="--c:#a78bfa">${todas.length}</div><div class="stat-label">Registradas</div></div>
+      <div class="membros-stat"><div class="stat-num" style="--c:#34d399">${noMes}</div><div class="stat-label">Neste mês</div></div>
+      <div class="membros-stat"><div class="stat-num" style="--c:${pendentes ? '#e8b040' : '#34d399'}">${pendentes}</div><div class="stat-label">Itens em aberto</div></div>`;
   }
 
   // Filtros por tipo, com contagem — só aparecem os tipos que existem
@@ -55,7 +55,7 @@ export function renderReunioes() {
       `<button class="filtro-btn ${filReuniao===''?'active':''}" data-fil="">Todas (${todas.length})</button>`,
       ...usados.map(t => {
         const n = todas.filter(r => r.tipo === t.k).length;
-        return `<button class="filtro-btn ${filReuniao===t.k?'active':''}" style="${filReuniao===t.k?'':`border-color:${t.c};color:${t.c}`}" data-fil="${t.k}">${t.r} (${n})</button>`;
+        return `<button class="filtro-btn ${filReuniao===t.k?'active':''}" style="${filReuniao===t.k?'':`border-color:${t.c};--c:${t.c}`}" data-fil="${t.k}">${t.r} (${n})</button>`;
       }),
     ].join('');
   }
@@ -80,8 +80,8 @@ export function renderReunioes() {
       <div class="reuniao-header">
         <div>
           <span class="reuniao-data">📅 ${formatarData(r.data)}</span>
-          <span class="reuniao-tipo" style="margin-left:8px;color:${t.c}">${t.r}</span>
-          ${abertos ? `<span style="margin-left:8px;font-size:11px;color:#e8b040">• ${abertos} em aberto</span>` : ''}
+          <span class="reuniao-tipo" style="margin-left:8px;--c:${t.c}">${t.r}</span>
+          ${abertos ? `<span style="margin-left:8px;font-size:11px;--c:#e8b040">• ${abertos} em aberto</span>` : ''}
         </div>
         <div style="display:flex;gap:6px">
           <button class="btn-secondary" style="font-size:11px;padding:4px 10px" data-act="pdf" data-id="${r.id}">📄 PDF</button>
@@ -90,7 +90,7 @@ export function renderReunioes() {
         </div>
       </div>
       ${r.pauta?`<div class="reuniao-pauta">${esc(r.pauta)}</div>`:''}
-      ${r.participantes?.length?`<div style="font-size:11px;color:#8eacc8;margin-top:4px">👥 ${esc(r.participantes.join(', '))}</div>`:''}
+      ${r.participantes?.length?`<div style="font-size:11px;color:var(--text2);margin-top:4px">👥 ${esc(r.participantes.join(', '))}</div>`:''}
       ${r.itens?.length?`
         <div class="reuniao-itens">
           ${r.itens.map((it,i)=>`
@@ -129,7 +129,7 @@ export function abrirModalReuniao(id) {
     <div class="form-row">
       <div class="form-group">
         <label>Data</label>
-        <input type="date" class="form-input" id="re-data" value="${r?.data||new Date().toISOString().slice(0,10)}">
+        <input type="date" class="form-input" id="re-data" value="${r?.data||dataLocal()}">
       </div>
       <div class="form-group">
         <label>Tipo</label>

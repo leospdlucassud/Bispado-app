@@ -64,7 +64,7 @@ export function renderManual(filtro) {
     : CAPITULOS_MANUAL;
 
   caps.innerHTML = filtrados.map(c =>
-    linkCard(c.u, `<strong style="color:#c9a84c">${c.n}</strong>`, c.t, `Capítulo ${c.n} ↗`, '#c9a84c')
+    linkCard(c.u, `<strong style="--c:#c9a84c">${c.n}</strong>`, c.t, `Capítulo ${c.n} ↗`, '#c9a84c')
   ).join('');
 
   if (vazio) vazio.style.display = filtrados.length ? 'none' : 'block';
@@ -227,16 +227,16 @@ export function renderRoteiros() {
           <div class="ord-titulo">${esc(r.titulo)}</div>
           <div class="ord-sub">${esc(r.sub)}</div>
         </div>
-        <span class="ord-badge" style="background:rgba(255,255,255,.06);color:${r.cor}">${r.temas.length} temas</span>
+        <span class="ord-badge" style="background:rgba(255,255,255,.06);--c:${r.cor}">${r.temas.length} temas</span>
         <span class="ord-arrow">▼</span>
       </div>
       <div class="ord-body">
         <div class="ord-autoridade"><span>📖 Manual Geral — ${esc(r.ref)}</span></div>
-        <ol style="margin:10px 0 0 18px;padding:0;color:#c8d8e8;font-size:12.5px;line-height:1.8">
+        <ol style="margin:10px 0 0 18px;padding:0;color:var(--text-corpo);font-size:12.5px;line-height:1.8">
           ${r.temas.map(t => `<li>${esc(t)}</li>`).join('')}
         </ol>
         <div style="margin-top:12px">
-          <label style="color:#8eacc8;font-size:10px;display:block;margin-bottom:4px">Anotações da ala (salvas neste aparelho)</label>
+          <label style="color:var(--text2);font-size:10px;display:block;margin-bottom:4px">Anotações da ala (salvas neste aparelho)</label>
           <textarea class="form-input" rows="3" placeholder="Cole aqui o texto oficial das perguntas ou observações da entrevista…"
             style="font-size:12px;padding:8px 10px;resize:vertical"
             data-rot="${r.id}">${esc(nota)}</textarea>

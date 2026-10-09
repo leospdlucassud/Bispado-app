@@ -204,9 +204,9 @@ export async function importarPdfMembros(input) {
     document.getElementById('modal-import-content').innerHTML = `
       <div style="text-align:center;padding:10px">
         <div style="font-size:32px;margin-bottom:10px">⚠️</div>
-        <div style="color:#e05555;font-size:14px;margin-bottom:8px">Não foi possível importar</div>
-        <div style="color:#8eacc8;font-size:12px;line-height:1.6">${(e.message||e).toString().replace(/</g,'&lt;')}</div>
-        <button data-act="fechar" style="margin-top:16px;background:rgba(74,106,138,.25);color:#c8d8e8;border:none;border-radius:10px;padding:10px 20px;cursor:pointer">Fechar</button>
+        <div style="--c:#e05555;font-size:14px;margin-bottom:8px">Não foi possível importar</div>
+        <div style="color:var(--text2);font-size:12px;line-height:1.6">${(e.message||e).toString().replace(/</g,'&lt;')}</div>
+        <button data-act="fechar" style="margin-top:16px;background:rgba(74,106,138,.25);color:var(--text-corpo);border:none;border-radius:10px;padding:10px 20px;cursor:pointer">Fechar</button>
       </div>`;
   }
 }
@@ -232,39 +232,39 @@ export function mostrarPreviaImportacao(lidos, ala, nPaginas) {
 
   const bloco = (cor, titulo, itens, fmt) => !itens.length ? '' : `
     <details style="margin-bottom:8px;background:rgba(255,255,255,.03);border-left:3px solid ${cor};border-radius:8px;padding:8px 10px">
-      <summary style="cursor:pointer;color:${cor};font-size:13px;font-weight:700">${titulo}: ${itens.length}</summary>
-      <div style="margin-top:8px;max-height:150px;overflow-y:auto;font-size:11px;color:#c8d8e8;line-height:1.7">
+      <summary style="cursor:pointer;--c:${cor};font-size:13px;font-weight:700">${titulo}: ${itens.length}</summary>
+      <div style="margin-top:8px;max-height:150px;overflow-y:auto;font-size:11px;color:var(--text-corpo);line-height:1.7">
         ${itens.slice(0,80).map(fmt).join('')}
         ${itens.length > 80 ? `<div style="opacity:.6">…e mais ${itens.length-80}</div>` : ''}
       </div>
     </details>`;
 
   const avisoAla = ala && norm(ala.nome) !== norm(ALA)
-    ? `<div style="background:rgba(232,176,64,.12);border:1px solid rgba(232,176,64,.35);border-radius:8px;padding:8px 10px;font-size:11px;color:#e8b040;margin-bottom:10px">
+    ? `<div style="background:rgba(232,176,64,.12);border:1px solid rgba(232,176,64,.35);border-radius:8px;padding:8px 10px;font-size:11px;--c:#e8b040;margin-bottom:10px">
          O PDF é da <strong>${esc(ala.nome)}</strong>, mas o painel está configurado como <strong>${esc(ALA)}</strong>. Confira antes de aplicar.
        </div>` : '';
 
   document.getElementById('modal-import-content').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <h3 style="color:#c9a84c;font-size:16px">📄 Conferir importação</h3>
-      <span data-act="fechar" style="cursor:pointer;color:#4a6a8a;font-size:20px">✕</span>
+      <h3 style="--c:#c9a84c;font-size:16px">📄 Conferir importação</h3>
+      <span data-act="fechar" style="cursor:pointer;color:var(--text3);font-size:20px">✕</span>
     </div>
     ${avisoAla}
-    <div style="font-size:12px;color:#8eacc8;margin-bottom:12px">
-      <strong style="color:#c8d8e8">${lidos.length}</strong> membros lidos em ${nPaginas} páginas${ala ? ` · ${esc(ala.nome)} (${esc(ala.unidade)})` : ''}
-      · <strong style="color:#c8d8e8">${lidos.filter(m=>m.telefone).length}</strong> com telefone
-      · <strong style="color:#c8d8e8">${lidos.filter(m=>m.email).length}</strong> com e-mail
+    <div style="font-size:12px;color:var(--text2);margin-bottom:12px">
+      <strong style="color:var(--text-corpo)">${lidos.length}</strong> membros lidos em ${nPaginas} páginas${ala ? ` · ${esc(ala.nome)} (${esc(ala.unidade)})` : ''}
+      · <strong style="color:var(--text-corpo)">${lidos.filter(m=>m.telefone).length}</strong> com telefone
+      · <strong style="color:var(--text-corpo)">${lidos.filter(m=>m.email).length}</strong> com e-mail
     </div>
     ${bloco('#34d399','Novos membros', novos, m => `<div>+ ${esc(m.name)} <span style="opacity:.6">(${m.gender}, ${m.age})</span></div>`)}
     ${bloco('#60a5fa','Dados atualizados', atualizados, m => `<div>~ ${esc(m.name)} <span style="opacity:.6">(${m.campos.join(', ')})</span></div>`)}
     ${bloco('#e8b040','Ausentes no PDF', ausentes, m => `<div>− ${esc(m.name)}</div>`)}
-    <div style="font-size:11px;color:#8eacc8;background:rgba(255,255,255,.03);border-radius:8px;padding:8px 10px;margin-bottom:14px;line-height:1.6">
+    <div style="font-size:11px;color:var(--text2);background:rgba(255,255,255,.03);border-radius:8px;padding:8px 10px;margin-bottom:14px;line-height:1.6">
       O quadro de membros será substituído pelo conteúdo do PDF. Movimentações e histórico são preservados.
-      ${ausentes.length ? '<br><strong style="color:#e8b040">Os ausentes serão removidos da lista ativa</strong> — registre a saída antes se quiser manter o histórico.' : ''}
+      ${ausentes.length ? '<br><strong style="--c:#e8b040">Os ausentes serão removidos da lista ativa</strong> — registre a saída antes se quiser manter o histórico.' : ''}
     </div>
     <div style="display:flex;gap:8px">
       <button data-act="aplicar" style="flex:1;background:#c9a84c;color:#0d1b2a;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;font-size:13px">Aplicar</button>
-      <button data-act="fechar" style="background:rgba(74,106,138,.25);color:#8eacc8;border:none;border-radius:10px;padding:11px 18px;cursor:pointer;font-size:13px">Cancelar</button>
+      <button data-act="fechar" style="background:rgba(74,106,138,.25);color:var(--text2);border:none;border-radius:10px;padding:11px 18px;cursor:pointer;font-size:13px">Cancelar</button>
     </div>`;
 }
 

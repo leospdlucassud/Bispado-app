@@ -94,7 +94,7 @@ export function doSearch(val){
     ? '1 resultado encontrado' : `${totalCount} resultados encontrados`;
 
   if(totalCount === 0){
-    hitsDiv.innerHTML = `<div class="search-no-results">😕 Nenhum resultado para "<strong>${esc(val)}</strong>"<br><small style="color:#3a5068;margin-top:6px;display:block">Tente um nome de membro, tema de discurso, tarefa, hino ou ordenança…</small></div>`;
+    hitsDiv.innerHTML = `<div class="search-no-results">😕 Nenhum resultado para "<strong>${esc(val)}</strong>"<br><small style="--c:#3a5068;margin-top:6px;display:block">Tente um nome de membro, tema de discurso, tarefa, hino ou ordenança…</small></div>`;
     return;
   }
 
@@ -108,7 +108,7 @@ export function doSearch(val){
     const snippet = highlight(esc([quem, temas].filter(Boolean).join(' — ').substring(0,120)), val);
     return `<div class="search-result-card" style="border-color:#e8d080">
       <div class="search-result-head"><span style="font-size:16px">🕊️</span><div style="flex:1">
-        <div class="search-result-who" style="color:#e8d080">Sacramental</div>
+        <div class="search-result-who" style="color:var(--sac)">Sacramental</div>
         <div class="search-result-title">${formatDateSac(d)} de ${d.getFullYear()}</div>
       </div><button data-act="ir" data-aba="sacramental" style="background:#e8d080;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
@@ -120,7 +120,7 @@ export function doSearch(val){
     const snippet = highlight(esc([e.membro, e.tipo, e.obs||''].join(' — ').substring(0,120)), val);
     return `<div class="search-result-card" style="border-color:#34d399">
       <div class="search-result-head"><span style="font-size:16px">🗓️</span><div style="flex:1">
-        <div class="search-result-who" style="color:#34d399">Agenda</div>
+        <div class="search-result-who" style="--c:#34d399">Agenda</div>
         <div class="search-result-title">${highlight(esc(e.membro), val)} — ${highlight(esc(e.tipo), val)}</div>
       </div><button data-act="ir" data-aba="agenda" style="background:#34d399;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
@@ -132,7 +132,7 @@ export function doSearch(val){
     const ult = a.registros[a.registros.length-1];
     return `<div class="search-result-card" style="border-color:#fbbf24">
       <div class="search-result-head"><span style="font-size:16px">🧭</span><div style="flex:1">
-        <div class="search-result-who" style="color:#fbbf24">Acompanhamento${a.sigiloso?' 🔒':''}</div>
+        <div class="search-result-who" style="--c:#fbbf24">Acompanhamento${a.sigiloso?' 🔒':''}</div>
         <div class="search-result-title">${highlight(esc(a.titulo), val)}</div>
       </div><button data-act="ir" data-aba="acompanhamento" style="background:#fbbf24;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${highlight(esc(a.assunto || (ult && ult.texto) || '').slice(0,120), val)}</div></div>
@@ -144,7 +144,7 @@ export function doSearch(val){
     const snippet = highlight(esc([d.tarefa, d.responsavel||'', d.obs||''].join(' — ').substring(0,120)), val);
     return `<div class="search-result-card" style="border-color:#f472b6">
       <div class="search-result-head"><span style="font-size:16px">✅</span><div style="flex:1">
-        <div class="search-result-who" style="color:#f472b6">Designação</div>
+        <div class="search-result-who" style="--c:#f472b6">Designação</div>
         <div class="search-result-title">${highlight(esc(d.tarefa), val)}</div>
       </div><button data-act="ir" data-aba="designacoes" style="background:#f472b6;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
@@ -156,7 +156,7 @@ export function doSearch(val){
     const snippet = highlight(esc([(r.pauta||'').substring(0,100), (r.itens||[]).map(i=>i.texto).join(', ').substring(0,60)].join(' · ')), val);
     return `<div class="search-result-card" style="border-color:#a78bfa">
       <div class="search-result-head"><span style="font-size:16px">📋</span><div style="flex:1">
-        <div class="search-result-who" style="color:#a78bfa">Reunião</div>
+        <div class="search-result-who" style="--c:#a78bfa">Reunião</div>
         <div class="search-result-title">${tipoReuniao(r.tipo).r} — ${formatarData(r.data)}</div>
       </div><button data-act="ir" data-aba="reuniao" style="background:#a78bfa;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
@@ -169,7 +169,7 @@ export function doSearch(val){
     const cor = n.scope==='privada' ? '#f59e0b' : '#60a5fa';
     return `<div class="search-result-card" style="border-color:${cor}">
       <div class="search-result-head"><span style="font-size:16px">📝</span><div style="flex:1">
-        <div class="search-result-who" style="color:${cor}">Nota ${n.scope==='privada'?'Privada':'Compartilhada'}</div>
+        <div class="search-result-who" style="--c:${cor}">Nota ${n.scope==='privada'?'Privada':'Compartilhada'}</div>
         <div class="search-result-title">${highlight(esc(n.titulo||'Nota'), val)}</div>
       </div><button data-act="ir" data-aba="notas" style="background:${cor};color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
@@ -180,7 +180,7 @@ export function doSearch(val){
   html += ordMatches.map(o => {
     return `<div class="search-result-card" style="border-color:#a78bfa">
       <div class="search-result-head"><span style="font-size:16px">🕊️</span><div style="flex:1">
-        <div class="search-result-who" style="color:#a78bfa">Ordenança</div>
+        <div class="search-result-who" style="--c:#a78bfa">Ordenança</div>
         <div class="search-result-title">${highlight(esc(o.titulo), val)}</div>
       </div><button data-act="ir" data-aba="ordenancas" data-card="${o.card.id}" style="background:#a78bfa;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
     </div>`;

@@ -5,7 +5,8 @@ import { renderAcompanhamentos } from './acompanhamento.js';
 import { apiFetch, atualizarUltimaSinc, avisarPendente, setSyncStatus } from './api.js';
 import { comNome } from './chamados.js';
 import { reativarAbaAtual } from './app.js';
-import { ALA, API_AGENDA, DADOS } from './config.js';
+import { ALA, API_AGENDA, API_CONVITE, DADOS } from './config.js';
+import { conviteJaRespondido, encerrada, primeiroNome, tipoNoConvite } from './convite-regras.js';
 import { MEMBROS } from './dados-membros.js';
 import { confirmar, pedirTexto } from './dialogo.js';
 import { norm } from './membros-import.js';
@@ -94,9 +95,9 @@ export function renderAgenda() {
   if (stats) {
     const { ativas, proximas, aguardando } = resumoAgenda();
     stats.innerHTML = `
-      <div class="membros-stat"><div class="stat-num" style="color:#34d399">${ativas.length}</div><div class="stat-label">Em aberto</div></div>
-      <div class="membros-stat"><div class="stat-num" style="color:#60a5fa">${proximas.length}</div><div class="stat-label">Próximos 7 dias</div></div>
-      <div class="membros-stat"><div class="stat-num" style="color:${aguardando.length ? '#e8b040' : '#34d399'}">${aguardando.length}</div><div class="stat-label">Sem confirmação</div></div>`;
+      <div class="membros-stat"><div class="stat-num" style="--c:#34d399">${ativas.length}</div><div class="stat-label">Em aberto</div></div>
+      <div class="membros-stat"><div class="stat-num" style="--c:#60a5fa">${proximas.length}</div><div class="stat-label">Próximos 7 dias</div></div>
+      <div class="membros-stat"><div class="stat-num" style="--c:${aguardando.length ? '#e8b040' : '#34d399'}">${aguardando.length}</div><div class="stat-label">Sem confirmação</div></div>`;
   }
   let lista = DADOS.agenda.filter(podeVer).filter(e => {
     const matchBusca = !busca || e.membro.toLowerCase().includes(busca);
@@ -126,20 +127,20 @@ export function renderAgenda() {
         <span class="ent-prioridade">${prioEmoji[e.prioridade]||'🟢'}</span>
         <span class="ent-nome">${esc(e.membro)}</span>
         ${e.sigiloso?'<span class="selo-sigilo">🔒 Sigiloso</span>':''}
-        ${e.acompanhar?'<span style="font-size:10px;color:#fbbf24">🧭</span>':''}
+        ${e.acompanhar?'<span style="font-size:10px;--c:#fbbf24">🧭</span>':''}
         ${precisaReenviarConvite(e)?'<span class="selo-reenviar" title="A data mudou depois do último convite">📨 Reenviar convite</span>':''}
         ${aguardandoNovaData(e)?'<span class="selo-reenviar" title="O membro pediu outra data: use Reagendar para fechar a nova">⏳ Defina a nova data</span>':''}
         <span class="status-badge status-${e.status || ''}">${rotuloStatus(e.status)}</span>
       </div>
       <div class="ent-info">
         <span>📋 ${esc(e.tipo)}</span>
-        <span style="color:${respCor[e.responsavel]||'#8eacc8'}">👤 ${esc(comNome(respNome[e.responsavel]||e.responsavel))}</span>
+        <span style="--c:${respCor[e.responsavel]||'#8eacc8'}">👤 ${esc(comNome(respNome[e.responsavel]||e.responsavel))}</span>
         ${e.data?`<span>📅 ${formatarData(e.data)}${e.hora?` às ${e.hora}`:''}</span>`:''}
         ${e.reagendamentos?.length?`<span>🔄 Reagendado ${e.reagendamentos.length}x</span>`:''}
         ${selosConfirmacao(e)}
       </div>
       ${e.obs?`<div class="ent-obs">${esc(e.obs)}</div>`:''}
-      ${e.obs_conclusao?`<div class="ent-obs" style="border-left:3px solid #34d399;padding-left:8px;margin-top:4px;color:#34d399">✔ ${esc(e.obs_conclusao)}</div>`:''}
+      ${e.obs_conclusao?`<div class="ent-obs" style="border-left:3px solid #34d399;padding-left:8px;margin-top:4px;--c:#34d399">✔ ${esc(e.obs_conclusao)}</div>`:''}
       <div class="ent-actions">
         ${e.status==='pendente'||e.status==='agendada'?`
           ${aguardandoNovaData(e) ? '' : botaoConvite(e)}
@@ -147,8 +148,9 @@ export function renderAgenda() {
           <button class="btn-secondary" data-act="reagendar" data-id="${e.id}">🔄 Reagendar</button>
           <button class="btn-secondary" data-act="naorealizada" data-id="${e.id}">✗ Não Realizada</button>
         `:''}
-        <button class="btn-secondary" title="Precisa de acompanhamento" data-act="toggle" data-id="${e.id}" data-campo="acompanhar" style="${e.acompanhar?'color:#fbbf24;border-color:#fbbf24':''}">🧭 ${e.acompanhar?'Acompanhando':'Acompanhar'}</button>
-        <button class="btn-secondary" title="Assunto sigiloso" data-act="toggle" data-id="${e.id}" data-campo="sigiloso" style="${e.sigiloso?'color:#e05555;border-color:#e05555':''}">${e.sigiloso?'🔒 Sigiloso':'🔓 Sigilo'}</button>
+        <button class="btn-secondary" title="Corrigir membro, tipo, responsável, data ou contato" data-act="editar" data-id="${e.id}">✏️ Editar</button>
+        <button class="btn-secondary" title="Precisa de acompanhamento" data-act="toggle" data-id="${e.id}" data-campo="acompanhar" style="${e.acompanhar?'--c:#fbbf24;border-color:#fbbf24':''}">🧭 ${e.acompanhar?'Acompanhando':'Acompanhar'}</button>
+        <button class="btn-secondary" title="Assunto sigiloso" data-act="toggle" data-id="${e.id}" data-campo="sigiloso" style="${e.sigiloso?'--c:#e05555;border-color:#e05555':''}">${e.sigiloso?'🔒 Sigiloso':'🔓 Sigilo'}</button>
         <button class="btn-danger" data-act="excluir" data-id="${e.id}">🗑</button>
       </div>
     </div>
@@ -196,8 +198,9 @@ export function abrirModalConvite(id) {
   document.getElementById('modal-agenda-content').innerHTML = `
     <h3>📨 Enviar convite <button class="modal-close" data-act="fechar">✕</button></h3>
     <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:10px 12px;margin-bottom:14px">
-      <div style="color:#c8d8e8;font-size:13px;font-weight:700">${esc(e.membro)}</div>
-      <div style="color:#8eacc8;font-size:12px;margin-top:2px">📋 ${esc(e.tipo)} · 📅 ${esc(quando)}</div>
+      <div style="color:var(--text-corpo);font-size:13px;font-weight:700">${esc(e.membro)}</div>
+      <div style="color:var(--text2);font-size:12px;margin-top:2px">📋 ${esc(e.tipo)} · 📅 ${esc(quando)}</div>
+      <div style="color:var(--text2);font-size:12px;margin-top:6px">✉️ O membro lê: <strong>${esc(tipoNoConvite(e) || 'uma conversa com o bispado')}</strong>${tipoNoConvite(e) ? '' : ' — o tipo não aparece no convite'}</div>
     </div>
     <div class="form-group">
       <label>WhatsApp</label>
@@ -209,9 +212,9 @@ export function abrirModalConvite(id) {
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">
       <a id="conv-ir-whats" data-act="conv-enviar" data-via="whatsapp" data-id="${esc(e.id)}" target="_blank" rel="noopener"
-         style="text-align:center;text-decoration:none;background:rgba(37,211,102,.15);color:#25d366;border:1px solid #25d366;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer">💬 Enviar pelo WhatsApp</a>
+         style="text-align:center;text-decoration:none;background:rgba(37,211,102,.15);--c:#25d366;border:1px solid #25d366;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer">💬 Enviar pelo WhatsApp</a>
       <a id="conv-ir-email" data-act="conv-enviar" data-via="email" data-id="${esc(e.id)}"
-         style="text-align:center;text-decoration:none;background:rgba(91,155,213,.15);color:#5b9bd5;border:1px solid #5b9bd5;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer">✉️ Enviar por e-mail</a>
+         style="text-align:center;text-decoration:none;background:rgba(91,155,213,.15);--c:#5b9bd5;border:1px solid #5b9bd5;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer">✉️ Enviar por e-mail</a>
       <button data-act="conv-copiar" data-id="${esc(e.id)}"
          style="background:rgba(201,168,76,.12);color:var(--gold);border:1px solid rgba(201,168,76,.45);border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">🔗 Copiar link do convite</button>
     </div>
@@ -220,7 +223,7 @@ export function abrirModalConvite(id) {
       <input type="text" class="form-input" id="conv-link" readonly value="${esc(linkConfirmacao(e.id))}"
              style="font-size:12px">
     </div>
-    <p style="color:#4a6a8a;font-size:11px;margin-top:12px;line-height:1.5">
+    <p style="color:var(--text3);font-size:11px;margin-top:12px;line-height:1.5">
       O telefone e o e-mail digitados ficam salvos nesta entrevista. Qualquer uma
       das três opções marca o convite como enviado.
     </p>`;
@@ -314,13 +317,16 @@ export async function toggleFlagEntrevista(id, campo) {
   e[campo] = novo; // otimista
   renderAgenda();
   if (typeof renderAcompanhamentos === 'function') renderAcompanhamentos();
+  let salvou = true;
   try {
     const atualizado = await apiFetch(`${API_AGENDA}?id=${id}`, 'PUT', { [campo]: novo });
     DADOS.agenda = DADOS.agenda.map(x => x.id === id ? atualizado : x);
     atualizarUltimaSinc(); setSyncStatus('ok');
-  } catch (e2) {}
+  } catch (e2) { salvou = false; avisarPendente('alteração'); }
   renderAgenda();
   if (typeof renderAcompanhamentos === 'function') renderAcompanhamentos();
+  // na falha fica o aviso de pendência: a mensagem de sucesso o cobriria
+  if (!salvou) return;
   const msg = {
     acompanhar: novo ? '🧭 Marcada para acompanhamento' : 'Acompanhamento removido',
     sigiloso:   novo ? '🔒 Marcada como sigilosa' : 'Sigilo removido',
@@ -353,28 +359,30 @@ export function digitosTelefone(t) {
   return d;
 }
 
-// "Sobrenome, Nome" → primeiro nome
-export function primeiroNome(nome) {
-  const dep = (nome || '').split(',')[1];
-  return ((dep || nome || '').trim().split(/\s+/)[0]) || nome || '';
-}
-
 export function linkConfirmacao(id) {
   return location.origin + location.pathname + '?confirmar=' + encodeURIComponent(id);
 }
 
 // Texto do convite — o mesmo no WhatsApp, no e-mail e no link copiado.
+// O assunto só aparece nos tipos de rotina (ver tipoNoConvite): a mensagem
+// aparece na prévia da tela bloqueada, muitas vezes no celular da família.
 export function mensagemConvite(e) {
   const quando = e.data
     ? formatarData(e.data) + (e.hora ? `, às ${e.hora}` : '')
     : 'em data a combinar';
+  const tipo = tipoNoConvite(e);
   return `Olá, ${primeiroNome(e.membro)}! Aqui é o bispado da ${ALA}.\n\n` +
-    `Gostaríamos de marcar uma entrevista com você — ${e.tipo} — para ${quando}.\n\n` +
+    (tipo
+      ? `Gostaríamos de marcar uma entrevista com você — ${tipo} — para ${quando}.\n\n`
+      : `Gostaríamos de marcar uma conversa com você para ${quando}.\n\n`) +
     `Por favor, responda por este link:\n${linkConfirmacao(e.id)}\n\n` +
     `Obrigado!`;
 }
 
-export const assuntoConvite = e => `Entrevista com o bispado — ${e.tipo}`;
+export const assuntoConvite = e => {
+  const tipo = tipoNoConvite(e);
+  return tipo ? `Entrevista com o bispado — ${tipo}` : 'Convite do bispado';
+};
 
 // Com telefone, o convite continua a um toque: link direto do WhatsApp.
 // "Outro meio" abre o diálogo (e-mail, copiar link, outro número) — e é o
@@ -388,12 +396,12 @@ export function botaoConvite(e) {
 
   if (!tel) {
     return `<button class="btn-secondary" data-act="convite" data-id="${e.id}"
-              style="color:#25d366;border-color:#25d366">${rotulo}</button>`;
+              style="--c:#25d366;border-color:#25d366">${rotulo}</button>`;
   }
   const url = `https://wa.me/${tel}?text=${encodeURIComponent(mensagemConvite(e))}`;
   return `<a class="btn-secondary" href="${url}" target="_blank" rel="noopener"
             data-act="convidar" data-id="${e.id}"
-            style="text-decoration:none;color:#25d366;border-color:#25d366">${rotulo}</a>` + outroMeio;
+            style="text-decoration:none;--c:#25d366;border-color:#25d366">${rotulo}</a>` + outroMeio;
 }
 
 // A cor de cada resposta vem do css (.selo-conf-*), que tem variante para o
@@ -413,7 +421,13 @@ export function selosConfirmacao(e) {
 }
 
 // --- Tela que o membro vê ao abrir o link do WhatsApp ---
+// Lê só a própria entrevista, por /api/convite (só os campos da tela). Antes
+// baixava /api/agenda inteira — com as sigilosas e as anotações do bispado —
+// no celular de quem abria o link.
 export async function abrirTelaConfirmacao(id) {
+  // a tela pública tem a cara do convite, não a do tema escolhido neste aparelho
+  document.documentElement.setAttribute('data-theme', 'dark');
+  document.title = `Convite — ${ALA}`;
   document.body.innerHTML = `
     <div id="conf-wrap" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px">
       <div style="max-width:420px;width:100%;background:#152233;border:1px solid #2a4060;border-radius:18px;padding:28px;text-align:center">
@@ -422,32 +436,41 @@ export async function abrirTelaConfirmacao(id) {
     </div>`;
   const caixa = document.querySelector('#conf-wrap > div');
 
-  let e = null;
+  let e = null, semConexao = false;
   try {
-    const lista = await (await fetch(API_AGENDA)).json();
-    e = Array.isArray(lista) ? lista.find(x => String(x.id) === String(id)) : null;
-  } catch { /* tratado abaixo */ }
+    const r = await fetch(`${API_CONVITE}?id=${encodeURIComponent(id)}`, { cache: 'no-store' });
+    if (r.ok) e = await r.json();
+    else if (r.status !== 404) semConexao = true;   // 404 = não existe; o resto é falha
+  } catch { semConexao = true; }
 
-  if (!e) {
+  // Falha de rede não é "convite expirado": dizer isso fazia a pessoa desistir
+  if (semConexao) {
+    caixa.innerHTML = `
+      <div style="font-size:34px;margin-bottom:10px">📡</div>
+      <h2 style="color:var(--sac);font-size:17px;margin-bottom:8px">Não deu para abrir o convite</h2>
+      <p style="color:var(--text2);font-size:13px;line-height:1.6;margin-bottom:16px">Parece que a conexão falhou. Confira a internet e tente de novo.</p>
+      <button id="conf-tentar" style="background:rgba(232,208,128,.15);color:var(--sac);border:1px solid rgba(232,208,128,.35);border-radius:12px;padding:11px 22px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Tentar de novo</button>`;
+    caixa.querySelector('#conf-tentar').addEventListener('click', () => abrirTelaConfirmacao(id));
+    return;
+  }
+
+  if (!e || !e.id) {
     caixa.innerHTML = `
       <div style="font-size:34px;margin-bottom:10px">🔎</div>
-      <h2 style="color:#e8d080;font-size:17px;margin-bottom:8px">Convite não encontrado</h2>
-      <p style="color:#8eacc8;font-size:13px;line-height:1.6">Este link pode ter expirado. Fale com o bispado para confirmar sua entrevista.</p>`;
+      <h2 style="color:var(--sac);font-size:17px;margin-bottom:8px">Convite não encontrado</h2>
+      <p style="color:var(--text2);font-size:13px;line-height:1.6">Este link pode ter expirado. Fale com o bispado para confirmar sua entrevista.</p>`;
     return;
   }
 
   // Entrevista já encerrada pelo bispado: o link antigo não pode mais responder,
   // senão um pedido de remarcação ressuscitaria algo que já aconteceu.
-  if (e.status === 'realizada' || e.status === 'nao-realizada') {
-    return telaEncerrada(caixa, '✅', 'Entrevista encerrada',
-      'O bispado já registrou o resultado desta entrevista. Se precisar de outra, fale com o bispado.');
-  }
+  if (encerrada(e)) return telaJaEncerrada(caixa);
 
   // Uso único por convite: já respondeu o convite atual, então só vê o que respondeu.
   if (conviteJaRespondido(e)) {
     const { base, quando: respondidoEm, sugerido } = resumoDaResposta(e);
     const detalhe = e.confirmacao === 'reagendar'
-      ? (sugerido ? ` sugerindo <strong style="color:#c8d8e8">${esc(sugerido)}</strong>.` : '.') +
+      ? (sugerido ? ` sugerindo <strong style="color:var(--text-corpo)">${esc(sugerido)}</strong>.` : '.') +
         ' O bispado vai enviar um novo convite com a data confirmada.'
       : '.';
     // A saída de emergência existe porque o `convidadoEm` pode estar velho no
@@ -464,8 +487,13 @@ export async function abrirTelaConfirmacao(id) {
   return telaConvite(caixa, e);
 }
 
+const telaJaEncerrada = caixa => telaEncerrada(caixa, '✅', 'Entrevista encerrada',
+  'O bispado já registrou o resultado desta entrevista. Se precisar de outra, fale com o bispado.');
+
 // O formulário de resposta. Fica separado porque a tela "você já respondeu"
-// precisa poder reabri-lo (ver a saída de emergência em telaJaRespondeu).
+// precisa poder reabri-lo (ver a saída de emergência em abrirTelaConfirmacao).
+// `e` é o que /api/convite devolve (conviteParaMembro): nome já é o primeiro
+// nome e tipo vem vazio quando o assunto não pode aparecer.
 function telaConvite(caixa, e) {
   const quando = e.data
     ? formatarData(e.data) + (e.hora ? `, às ${e.hora}` : '')
@@ -480,33 +508,33 @@ function telaConvite(caixa, e) {
 
   caixa.innerHTML = `
     <div style="font-size:34px;margin-bottom:6px">🕊️</div>
-    <h2 style="color:#e8d080;font-size:17px;margin-bottom:4px">Convite para entrevista</h2>
-    <p style="color:#8eacc8;font-size:12px;margin-bottom:18px">${esc(ALA)}</p>
+    <h2 style="color:var(--sac);font-size:17px;margin-bottom:4px">${e.tipo ? 'Convite para entrevista' : 'Convite do bispado'}</h2>
+    <p style="color:var(--text2);font-size:12px;margin-bottom:18px">${esc(ALA)}</p>
     <div style="background:rgba(255,255,255,.04);border-radius:12px;padding:14px;margin-bottom:18px;text-align:left">
-      <div style="color:#c8d8e8;font-size:14px;font-weight:700;margin-bottom:6px">${esc(primeiroNome(e.membro))}</div>
-      <div style="color:#8eacc8;font-size:12px;line-height:1.8">
-        📋 ${esc(e.tipo)}<br>📅 ${esc(quando)}
+      <div style="color:var(--text-corpo);font-size:14px;font-weight:700;margin-bottom:6px">${esc(e.nome)}</div>
+      <div style="color:var(--text2);font-size:12px;line-height:1.8">
+        ${e.tipo ? `📋 ${esc(e.tipo)}` : '💬 Conversa com o bispado'}<br>📅 ${esc(quando)}
       </div>
     </div>
-    <p style="color:#8eacc8;font-size:13px;margin-bottom:14px">Você pode comparecer?</p>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:14px">Você pode comparecer?</p>
     <div style="display:flex;flex-direction:column;gap:8px">
       ${opcoes.map(([v, r, c]) => `
         <button data-resp="${v}"
-          style="background:transparent;border:1px solid ${c};color:${c};border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">${r}</button>`).join('')}
+          style="background:transparent;border:1px solid ${c};--c:${c};border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">${r}</button>`).join('')}
     </div>
     <!-- aparece só ao pedir outra data: o membro sugere quando pode -->
     <div id="conf-sugestao" style="display:none;text-align:left;margin-top:14px;background:rgba(232,176,64,.08);border:1px solid rgba(232,176,64,.3);border-radius:12px;padding:14px">
-      <p style="color:#e8b040;font-size:13px;font-weight:600;margin-bottom:10px">Quando ficaria bom para você?</p>
-      <label style="color:#8eacc8;font-size:11px;display:block;margin-bottom:3px">Data</label>
+      <p style="--c:#e8b040;font-size:13px;font-weight:600;margin-bottom:10px">Quando ficaria bom para você?</p>
+      <label style="color:var(--text2);font-size:11px;display:block;margin-bottom:3px">Data</label>
       <input type="date" id="conf-data" value="${esc(e.data || '')}"
-        style="width:100%;background:#0d1b2a;border:1px solid #2a4060;color:#c8d8e8;border-radius:10px;padding:10px;font-size:14px;font-family:inherit;margin-bottom:10px">
-      <label style="color:#8eacc8;font-size:11px;display:block;margin-bottom:3px">Horário</label>
+        style="width:100%;background:#0d1b2a;border:1px solid #2a4060;color:var(--text-corpo);border-radius:10px;padding:10px;font-size:14px;font-family:inherit;margin-bottom:10px">
+      <label style="color:var(--text2);font-size:11px;display:block;margin-bottom:3px">Horário</label>
       <input type="time" id="conf-hora" value="${esc(e.hora || '')}"
-        style="width:100%;background:#0d1b2a;border:1px solid #2a4060;color:#c8d8e8;border-radius:10px;padding:10px;font-size:14px;font-family:inherit;margin-bottom:12px">
+        style="width:100%;background:#0d1b2a;border:1px solid #2a4060;color:var(--text-corpo);border-radius:10px;padding:10px;font-size:14px;font-family:inherit;margin-bottom:12px">
       <button id="conf-enviar-sugestao"
         style="width:100%;background:#e8b040;color:#0d1b2a;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Enviar pedido</button>
     </div>
-    ${e.confirmacao ? `<p style="color:#4a6a8a;font-size:11px;margin-top:14px">O bispado enviou um convite novo. Sua resposta anterior não vale mais para esta data.</p>` : ''}`;
+    ${e.confirmacao ? `<p style="color:var(--text3);font-size:11px;margin-top:14px">O bispado enviou um convite novo. Sua resposta anterior não vale mais para esta data.</p>` : ''}`;
 
   const sugestao = caixa.querySelector('#conf-sugestao');
   caixa.querySelectorAll('button[data-resp]').forEach(btn =>
@@ -531,28 +559,27 @@ function telaConvite(caixa, e) {
 export async function responderConvite(id, resposta, sugestao = null) {
   const caixa = document.querySelector('#conf-wrap > div');
   caixa.innerHTML = '<div class="loading">Enviando…</div>';
-  let ok = true;
+  // Manda só a escolha: o que ela muda no card (status, data da resposta) é
+  // decidido no servidor, por camposDaResposta (convite-regras.js).
+  let ok = true, motivo = '';
   try {
-    const lista = await (await fetch(API_AGENDA)).json();
-    const atual = (Array.isArray(lista) ? lista : []).find(x => String(x.id) === String(id)) || {};
-    // Só os campos que mudaram: a function faz merge do que chega. Mandar o
-    // registro inteiro (`...atual`) devolvia valores lidos no GET e podia desfazer
-    // o que o bispado tivesse alterado no intervalo — inclusive um reagendamento.
-    const campos = { confirmacao: resposta, confirmadoEm: new Date().toISOString() };
-    // A resposta do membro move o status do card. Só mexe em entrevista ainda
-    // aberta: um link antigo não pode ressuscitar uma já realizada.
-    const aberta = atual.status === 'pendente' || atual.status === 'agendada';
-    if (aberta && resposta === 'confirmado') campos.status = 'agendada';
-    // Pedir outra data desmarca: o horário combinado deixou de valer, e quem
-    // fecha a nova data é o bispado. Sem isso o card seguia "Agendada".
-    if (aberta && resposta === 'reagendar') campos.status = 'pendente';
-    if (sugestao) { campos.sugestaoData = sugestao.data; campos.sugestaoHora = sugestao.hora; }
-    const r = await fetch(`${API_AGENDA}?id=${encodeURIComponent(id)}`, {
+    const r = await fetch(`${API_CONVITE}?id=${encodeURIComponent(id)}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(campos),
+      body: JSON.stringify({ resposta, sugestao }),
     });
     ok = r.ok;
+    // 409 também é o conflito momentâneo de gravação (_crud.js) — esse se
+    // resolve tentando de novo. Só o corpo diz se a entrevista foi encerrada.
+    if (!ok) motivo = r.status === 404 ? 'sumiu' : ((await r.json().catch(() => ({})))?.error || '');
   } catch { ok = false; }
+  if (motivo === 'encerrada') return telaJaEncerrada(caixa);   // o bispado encerrou com a tela aberta
+  if (motivo === 'sumiu') {
+    caixa.innerHTML = `
+      <div style="font-size:34px;margin-bottom:10px">🔎</div>
+      <h2 style="color:var(--sac);font-size:17px;margin-bottom:8px">Convite não encontrado</h2>
+      <p style="color:var(--text2);font-size:13px;line-height:1.6">Esta entrevista não está mais na agenda do bispado. Fale com eles para combinar.</p>`;
+    return;
+  }
 
   const quandoPedido = sugestao?.data
     ? formatarData(sugestao.data) + (sugestao.hora ? ` às ${sugestao.hora}` : '')
@@ -564,7 +591,7 @@ export async function responderConvite(id, resposta, sugestao = null) {
     confirmado: ['✅', 'Presença confirmada', 'Obrigado! O bispado já foi avisado.'],
     reagendar:  ['🔄', 'Pedido registrado',
                  (quandoPedido
-                   ? `Anotamos sua sugestão de <strong style="color:#c8d8e8">${esc(quandoPedido)}</strong>. `
+                   ? `Anotamos sua sugestão de <strong style="color:var(--text-corpo)">${esc(quandoPedido)}</strong>. `
                    : '') +
                  'O bispado vai conferir a disponibilidade e enviar um novo convite com a data e o horário confirmados.'],
   }[resposta] || ['✅', 'Resposta registrada', 'Obrigado! O bispado foi informado.'];
@@ -573,8 +600,11 @@ export async function responderConvite(id, resposta, sugestao = null) {
   if (!ok) {
     caixa.innerHTML = `
       <div style="font-size:36px;margin-bottom:10px">⚠️</div>
-      <h2 style="color:#e05555;font-size:16px;margin-bottom:8px">Não deu para enviar</h2>
-      <p style="color:#8eacc8;font-size:13px;line-height:1.6">Verifique sua conexão e tente de novo, ou responda direto ao bispado pelo WhatsApp.</p>`;
+      <h2 style="--c:#e05555;font-size:16px;margin-bottom:8px">Não deu para enviar</h2>
+      <p style="color:var(--text2);font-size:13px;line-height:1.6;margin-bottom:16px">Verifique sua conexão e tente de novo, ou responda direto ao bispado pelo WhatsApp.</p>
+      <button id="conf-tentar" style="background:rgba(232,208,128,.15);--c:#e8d080;border:1px solid rgba(232,208,128,.35);border-radius:12px;padding:11px 22px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Tentar de novo</button>`;
+    // reenvia a mesma resposta: a pessoa não precisa escolher tudo outra vez
+    caixa.querySelector('#conf-tentar').addEventListener('click', () => responderConvite(id, resposta, sugestao));
     return;
   }
   telaEncerrada(caixa, txt[0], txt[1], txt[2]);
@@ -616,26 +646,16 @@ export function agendarFechamento(caixa, segundos = 20) {
 function telaEncerrada(caixa, icone, titulo, mensagemHtml, cor = '#e8d080', extra = null) {
   caixa.innerHTML = `
     <div style="font-size:40px;margin-bottom:10px">${icone}</div>
-    <h2 style="color:${cor};font-size:17px;margin-bottom:8px">${titulo}</h2>
-    <p style="color:#8eacc8;font-size:13px;line-height:1.6">${mensagemHtml}</p>
+    <h2 style="--c:${cor};font-size:17px;margin-bottom:8px">${titulo}</h2>
+    <p style="color:var(--text2);font-size:13px;line-height:1.6">${mensagemHtml}</p>
     <div style="margin-top:20px;border-top:1px solid rgba(255,255,255,.08);padding-top:16px">
       <button id="conf-fechar"
-        style="background:rgba(232,208,128,.15);color:#e8d080;border:1px solid rgba(232,208,128,.35);border-radius:12px;padding:11px 22px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Fechar agora</button>
-      <p id="conf-contagem" style="color:#4a6a8a;font-size:11px;margin-top:10px">Esta janela fecha sozinha em <strong>20</strong>s</p>
-      ${extra ? `<button id="conf-extra" style="display:block;margin:12px auto 0;background:none;border:none;color:#5b7a99;font-size:12px;text-decoration:underline;cursor:pointer;font-family:inherit">${extra.rotulo}</button>` : ''}
+        style="background:rgba(232,208,128,.15);color:var(--sac);border:1px solid rgba(232,208,128,.35);border-radius:12px;padding:11px 22px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Fechar agora</button>
+      <p id="conf-contagem" style="color:var(--text3);font-size:11px;margin-top:10px">Esta janela fecha sozinha em <strong>20</strong>s</p>
+      ${extra ? `<button id="conf-extra" style="display:block;margin:12px auto 0;background:none;border:none;--c:#5b7a99;font-size:12px;text-decoration:underline;cursor:pointer;font-family:inherit">${extra.rotulo}</button>` : ''}
     </div>`;
   const cancelar = agendarFechamento(caixa);
   if (extra) caixa.querySelector('#conf-extra')?.addEventListener('click', () => { cancelar(); extra.acao(); });
-}
-
-// O link do convite e sempre o mesmo (?confirmar=<id>), entao ele nao pode ser
-// "de uso unico" para sempre — precisa voltar a valer quando o bispado convida
-// de novo. A resposta vale para o convite ATUAL: ja respondeu se ha resposta
-// posterior ao ultimo envio. Reagendar limpa a resposta, o que tambem libera.
-// Sem `convidadoEm` (registro antigo), qualquer resposta ja conta como dada.
-export function conviteJaRespondido(e) {
-  if (!e.confirmadoEm) return false;
-  return !e.convidadoEm || e.confirmadoEm > e.convidadoEm;
 }
 
 // Texto do que a pessoa respondeu, para ela reconhecer a propria resposta.
@@ -705,7 +725,8 @@ export function abrirModalAgenda(id) {
       <div class="form-group">
         <label>WhatsApp <span style="opacity:.6;font-weight:400">(do quadro de membros)</span></label>
         <input type="text" class="form-input" id="ag-telefone" placeholder="(21) 90000-0000"
-               value="${esc(e?.telefone || telefoneDoMembro(e?.membro || ''))}">
+               value="${esc(e?.telefone || telefoneDoMembro(e?.membro || ''))}"
+               data-auto="${esc(e?.telefone || telefoneDoMembro(e?.membro || ''))}">
       </div>
     </div>
     <div class="form-group">
@@ -713,11 +734,11 @@ export function abrirModalAgenda(id) {
       <input type="text" class="form-input" id="ag-obs" maxlength="100" placeholder="Observações livres…" value="${esc(e?.obs||'')}">
     </div>
     <div class="form-group" style="background:rgba(255,255,255,.03);border-radius:10px;padding:10px 12px">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#c8d8e8;margin-bottom:8px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-corpo);margin-bottom:8px">
         <input type="checkbox" id="ag-acompanhar" ${e?.acompanhar?'checked':''} style="width:16px;height:16px;accent-color:#fbbf24">
         🧭 Vai precisar de acompanhamento
       </label>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#c8d8e8">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-corpo)">
         <input type="checkbox" id="ag-sigiloso" ${e?.sigiloso?'checked':''} style="width:16px;height:16px;accent-color:#e05555">
         🔒 Assunto sigiloso — somente o bispo visualiza
       </label>
@@ -742,6 +763,8 @@ export async function salvarEntrevista(id) {
     acompanhar: document.getElementById('ag-acompanhar').checked,
     sigiloso: document.getElementById('ag-sigiloso').checked,
   };
+  const atual = id ? DADOS.agenda.find(x => x.id === id) : null;
+  if (atual) Object.assign(payload, efeitosDaEdicao(atual, payload));
   fecharModal('modal-agenda');
   reativarAbaAtual();
   try {
@@ -755,11 +778,47 @@ export async function salvarEntrevista(id) {
       DADOS.agenda.push(criado);
     }
     atualizarUltimaSinc(); setSyncStatus('ok');
+    toast(id ? 'Entrevista atualizada' : 'Entrevista criada');
   } catch(e) {
     if (id) DADOS.agenda = DADOS.agenda.map(x => x.id === id ? { ...x, ...payload } : x);
     else DADOS.agenda.push({ ...payload, id: 'local_' + Date.now(), status: 'pendente', reagendamentos: [] });
+    avisarPendente('entrevista');
   }
   renderAgenda();
+}
+
+// O que o Editar invalida numa entrevista em aberto. Corrigir uma encerrada não
+// mexe no resultado; corrigir antes de convidar só grava o que mudou.
+//  - Outro membro: o convite e a resposta eram de outra pessoa — nada vale.
+//  - Data ou horário mudaram depois de convite ou resposta: é um reagendamento
+//    (o mesmo do botão Reagendar); sem isto o card seguia "✅ Confirmou" para
+//    uma data que o membro nem conhece. Sem nova data, volta a "sem data".
+function efeitosDaEdicao(atual, payload) {
+  if (atual.status !== 'pendente' && atual.status !== 'agendada') return {};
+  const respostaZerada = { confirmacao: '', confirmadoEm: '', sugestaoData: '', sugestaoHora: '' };
+  if (payload.membro !== atual.membro) {
+    return { ...respostaZerada, convidadoEm: '', email: '', status: 'pendente' };
+  }
+  const mudouQuando = payload.data !== (atual.data || '') || payload.hora !== (atual.hora || '');
+  const haviaConvite = !!(atual.convidadoEm || atual.confirmacao);
+  if (!mudouQuando || !haviaConvite) return {};
+  if (!payload.data) return { ...respostaZerada, status: 'pendente' };
+  // primeira data depois de um convite "a combinar" também invalida a resposta
+  return camposDeReagendamento({ ...atual, data: atual.data || '', hora: atual.hora || '' }, payload.data, payload.hora);
+}
+
+// O que muda numa entrevista quando a data muda — pelo Reagendar ou pelo Editar.
+// O pedido do membro foi atendido e a data mudou: a resposta anterior não vale
+// mais para o novo horário, então volta a "sem confirmação" — o membro recebe o
+// convite de novo e confirma a data nova.
+function camposDeReagendamento(atual, data, hora) {
+  const hist = [...(atual.reagendamentos || []), {
+    dataAnterior: atual.data, horaAnterior: atual.hora, reagendadoEm: new Date().toISOString(),
+  }];
+  return {
+    data, hora, status: 'agendada', reagendamentos: hist,
+    sugestaoData: '', sugestaoHora: '', confirmacao: '', confirmadoEm: '',
+  };
 }
 
 export async function marcarRealizada(id) {
@@ -774,6 +833,7 @@ export async function marcarRealizada(id) {
     atualizarUltimaSinc(); setSyncStatus('ok');
   } catch(e) {
     DADOS.agenda = DADOS.agenda.map(e => e.id===id ? {...e, status:'realizada', obs_conclusao} : e);
+    avisarPendente('conclusão');
   }
   renderAgenda();
 }
@@ -790,6 +850,7 @@ export async function naoRealizada(id) {
     atualizarUltimaSinc(); setSyncStatus('ok');
   } catch(e) {
     DADOS.agenda = DADOS.agenda.map(e => e.id===id ? {...e, status:'nao-realizada', motivo} : e);
+    avisarPendente('alteração');
   }
   renderAgenda();
 }
@@ -804,22 +865,14 @@ export async function reagendarEntrevista(id) {
   ], { okLabel: 'Reagendar' });
   if (r === null) return;
 
-  const hist = [...(atual.reagendamentos || []), {
-    dataAnterior: atual.data, horaAnterior: atual.hora, reagendadoEm: new Date().toISOString(),
-  }];
-  // O pedido do membro foi atendido e a data mudou: a resposta anterior não vale
-  // mais para o novo horário, então volta a "sem confirmação" — o membro recebe
-  // o convite de novo e confirma a data nova.
-  const campos = {
-    data: r.data, hora: r.hora, status: 'agendada', reagendamentos: hist,
-    sugestaoData: '', sugestaoHora: '', confirmacao: '', confirmadoEm: '',
-  };
+  const campos = camposDeReagendamento(atual, r.data, r.hora);
   try {
     const atualizado = await apiFetch(`${API_AGENDA}?id=${id}`, 'PUT', campos);
     DADOS.agenda = DADOS.agenda.map(e => e.id===id ? atualizado : e);
     atualizarUltimaSinc(); setSyncStatus('ok');
   } catch(e) {
     DADOS.agenda = DADOS.agenda.map(e => e.id===id ? {...e, ...campos} : e);
+    avisarPendente('remarcação');
   }
   renderAgenda();
 }
@@ -850,6 +903,7 @@ function ligarAgenda() {
     if (!alvo) return;
     const id = alvo.dataset.id;
     switch (alvo.dataset.act) {
+      case 'editar':        abrirModalAgenda(id); break;
       case 'realizada':     marcarRealizada(id); break;
       case 'reagendar':     reagendarEntrevista(id); break;
       case 'naorealizada':  naoRealizada(id); break;
@@ -880,6 +934,15 @@ function ligarAgenda() {
   // tocar no campo do link ja seleciona tudo, para copiar na mao
   document.getElementById('modal-agenda')?.addEventListener('focusin', ev => {
     if (ev.target.id === 'conv-link') ev.target.select();
+  });
+
+  // Trocar o membro no formulário traz o WhatsApp do novo membro — mas só se o
+  // campo ainda tiver o número que veio preenchido (digitado à mão, fica).
+  document.getElementById('modal-agenda')?.addEventListener('change', ev => {
+    if (ev.target.id !== 'ag-membro') return;
+    const tel = document.getElementById('ag-telefone');
+    if (!tel || tel.value.trim() !== (tel.dataset.auto || '')) return;
+    tel.value = tel.dataset.auto = telefoneDoMembro(ev.target.value.trim());
   });
 
   // enquanto digita o contato, os links do dialogo acompanham

@@ -16,10 +16,10 @@ export function confirmar(mensagem, { perigo = false, okLabel = 'Confirmar' } = 
     const overlay = document.getElementById('modal-dialogo');
     const box = document.getElementById('modal-dialogo-content');
     box.innerHTML = `
-      <div style="font-size:14px;color:#c8d8e8;line-height:1.6;margin-bottom:18px">${esc(mensagem)}</div>
+      <div style="font-size:14px;color:var(--text-corpo);line-height:1.6;margin-bottom:18px">${esc(mensagem)}</div>
       <div style="display:flex;gap:8px">
         <button id="dlg-ok" style="flex:1;background:${perigo ? '#e05555' : '#c9a84c'};color:${perigo ? '#fff' : '#0d1b2a'};border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;font-size:13px">${esc(okLabel)}</button>
-        <button id="dlg-cancel" style="background:rgba(74,106,138,.25);color:#8eacc8;border:none;border-radius:10px;padding:11px 18px;cursor:pointer;font-size:13px">Cancelar</button>
+        <button id="dlg-cancel" style="background:rgba(74,106,138,.25);color:var(--text2);border:none;border-radius:10px;padding:11px 18px;cursor:pointer;font-size:13px">Cancelar</button>
       </div>`;
     overlay.classList.add('open');
     const fim = v => { _fecharDialogo(); resolve(v); };

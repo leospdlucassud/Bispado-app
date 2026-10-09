@@ -17,7 +17,7 @@ import { DIAS_SEMANA, EVENTOS_FIXOS, MESES } from './calendario.js';
 import { comNome } from './chamados.js';
 import { DADOS, comAla } from './config.js';
 import { USUARIO, abrirEscolhaCargo } from './usuario.js';
-import { esc, formatarData } from './utils.js';
+import { corSegura, dataLocal, esc, formatarData } from './utils.js';
 
 const DIAS_LONGOS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 // responsável da entrevista (código) → cargo; o mesmo mapa de agenda.js
@@ -46,10 +46,8 @@ export function inicioAposCarga(res = {}) {
 }
 
 // ---------- datas ----------
-const dois = n => String(n).padStart(2, '0');
-// AAAA-MM-DD na hora LOCAL. formatDateKey (sacramental.js) usa UTC e, no
-// horário de Brasília, já devolve o dia seguinte a partir das 21h.
-const chave = d => `${d.getFullYear()}-${dois(d.getMonth() + 1)}-${dois(d.getDate())}`;
+// AAAA-MM-DD na hora local (ver dataLocal em utils.js)
+const chave = dataLocal;
 // a API grava o que receber: data fora do formato não entra em comparação
 const dataValida = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
 
@@ -74,7 +72,6 @@ function rotuloDia(k, d) {
 
 // ---------- pedaços ----------
 const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
-const corSegura = c => /^#[0-9a-f]{3,8}$/i.test(c || '') ? c : '#94a3b8';
 const quandoData = (data, hora) => esc(formatarData(data)) + (hora ? ` às ${esc(hora)}` : '');
 const nomeEntrevista = e => e.sigiloso ? '🔒 Entrevista sigilosa' : esc(e.membro);
 const responsavel = e => esc(comNome(RESP_NOME[e.responsavel] || e.responsavel));
@@ -241,6 +238,17 @@ function pendencias(ag, d) {
           cor: '#f472b6', aba: 'designacoes',
           titulo: `⏰ Prazo vencido — <strong>${esc(x.tarefa)}</strong>`,
           sub: `prazo ${esc(formatarData(x.prazo))}${quem ? ` · ${quem}` : ''}`,
+        }));
+      });
+    // prazo hoje ou amanhã: é aqui que o lembrete aparece (não há alarme)
+    desigAtivas().filter(x => x.tipo !== 'permanente' && (x.prazo === d.kHoje || x.prazo === d.kAmanha))
+      .sort((a, b) => a.prazo.localeCompare(b.prazo))
+      .forEach(x => {
+        const quem = respsDe(x).filter(Boolean).map(r => esc(comNome(r))).join(', ');
+        add(x, item({
+          cor: '#f472b6', aba: 'designacoes',
+          titulo: `📌 Prazo ${x.prazo === d.kHoje ? 'hoje' : 'amanhã'} — <strong>${esc(x.tarefa)}</strong>`,
+          sub: quem,
         }));
       });
   }

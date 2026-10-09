@@ -4,13 +4,13 @@
 // e acompanhamentos avulsos criados aqui. Itens sigilosos só aparecem ao bispo.
 // =============================================
 import { renderAgenda } from './agenda.js';
-import { apiFetch, setSyncStatus } from './api.js';
+import { apiFetch, atualizarUltimaSinc, avisarPendente, setSyncStatus } from './api.js';
 import { API_AGENDA, CARGOS, DADOS } from './config.js';
 import { MEMBROS } from './dados-membros.js';
 import { confirmar, pedirTexto } from './dialogo.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { USUARIO, podeVer, toast } from './usuario.js';
-import { esc, formatarData } from './utils.js';
+import { dataLocal, esc, formatarData } from './utils.js';
 
 export const API_ACOMP = '/api/acompanhamentos';
 export let filAcomp = 'abertos';
@@ -62,9 +62,9 @@ export function renderAcompanhamentos() {
     const meus = todos.filter(a => a.situacao !== 'concluido' && a.responsavel === USUARIO).length;
     const sig = todos.filter(a => a.sigiloso && a.situacao !== 'concluido').length;
     stats.innerHTML = `
-      <div class="membros-stat"><div class="stat-num" style="color:#fbbf24">${abertos}</div><div class="stat-label">Em aberto</div></div>
-      <div class="membros-stat"><div class="stat-num" style="color:#60a5fa">${meus}</div><div class="stat-label">Sob minha responsabilidade</div></div>
-      <div class="membros-stat"><div class="stat-num" style="color:${sig?'#e05555':'#34d399'}">${sig}</div><div class="stat-label">Sigilosos</div></div>`;
+      <div class="membros-stat"><div class="stat-num" style="--c:#fbbf24">${abertos}</div><div class="stat-label">Em aberto</div></div>
+      <div class="membros-stat"><div class="stat-num" style="--c:#60a5fa">${meus}</div><div class="stat-label">Sob minha responsabilidade</div></div>
+      <div class="membros-stat"><div class="stat-num" style="--c:${sig?'#e05555':'#34d399'}">${sig}</div><div class="stat-label">Sigilosos</div></div>`;
   }
 
   let lista = todos.filter(a => {
@@ -92,27 +92,27 @@ export function renderAcompanhamentos() {
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
         <div style="min-width:0">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <span style="color:#c8d8e8;font-weight:700;font-size:14px">${esc(a.titulo)}</span>
+            <span style="color:var(--text-corpo);font-weight:700;font-size:14px">${esc(a.titulo)}</span>
             ${a.sigiloso ? '<span class="selo-sigilo">🔒 Sigiloso</span>' : ''}
-            ${a.origem === 'entrevista' ? '<span style="font-size:10px;color:#34d399">via entrevista</span>' : ''}
-            ${a.situacao === 'concluido' ? '<span style="font-size:10px;color:#34d399">✔ concluído</span>' : ''}
+            ${a.origem === 'entrevista' ? '<span style="font-size:10px;--c:#34d399">via entrevista</span>' : ''}
+            ${a.situacao === 'concluido' ? '<span style="font-size:10px;--c:#34d399">✔ concluído</span>' : ''}
           </div>
-          <div style="font-size:11.5px;color:#8eacc8;margin-top:3px">
+          <div style="font-size:11.5px;color:var(--text2);margin-top:3px">
             ${a.assunto ? esc(a.assunto) : ''}${a.responsavel ? ` · 👤 ${esc(a.responsavel)}` : ''}${a.data ? ` · 📅 ${formatarData(a.data)}` : ''}
           </div>
         </div>
         <div style="display:flex;gap:5px;flex-shrink:0">
           <button class="btn-secondary" style="font-size:11px;padding:4px 9px" data-act="registro" data-origem="${a.origem}" data-id="${a.id}">✚ Registro</button>
           <button class="btn-secondary" style="font-size:11px;padding:4px 9px" data-act="situacao" data-origem="${a.origem}" data-id="${a.id}">${a.situacao==='concluido'?'↩':'✓'}</button>
-          <button class="btn-secondary" title="Assunto sigiloso" style="font-size:11px;padding:4px 9px${a.sigiloso?';color:#e05555;border-color:#e05555':''}" data-act="sigilo" data-origem="${a.origem}" data-id="${a.id}">${a.sigiloso?'🔒':'🔓'}</button>
+          <button class="btn-secondary" title="Assunto sigiloso" style="font-size:11px;padding:4px 9px${a.sigiloso?';--c:#e05555;border-color:#e05555':''}" data-act="sigilo" data-origem="${a.origem}" data-id="${a.id}">${a.sigiloso?'🔒':'🔓'}</button>
           ${a.origem === 'avulso' ? `<button class="btn-danger" data-act="excluir" data-id="${a.id}">🗑</button>` : ''}
         </div>
       </div>
       ${ultimos.length ? ultimos.map(reg => `
         <div class="acomp-registro">
-          <strong style="color:#8eacc8">${reg.data ? formatarData(reg.data) : ''}${reg.autor ? ' · ' + esc(reg.autor) : ''}</strong><br>${esc(reg.texto)}
-        </div>`).join('') : '<div style="font-size:11px;color:#4a6a8a;margin-top:4px">Sem registros ainda</div>'}
-      ${a.registros.length > 3 ? `<div style="font-size:10px;color:#4a6a8a;margin-top:4px">…e mais ${a.registros.length-3} registro(s)</div>` : ''}
+          <strong style="color:var(--text2)">${reg.data ? formatarData(reg.data) : ''}${reg.autor ? ' · ' + esc(reg.autor) : ''}</strong><br>${esc(reg.texto)}
+        </div>`).join('') : '<div style="font-size:11px;color:var(--text3);margin-top:4px">Sem registros ainda</div>'}
+      ${a.registros.length > 3 ? `<div style="font-size:10px;color:var(--text3);margin-top:4px">…e mais ${a.registros.length-3} registro(s)</div>` : ''}
     </div>`;
   }).join('');
 }
@@ -123,9 +123,25 @@ export function acharAcomp(origem, id) {
     : (DADOS.acompanhamentos || []).find(a => a.id === id);
 }
 
-export async function salvarAcomp(origem, item) {
+// Grava SÓ os campos que mudaram. Antes ia o item inteiro — e, vindo de uma
+// entrevista, o item é a própria entrevista: um registro de acompanhamento
+// reenviava a cópia local e apagava, por exemplo, a confirmação que o membro
+// tinha acabado de dar pelo link. A function junta o que chega com o que já há.
+export async function salvarAcomp(origem, item, campos) {
+  Object.assign(item, campos);   // otimista: a tela muda na hora
+  renderAcompanhamentos();
+  if (origem === 'entrevista') renderAgenda();
   const url = origem === 'entrevista' ? `${API_AGENDA}?id=${item.id}` : `${API_ACOMP}?id=${item.id}`;
-  try { await apiFetch(url, 'PUT', item); setSyncStatus('ok'); } catch {}
+  try {
+    const atualizado = await apiFetch(url, 'PUT', campos);
+    if (atualizado?.id) {
+      if (origem === 'entrevista') DADOS.agenda = DADOS.agenda.map(x => x.id === item.id ? atualizado : x);
+      else DADOS.acompanhamentos = DADOS.acompanhamentos.map(x => x.id === item.id ? atualizado : x);
+    }
+    atualizarUltimaSinc(); setSyncStatus('ok');
+  } catch {
+    avisarPendente('alteração do acompanhamento');
+  }
   renderAcompanhamentos();
   if (origem === 'entrevista') renderAgenda();
 }
@@ -138,21 +154,20 @@ export async function abrirRegistroAcomp(origem, id) {
   ], { okLabel: 'Adicionar' });
   if (r === null) return;
   const texto = r.texto;
-  item.registros = [...(item.registros || []), {
-    data: new Date().toISOString().slice(0,10),
+  const registros = [...(item.registros || []), {
+    data: dataLocal(),
     autor: USUARIO || 'Não identificado',
     texto: texto.trim(),
   }];
-  salvarAcomp(origem, item);
   toast('Registro adicionado');
+  salvarAcomp(origem, item, { registros });
 }
 
 export function alternarSituacaoAcomp(origem, id) {
   const item = acharAcomp(origem, id);
   if (!item) return;
   const campo = origem === 'entrevista' ? 'situacaoAcomp' : 'situacao';
-  item[campo] = (item[campo] || 'aberto') === 'concluido' ? 'aberto' : 'concluido';
-  salvarAcomp(origem, item);
+  salvarAcomp(origem, item, { [campo]: (item[campo] || 'aberto') === 'concluido' ? 'aberto' : 'concluido' });
 }
 
 // Liga/desliga o sigilo depois de criado. Em item vindo de entrevista, atualiza
@@ -160,14 +175,15 @@ export function alternarSituacaoAcomp(origem, id) {
 export function toggleSigiloAcomp(origem, id) {
   const item = acharAcomp(origem, id);
   if (!item) return;
-  item.sigiloso = !item.sigiloso;
-  salvarAcomp(origem, item);
-  toast(item.sigiloso ? '🔒 Marcado como sigiloso' : 'Sigilo removido');
+  const sigiloso = !item.sigiloso;
+  toast(sigiloso ? '🔒 Marcado como sigiloso' : 'Sigilo removido');
+  salvarAcomp(origem, item, { sigiloso });
 }
 
 export async function excluirAcomp(id) {
   if (!await confirmar('Excluir este acompanhamento e seus registros?', { perigo: true, okLabel: 'Excluir' })) return;
-  try { await apiFetch(`${API_ACOMP}?id=${id}`, 'DELETE'); } catch {}
+  try { await apiFetch(`${API_ACOMP}?id=${id}`, 'DELETE'); atualizarUltimaSinc(); setSyncStatus('ok'); }
+  catch { avisarPendente('exclusão'); }
   DADOS.acompanhamentos = (DADOS.acompanhamentos || []).filter(a => a.id !== id);
   renderAcompanhamentos();
 }
@@ -178,7 +194,7 @@ export function abrirModalAcomp() {
     <div class="form-group">
       <label>Pessoa ou situação</label>
       <input list="lista-membros-dl2" class="form-input" id="ac-titulo" placeholder="Nome do membro ou descrição…">
-      <datalist id="lista-membros-dl2">${MEMBROS.map(m=>`<option value="${m.name}">`).join('')}</datalist>
+      <datalist id="lista-membros-dl2">${MEMBROS.map(m=>`<option value="${esc(m.name)}">`).join('')}</datalist>
     </div>
     <div class="form-group">
       <label>Assunto</label>
@@ -191,7 +207,7 @@ export function abrirModalAcomp() {
       </div>
       <div class="form-group">
         <label>Data</label>
-        <input type="date" class="form-input" id="ac-data" value="${new Date().toISOString().slice(0,10)}">
+        <input type="date" class="form-input" id="ac-data" value="${dataLocal()}">
       </div>
     </div>
     <div class="form-group">
@@ -199,7 +215,7 @@ export function abrirModalAcomp() {
       <textarea class="form-input" id="ac-registro" rows="2" placeholder="O que foi conversado ou combinado…" style="resize:vertical"></textarea>
     </div>
     <div class="form-group" style="background:rgba(255,255,255,.03);border-radius:10px;padding:10px 12px">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#c8d8e8">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-corpo)">
         <input type="checkbox" id="ac-sigiloso" style="width:16px;height:16px;accent-color:#e05555">
         🔒 Assunto sigiloso — somente o bispo visualiza
       </label>
@@ -219,18 +235,19 @@ export async function salvarNovoAcomp() {
     data: document.getElementById('ac-data').value,
     sigiloso: document.getElementById('ac-sigiloso').checked,
     situacao: 'aberto',
-    registros: primeiro ? [{ data: new Date().toISOString().slice(0,10), autor: USUARIO || 'Não identificado', texto: primeiro }] : [],
+    registros: primeiro ? [{ data: dataLocal(), autor: USUARIO || 'Não identificado', texto: primeiro }] : [],
   };
   fecharModal('modal-acomp');
   if (!DADOS.acompanhamentos) DADOS.acompanhamentos = [];
   try {
     DADOS.acompanhamentos.push(await apiFetch(API_ACOMP, 'POST', item));
-    setSyncStatus('ok');
+    atualizarUltimaSinc(); setSyncStatus('ok');
+    toast('Acompanhamento criado');
   } catch {
     DADOS.acompanhamentos.push({ ...item, id: 'local_' + Date.now() });
+    avisarPendente('criação do acompanhamento');
   }
   renderAcompanhamentos();
-  toast('Acompanhamento criado');
 }
 
 // Fase 4 da migração ESM: liga a aba Acompanhamento por delegação,

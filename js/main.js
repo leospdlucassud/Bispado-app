@@ -9,6 +9,7 @@
 // =============================================
 import './dados-membros.js';
 import './config.js';
+import './convite-regras.js';
 import './utils.js';
 import './ui.js';
 import './dialogo.js';

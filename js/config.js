@@ -6,6 +6,14 @@ export const API_REUNIOES  = '/api/reunioes';
 export const API_DESIG     = '/api/designacoes';
 export const API_EVENTOS   = '/api/eventos_extras';
 export const API_SAC       = '/api/sacramentais';
+// A tela do membro (link do convite) usa só este caminho, que devolve só a
+// entrevista dele — ver netlify/functions/convite.js
+export const API_CONVITE   = '/api/convite';
+
+// Aberto pelo link do convite: a tela do membro substitui o app inteiro. Nesse
+// modo nada do painel pode rodar — nem carga de dados, nem service worker, nem
+// o convite para instalar o app no celular de quem só veio responder.
+export const MODO_CONVITE = new URLSearchParams(location.search).has('confirmar');
 
 // Cargos do bispado — genéricos, servem a qualquer ala
 export const CARGOS = ['Bispo', '1º Conselheiro', '2º Conselheiro', 'Secretário', 'Secretário Executivo'];
@@ -19,7 +27,7 @@ export let DADOS = { agenda:[], reunioes:[], designacoes:[], eventos_extras:[], 
 // (o que esta publicado) para o app instalado se atualizar sozinho.
 // Nao editar a mao: `node scripts/versao.mjs patch|minor|major` atualiza este,
 // o version.json, o CACHE do sw.js e o package.json juntos.
-export const VERSAO = '5.17.1';
+export const VERSAO = '5.18.0';
 
 // =============================================
 // NOME DA ALA

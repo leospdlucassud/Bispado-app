@@ -84,7 +84,7 @@ export function renderNotas() {
           <button class="btn-danger" data-act="excluir" data-id="${n.id}" data-scope="${n.scope}">🗑</button>
         </div>
       </div>
-      ${n.titulo ? `<div style="font-weight:700;color:#e8edf2;margin-bottom:4px">${esc(n.titulo)}</div>` : ''}
+      ${n.titulo ? `<div style="font-weight:700;color:var(--text1);margin-bottom:4px">${esc(n.titulo)}</div>` : ''}
       <div class="nota-texto">${esc(n.texto)}</div>
       <div class="nota-meta">
         ${n.autor ? `👤 ${esc(n.autor)} · ` : ''}${n.criadaEm ? new Date(n.criadaEm).toLocaleDateString('pt-BR') : ''}

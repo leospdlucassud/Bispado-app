@@ -1,6 +1,6 @@
 // ── FILA OFFLINE (IndexedDB) ──
 import { atualizarUltimaSinc, carregarDados, rotuloSync, setSyncStatus } from './api.js';
-import { VERSAO } from './config.js';
+import { MODO_CONVITE, VERSAO } from './config.js';
 import { toast } from './usuario.js';
 
 export const DB_NAME = 'bispado-offline';
@@ -98,19 +98,26 @@ abrirDB().catch(() => {});
 export let swRegistration = null;
 export let isOnline = navigator.onLine;
 
+// Na tela do convite (MODO_CONVITE) nada daqui roda além do isOnline: o membro
+// só responde. Antes, voltar do WhatsApp para a aba disparava a carga completa
+// do painel — agenda, membros, atas, acompanhamentos — no celular dele.
 window.addEventListener('online',  async () => {
   isOnline = true;
+  if (MODO_CONVITE) return;
   setSyncStatus('ok');
   await enviarFilaPendente();
   carregarDados();   // recarrega já com o que a fila enviou
 });
 window.addEventListener('offline', () => {
   isOnline = false;
+  if (MODO_CONVITE) return;
   setSyncStatus('erro');
   rotuloSync(' Sem conexão');
 });
 
-if ('serviceWorker' in navigator) {
+// sem service worker no convite: não há por que guardar o app inteiro no
+// celular de quem só veio responder
+if ('serviceWorker' in navigator && !MODO_CONVITE) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then(reg => {
@@ -184,6 +191,7 @@ if ('serviceWorker' in navigator) {
 
 // Quando usuário volta ao app: verifica nova versão E recarrega dados
 document.addEventListener('visibilitychange', () => {
+  if (MODO_CONVITE) return;
   if (document.visibilityState === 'visible') {
     if (swRegistration && isOnline) {
       verificarAtualizacaoSilenciosa(swRegistration);
@@ -261,15 +269,16 @@ export async function aplicarAtualizacao() {
 }
 
 // Na abertura do app instalado
-window.addEventListener('load', () => { verificarVersaoServidor(); });
+window.addEventListener('load', () => { if (!MODO_CONVITE) verificarVersaoServidor(); });
 
 export let dp=null;
 export const banner=document.createElement('div');
-banner.innerHTML=`<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span style="font-size:22px">📱</span><div style="flex:1;min-width:160px"><div style="font-weight:700;font-size:14px">Instalar como App</div><div style="font-size:12px;color:#aac0d8;margin-top:2px">Acesse offline, sem precisar do link</div></div><button id="pwa-install" style="background:#c9a84c;color:#0d1b2a;border:none;padding:8px 18px;border-radius:20px;font-weight:700;cursor:pointer;font-size:13px">Instalar</button><button id="pwa-dismiss" style="background:transparent;color:#8eacc8;border:none;padding:8px;cursor:pointer;font-size:18px">✕</button></div>`;
-Object.assign(banner.style,{display:'none',position:'fixed',bottom:'0',left:'0',right:'0',background:'#1a2d42',borderTop:'2px solid #c9a84c',padding:'14px 18px',zIndex:'9999',boxShadow:'0 -4px 20px rgba(0,0,0,.5)'});
+banner.innerHTML=`<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span style="font-size:22px">📱</span><div style="flex:1;min-width:160px"><div style="font-weight:700;font-size:14px">Instalar como App</div><div style="font-size:12px;color:var(--text2);margin-top:2px">Acesse offline, sem precisar do link</div></div><button id="pwa-install" style="background:#c9a84c;color:#0d1b2a;border:none;padding:8px 18px;border-radius:20px;font-weight:700;cursor:pointer;font-size:13px">Instalar</button><button id="pwa-dismiss" style="background:transparent;color:var(--text2);border:none;padding:8px;cursor:pointer;font-size:18px">✕</button></div>`;
+Object.assign(banner.style,{display:'none',position:'fixed',bottom:'0',left:'0',right:'0',background:'var(--bg3)',color:'var(--text1)',borderTop:'2px solid #c9a84c',padding:'14px 18px',zIndex:'9999',boxShadow:'0 -4px 20px rgba(0,0,0,.5)'});
 document.body.appendChild(banner);
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
+  if (MODO_CONVITE) return;   // o convite não oferece instalar o painel
   dp = e;
   banner.style.display = 'block';
   const btnH = document.getElementById('btn-instalar-header');
@@ -299,8 +308,8 @@ window.addEventListener('appinstalled', () => {
   const isStandalone=window.matchMedia('(display-mode: standalone)').matches;
   if(isIOS&&isSafari&&!isStandalone&&!sessionStorage.getItem('ios-dismissed')){
     const tip=document.createElement('div');
-    tip.innerHTML=`<div style="display:flex;align-items:flex-start;gap:10px"><span style="font-size:20px">📲</span><div style="flex:1"><div style="font-weight:700;font-size:13px;margin-bottom:4px">Instalar no iPhone/iPad</div><div style="font-size:12px;color:#aac0d8;line-height:1.6">Toque em <strong style="color:#c9a84c">Compartilhar</strong> (□↑) → <strong style="color:#c9a84c">"Adicionar à Tela de Início"</strong></div></div><button id="ios-dismiss" style="background:transparent;color:#8eacc8;border:none;padding:4px;cursor:pointer;font-size:16px">✕</button></div>`;
-    Object.assign(tip.style,{position:'fixed',bottom:'0',left:'0',right:'0',background:'#1a2d42',borderTop:'2px solid #5b9bd5',padding:'14px 18px',zIndex:'9999',boxShadow:'0 -4px 20px rgba(0,0,0,.5)'});
+    tip.innerHTML=`<div style="display:flex;align-items:flex-start;gap:10px"><span style="font-size:20px">📲</span><div style="flex:1"><div style="font-weight:700;font-size:13px;margin-bottom:4px">Instalar no iPhone/iPad</div><div style="font-size:12px;color:var(--text2);line-height:1.6">Toque em <strong style="--c:#c9a84c">Compartilhar</strong> (□↑) → <strong style="--c:#c9a84c">"Adicionar à Tela de Início"</strong></div></div><button id="ios-dismiss" style="background:transparent;color:var(--text2);border:none;padding:4px;cursor:pointer;font-size:16px">✕</button></div>`;
+    Object.assign(tip.style,{position:'fixed',bottom:'0',left:'0',right:'0',background:'var(--bg3)',color:'var(--text1)',borderTop:'2px solid #5b9bd5',padding:'14px 18px',zIndex:'9999',boxShadow:'0 -4px 20px rgba(0,0,0,.5)'});
     document.body.appendChild(tip);
     document.getElementById('ios-dismiss').addEventListener('click',()=>{tip.remove();sessionStorage.setItem('ios-dismissed','1');});
   }

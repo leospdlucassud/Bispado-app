@@ -33,7 +33,7 @@ export function renderDesignacoes() {
   el.innerHTML = lista.map(d=>{
     const isPerm = d.tipo === 'permanente';
     const resps = Array.isArray(d.responsaveis) ? d.responsaveis : [d.responsavel||''];
-    const respsHtml = resps.map(r => `<span style="color:${respCor[r]||'#8eacc8'}">👤 ${esc(comNome(r))}</span>`).join(' ');
+    const respsHtml = resps.map(r => `<span style="--c:${respCor[r]||'#8eacc8'}">👤 ${esc(comNome(r))}</span>`).join(' ');
     const statusLabel = isPerm
       ? (d.status==='inativa'?'⏸ Inativa':'📌 Ativa')
       : (d.status==='andamento'?'Em Andamento':d.status.charAt(0).toUpperCase()+d.status.slice(1));
@@ -42,17 +42,16 @@ export function renderDesignacoes() {
       <div class="desig-header">
         <span class="desig-tarefa">${esc(d.tarefa)}</span>
         <div style="display:flex;gap:4px;align-items:center">
-          ${isPerm?'<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:rgba(167,139,250,.15);color:#a78bfa;font-weight:600">Permanente</span>':''}
-          ${d.alarme?'<span title="Alarme configurado" style="font-size:14px">🔔</span>':''}
+          ${isPerm?'<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:rgba(167,139,250,.15);--c:#a78bfa;font-weight:600">Permanente</span>':''}
           <span class="status-badge status-${statusClass}">${statusLabel}</span>
         </div>
       </div>
-      <div style="display:flex;gap:12px;font-size:12px;color:#8eacc8;margin-bottom:8px;flex-wrap:wrap">
+      <div style="display:flex;gap:12px;font-size:12px;color:var(--text2);margin-bottom:8px;flex-wrap:wrap">
         ${respsHtml}
         ${d.prazo?`<span>📅 ${formatarData(d.prazo)}</span>`:''}
       </div>
       ${d.obs?`<div class="ent-obs">${esc(d.obs)}</div>`:''}
-      ${d.obs_conclusao?`<div class="ent-obs" style="border-left:3px solid #34d399;padding-left:8px;margin-top:4px;color:#34d399">✔ ${esc(d.obs_conclusao)}</div>`:''}
+      ${d.obs_conclusao?`<div class="ent-obs" style="border-left:3px solid #34d399;padding-left:8px;margin-top:4px;--c:#34d399">✔ ${esc(d.obs_conclusao)}</div>`:''}
       <div class="desig-status">
         ${!isPerm?`<div class="progress-bar"><div class="progress-fill" style="width:${pct[d.status]||0}%"></div></div>`:''}
         <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -90,7 +89,7 @@ export function abrirModalDesig(id){
     </div>
     <div class="form-group"><label>Responsáveis</label>
       <div id="de-resps" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
-        ${CARGOS.map(r=>`<label style="display:flex;align-items:center;gap:4px;font-size:13px;color:#c8d8e8;cursor:pointer"><input type="checkbox" class="de-resp-check" value="${r}" ${resps.includes(r)?'checked':''}> ${r}</label>`).join('')}
+        ${CARGOS.map(r=>`<label style="display:flex;align-items:center;gap:4px;font-size:13px;color:var(--text-corpo);cursor:pointer"><input type="checkbox" class="de-resp-check" value="${r}" ${resps.includes(r)?'checked':''}> ${r}</label>`).join('')}
       </div>
     </div>
     <div id="de-prazo-wrap" class="form-group" style="${isPerm?'display:none':''}"><label>Prazo</label><input type="date" class="form-input" id="de-prazo" value="${d?.prazo||''}"></div>
@@ -101,14 +100,6 @@ export function abrirModalDesig(id){
           : ['pendente','andamento','concluido'].map(s=>`<option value="${s}" ${d?.status===s||(!d&&s==='pendente')?'selected':''}>${s==='andamento'?'Em Andamento':s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')
         }
       </select>
-    </div>
-    <div class="form-group" style="border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px">
-      <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="de-alarme" ${d?.alarme?'checked':''}> 🔔 Incluir alarme</label>
-      <div id="de-alarme-wrap" style="margin-top:8px;${d?.alarme?'':'display:none'}">
-        <select class="form-select" id="de-alarme-tempo">
-          ${['15 min antes','30 min antes','1 hora antes','1 dia antes','No horário'].map(t=>`<option value="${t}" ${d?.alarmeTempo===t?'selected':''}>${t}</option>`).join('')}
-        </select>
-      </div>
     </div>
     <div class="form-group"><label>Observações</label><textarea class="form-textarea" id="de-obs" style="min-height:60px" placeholder="Detalhes adicionais…">${esc(d?.obs||'')}</textarea></div>
     <button class="btn-primary" data-act="salvar" data-id="${id||''}">💾 Salvar</button>
@@ -121,9 +112,6 @@ export function toggleDesigTipo() {
   document.getElementById('de-prazo-wrap').style.display = isPerm ? 'none' : '';
   document.getElementById('de-status-wrap').style.display = isPerm ? 'none' : '';
 }
-export function toggleDesigAlarme() {
-  document.getElementById('de-alarme-wrap').style.display = document.getElementById('de-alarme').checked ? '' : 'none';
-}
 
 export async function salvarDesig(id) {
   const tarefa = document.getElementById('de-tarefa').value.trim();
@@ -132,14 +120,11 @@ export async function salvarDesig(id) {
   if (!resps.length) return toast('Selecione pelo menos um responsável');
   const tipo = document.getElementById('de-tipo').value;
   const isPerm = tipo === 'permanente';
-  const alarme = document.getElementById('de-alarme').checked;
-  const alarmeTempo = alarme ? document.getElementById('de-alarme-tempo').value : '';
   const payload = {
     tarefa, tipo, responsaveis: resps, responsavel: resps[0],
     prazo: isPerm ? '' : document.getElementById('de-prazo').value,
     status: isPerm ? 'ativa' : document.getElementById('de-status').value,
     obs: document.getElementById('de-obs').value,
-    alarme, alarmeTempo
   };
   fecharModal('modal-desig');
   reativarAbaAtual();
@@ -205,34 +190,11 @@ export async function togglePermDesig(id) {
   renderDesignacoes();
 }
 
-// === ALARMES DE DESIGNAÇÕES ===
-export function verificarAlarmesDesig() {
-  if (!('Notification' in window)) return;
-  if (Notification.permission === 'default') Notification.requestPermission();
-  const agora = new Date();
-  (DADOS.designacoes||[]).forEach(d => {
-    if (!d.alarme || !d.prazo) return;
-    if (d.status === 'concluido' || d.status === 'inativa') return;
-    const prazoDate = new Date(d.prazo + 'T09:00:00');
-    const diffMs = prazoDate - agora;
-    let offsetMs = 0;
-    if (d.alarmeTempo === '15 min antes') offsetMs = 15*60*1000;
-    else if (d.alarmeTempo === '30 min antes') offsetMs = 30*60*1000;
-    else if (d.alarmeTempo === '1 hora antes') offsetMs = 60*60*1000;
-    else if (d.alarmeTempo === '1 dia antes') offsetMs = 24*60*60*1000;
-    const alarmeMs = diffMs - offsetMs;
-    if (alarmeMs > 0 && alarmeMs < 24*60*60*1000) {
-      setTimeout(() => {
-        if (Notification.permission === 'granted') {
-          const resps = Array.isArray(d.responsaveis) ? d.responsaveis.join(', ') : d.responsavel;
-          new Notification('🔔 Designação: ' + d.tarefa, { body: '👤 ' + resps + '\n📅 ' + formatarData(d.prazo), icon: '/icon-192.png' });
-        }
-      }, alarmeMs);
-    }
-  });
-}
-// Verificar alarmes quando dados carregam
-document.addEventListener('DOMContentLoaded', () => setTimeout(verificarAlarmesDesig, 3000));
+// Não há alarme de designação: o que existia nunca disparava (rodava antes de
+// os dados chegarem, e `new Notification` não funciona no Android) e pedia
+// permissão de notificação ao abrir o app. Os prazos de hoje e de amanhã
+// aparecem em "Precisa de atenção", no Início. Aviso com o app fechado
+// exigiria Web Push e uma função agendada no servidor.
 
 // Fase 6 da migração ESM: liga a aba Designações por delegação,
 // no lugar dos onclick/onchange inline (filtros, cards e modal).
@@ -266,7 +228,6 @@ function ligarDesignacoes() {
   // campos do modal são recriados a cada abertura — daí a delegação
   modal?.addEventListener('change', e => {
     if (e.target.id === 'de-tipo') toggleDesigTipo();
-    else if (e.target.id === 'de-alarme') toggleDesigAlarme();
   });
 }
 ligarDesignacoes();

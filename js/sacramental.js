@@ -8,7 +8,7 @@ import { confirmar } from './dialogo.js';
 import { inicioColecaoCarregada } from './inicio.js';
 import { imprimirAtaSacramental } from './pdf.js';
 import { abrirModal, fecharModal } from './ui.js';
-import { esc } from './utils.js';
+import { dataLocal, esc } from './utils.js';
 
 export let sacCarregado = false;
 // api.js marca o carregamento (binding importado é somente-leitura)
@@ -32,7 +32,7 @@ export function renderBancoOradores() {
     if (!el) continue;
     const nomes = banco[key] || [];
     el.innerHTML = nomes.length
-      ? nomes.map((n,i) => `<div style="display:flex;align-items:center;gap:4px"><span>${n}</span><span data-act="remover" data-grupo="${key}" data-idx="${i}" style="cursor:pointer;color:#e05555;font-size:10px;opacity:.6" title="Remover">✕</span></div>`).join('')
+      ? nomes.map((n,i) => `<div style="display:flex;align-items:center;gap:4px"><span>${n}</span><span data-act="remover" data-grupo="${key}" data-idx="${i}" style="cursor:pointer;--c:#e05555;font-size:10px;opacity:.6" title="Remover">✕</span></div>`).join('')
       : '<span style="opacity:.4">—</span>';
   }
 }
@@ -73,9 +73,9 @@ export function formatDateSac(d) {
   return `${d.getDate()} de ${meses[d.getMonth()]}`;
 }
 
-export function formatDateKey(d) {
-  return d.toISOString().split('T')[0];
-}
+// Chave do domingo (AAAA-MM-DD) na hora local — com toISOString, no sábado à
+// noite o domingo já aparecia como "HOJE".
+export const formatDateKey = d => dataLocal(d);
 
 export const MESES_NOME = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
@@ -137,7 +137,7 @@ export function renderSacramentais() {
   if (tit) tit.textContent = `${MESES_NOME[sacMes]} ${sacAno}`;
 
   const domingos = getDomingosMes(sacMes, sacAno);
-  if (!domingos.length) { el.innerHTML = '<div style="text-align:center;color:#4a6a8a;padding:40px">Nenhum domingo neste mês</div>'; return; }
+  if (!domingos.length) { el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px">Nenhum domingo neste mês</div>'; return; }
 
   const hoje = formatDateKey(new Date());
 
@@ -158,21 +158,21 @@ export function renderSacramentais() {
       : '<span style="width:6px;height:6px;border-radius:50%;background:#e05555;display:inline-block;margin-right:6px" title="Não programado"></span>';
 
     const freq = (sac.frequencia || sac.visitantes)
-      ? `<span style="color:#8eacc8;font-size:11px">👥 ${esc(sac.frequencia||'—')}${sac.visitantes ? ` · ${esc(sac.visitantes)} visit.` : ''}</span>`
+      ? `<span style="color:var(--text2);font-size:11px">👥 ${esc(sac.frequencia||'—')}${sac.visitantes ? ` · ${esc(sac.visitantes)} visit.` : ''}</span>`
       : '';
 
     const linha = (rot, val, cor) => val
-      ? `<div><span style="color:${cor};font-size:10px">${rot}</span><div style="color:#c8d8e8">${esc(val)}</div></div>` : '';
+      ? `<div><span style="--c:${cor};font-size:10px">${rot}</span><div style="color:var(--text-corpo)">${esc(val)}</div></div>` : '';
 
     const orador = (n, cor) => sac['orador'+n]
-      ? `<div><span style="color:${cor};font-size:10px">${n}º Orador</span><div style="color:#c8d8e8">${esc(sac['orador'+n])}${sac['tema'+n] ? ` <span style="color:#4a6a8a">· ${esc(sac['tema'+n])}</span>` : ''}</div></div>` : '';
+      ? `<div><span style="--c:${cor};font-size:10px">${n}º Orador</span><div style="color:var(--text-corpo)">${esc(sac['orador'+n])}${sac['tema'+n] ? ` <span style="color:var(--text3)">· ${esc(sac['tema'+n])}</span>` : ''}</div></div>` : '';
 
     return `
     <div class="card" style="border-color:${borderColor};${opacity};margin-bottom:12px;cursor:pointer" data-act="abrir" data-dk="${dk}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div style="display:flex;align-items:center">
           ${statusDot}
-          <span style="color:#e8d080;font-weight:700;font-size:14px">${formatDateSac(dom)}</span>
+          <span style="color:var(--sac);font-weight:700;font-size:14px">${formatDateSac(dom)}</span>
           ${isHoje ? '<span style="background:#e8d080;color:#0d1b2a;font-size:9px;padding:1px 6px;border-radius:8px;margin-left:8px;font-weight:700">HOJE</span>' : ''}
         </div>
         <div style="display:flex;align-items:center;gap:8px">
@@ -193,9 +193,9 @@ export function renderSacramentais() {
         ${orador(3, '#e8b040')}
         ${linha('Hino de encerramento', g('hinoFinal'), '#5b9bd5')}
       </div>
-      ${sac.observacoes ? `<div style="margin-top:6px;font-size:11px;color:#8eacc8;border-top:1px solid rgba(74,106,138,.2);padding-top:6px">📝 ${esc(sac.observacoes)}</div>` : ''}
+      ${sac.observacoes ? `<div style="margin-top:6px;font-size:11px;color:var(--text2);border-top:1px solid rgba(74,106,138,.2);padding-top:6px">📝 ${esc(sac.observacoes)}</div>` : ''}
       ` : `
-      <div style="text-align:center;color:#4a6a8a;font-size:12px;padding:8px 0">Toque para montar a ata deste domingo</div>
+      <div style="text-align:center;color:var(--text3);font-size:12px;padding:8px 0">Toque para montar a ata deste domingo</div>
       `}
     </div>`;
   }).join('');
@@ -220,12 +220,12 @@ export function abrirModalSac(dataKey) {
     const lista = (!c.area && !c.hino) ? ' list="dl-nomes"' : '';
     return c.area
       ? `<div style="margin-bottom:10px">
-           <label style="color:#8eacc8;font-size:10px">${c.r}</label>
+           <label style="color:var(--text2);font-size:10px">${c.r}</label>
            <textarea class="form-input" id="ata-${c.k}" rows="2" placeholder="${ph}"
              style="font-size:12px;padding:6px 10px;resize:vertical">${v}</textarea>
          </div>`
       : `<div style="margin-bottom:10px">
-           <label style="color:#8eacc8;font-size:10px">${c.r}</label>
+           <label style="color:var(--text2);font-size:10px">${c.r}</label>
            <input type="text" class="form-input" id="ata-${c.k}" value="${v}" placeholder="${ph}"${lista}
              style="font-size:12px;padding:6px 10px">
          </div>`;
@@ -235,14 +235,14 @@ export function abrirModalSac(dataKey) {
     const cor = { 1:'#34d399', 2:'#a78bfa', 3:'#e8b040' }[n];
     return `
     <div style="background:rgba(255,255,255,.03);border-left:3px solid ${cor};border-radius:8px;padding:10px;margin-bottom:10px">
-      <div style="color:${cor};font-size:11px;font-weight:700;margin-bottom:8px">🎤 ${n}º ORADOR</div>
+      <div style="--c:${cor};font-size:11px;font-weight:700;margin-bottom:8px">🎤 ${n}º ORADOR</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div>
-          <label style="color:#8eacc8;font-size:10px">Nome</label>
+          <label style="color:var(--text2);font-size:10px">Nome</label>
           <input type="text" class="form-input" id="sac-orador${n}" value="${esc(sac['orador'+n])}" placeholder="Nome" list="dl-nomes" style="font-size:12px;padding:6px 10px">
         </div>
         <div>
-          <label style="color:#8eacc8;font-size:10px">Tema</label>
+          <label style="color:var(--text2);font-size:10px">Tema</label>
           <input type="text" class="form-input" id="sac-tema${n}" value="${esc(sac['tema'+n])}" placeholder="Tema do discurso" style="font-size:12px;padding:6px 10px">
         </div>
       </div>
@@ -251,19 +251,19 @@ export function abrirModalSac(dataKey) {
 
   document.getElementById('modal-sacramental-content').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <h3 style="color:#e8d080;font-size:16px">🕊️ ${titulo}</h3>
-      <span data-act="fechar" style="cursor:pointer;color:#4a6a8a;font-size:20px">✕</span>
+      <h3 style="color:var(--sac);font-size:16px">🕊️ ${titulo}</h3>
+      <span data-act="fechar" style="cursor:pointer;color:var(--text3);font-size:20px">✕</span>
     </div>
 
     ${datalist}
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:rgba(232,208,128,.08);border:1px solid rgba(232,208,128,.2);border-radius:10px;padding:10px;margin-bottom:14px">
       <div>
-        <label style="color:#8eacc8;font-size:10px">Frequência geral</label>
+        <label style="color:var(--text2);font-size:10px">Frequência geral</label>
         <input type="number" min="0" class="form-input" id="ata-frequencia" value="${esc(sac.frequencia)}" placeholder="0" style="font-size:12px;padding:6px 10px">
       </div>
       <div>
-        <label style="color:#8eacc8;font-size:10px">Visitantes</label>
+        <label style="color:var(--text2);font-size:10px">Visitantes</label>
         <input type="number" min="0" class="form-input" id="ata-visitantes" value="${esc(sac.visitantes)}" placeholder="0" style="font-size:12px;padding:6px 10px">
       </div>
     </div>
@@ -271,15 +271,15 @@ export function abrirModalSac(dataKey) {
     ${ATA_ORDEM.map(c => c.orador ? blocoOrador(c.orador) : campo(c)).join('')}
 
     <div style="margin-bottom:10px">
-      <label style="color:#8eacc8;font-size:10px">Observações</label>
+      <label style="color:var(--text2);font-size:10px">Observações</label>
       <textarea class="form-input" id="sac-obs" rows="2" placeholder="Ex.: reunião de jejum, conferência de estaca…" style="font-size:12px;padding:6px 10px;resize:vertical">${esc(sac.observacoes)}</textarea>
     </div>
 
     <div style="display:flex;gap:8px;margin-top:16px">
       <button data-act="salvar" data-dk="${dataKey}" style="flex:1;background:#e8d080;color:#0d1b2a;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;font-size:13px">Salvar</button>
-      ${sac.id ? `<button data-act="pdf" data-dk="${dataKey}" style="background:rgba(232,208,128,.15);color:#e8d080;border:1px solid rgba(232,208,128,.35);border-radius:10px;padding:11px 16px;cursor:pointer;font-size:13px">📄 PDF</button>` : ''}
-      ${sac.id ? `<button data-act="excluir" data-id="${sac.id}" style="background:rgba(224,85,85,.15);color:#e05555;border:1px solid rgba(224,85,85,.3);border-radius:10px;padding:11px 16px;cursor:pointer;font-size:13px">Excluir</button>` : ''}
-      <button data-act="fechar" style="background:rgba(74,106,138,.25);color:#8eacc8;border:none;border-radius:10px;padding:11px 16px;cursor:pointer;font-size:13px">Cancelar</button>
+      ${sac.id ? `<button data-act="pdf" data-dk="${dataKey}" style="background:rgba(232,208,128,.15);color:var(--sac);border:1px solid rgba(232,208,128,.35);border-radius:10px;padding:11px 16px;cursor:pointer;font-size:13px">📄 PDF</button>` : ''}
+      ${sac.id ? `<button data-act="excluir" data-id="${sac.id}" style="background:rgba(224,85,85,.15);--c:#e05555;border:1px solid rgba(224,85,85,.3);border-radius:10px;padding:11px 16px;cursor:pointer;font-size:13px">Excluir</button>` : ''}
+      <button data-act="fechar" style="background:rgba(74,106,138,.25);color:var(--text2);border:none;border-radius:10px;padding:11px 16px;cursor:pointer;font-size:13px">Cancelar</button>
     </div>`;
   abrirModal('modal-sacramental');
 }

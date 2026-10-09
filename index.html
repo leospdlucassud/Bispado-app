@@ -177,8 +177,8 @@
 <!-- ========== REUNIÃO ========== -->
 <div class="panel" id="panel-reuniao">
   <div style="margin-bottom:14px">
-    <h2 style="font-size:18px;color:#a78bfa">📋 Reuniões</h2>
-    <p style="font-size:12px;color:#8eacc8;margin-top:4px">Atas, pautas e acompanhamento dos itens</p>
+    <h2 style="font-size:18px;--c:#a78bfa">📋 Reuniões</h2>
+    <p style="font-size:12px;color:var(--text2);margin-top:4px">Atas, pautas e acompanhamento dos itens</p>
   </div>
 
   <div class="membros-stats" id="reuniao-stats"></div>
@@ -196,8 +196,8 @@
 <div class="panel" id="panel-designacoes">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
     <div>
-      <h2 style="font-size:18px;color:#f472b6">✅ Designações</h2>
-      <p style="font-size:12px;color:#8eacc8;margin-top:4px">Tarefas e acompanhamento do bispado</p>
+      <h2 style="font-size:18px;--c:#f472b6">✅ Designações</h2>
+      <p style="font-size:12px;color:var(--text2);margin-top:4px">Tarefas e acompanhamento do bispado</p>
     </div>
     <select class="form-select" id="fil-desig-resp" style="width:auto;font-size:12px">
       <option value="">Todos</option>
@@ -223,8 +223,8 @@
 <div class="panel" id="panel-agenda">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
     <div>
-      <h2 style="font-size:18px;color:#34d399">🗓️ Agenda de Entrevistas</h2>
-      <p style="font-size:12px;color:#8eacc8;margin-top:4px"><span data-total-membros></span><span data-ala></span></p>
+      <h2 style="font-size:18px;--c:#34d399">🗓️ Agenda de Entrevistas</h2>
+      <p style="font-size:12px;color:var(--text2);margin-top:4px"><span data-total-membros></span><span data-ala></span></p>
     </div>
   </div>
   <div class="membros-stats" id="agenda-stats"></div>
@@ -237,7 +237,7 @@
     <button class="filtro-btn" data-fil="pendente">Pendentes</button>
     <button class="filtro-btn" data-fil="agendada">Agendadas</button>
     <button class="filtro-btn" data-fil="realizada">Realizadas</button>
-    <button class="filtro-btn" style="border-color:#e05555;color:#e05555" data-fil="nao-realizada">Não Realizadas</button>
+    <button class="filtro-btn" style="border-color:#e05555;--c:#e05555" data-fil="nao-realizada">Não Realizadas</button>
   </div>
   <div id="lista-agenda"><div class="loading">Carregando…</div></div>
 </div>
@@ -245,8 +245,8 @@
 <!-- ========== ACOMPANHAMENTO ========== -->
 <div class="panel" id="panel-acompanhamento">
   <div style="margin-bottom:14px">
-    <h2 style="font-size:18px;color:#fbbf24">🧭 Acompanhamento</h2>
-    <p style="font-size:12px;color:#8eacc8;margin-top:4px">Situações que exigem retorno do bispado</p>
+    <h2 style="font-size:18px;--c:#fbbf24">🧭 Acompanhamento</h2>
+    <p style="font-size:12px;color:var(--text2);margin-top:4px">Situações que exigem retorno do bispado</p>
   </div>
 
   <div class="membros-stats" id="acomp-stats"></div>
@@ -293,8 +293,8 @@
 <div class="panel" id="panel-membros">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
     <div>
-      <h2 style="font-size:18px;color:#2dd4bf">👥 Membros — <span data-ala></span></h2>
-      <p style="font-size:12px;color:#8eacc8;margin-top:4px">Controle de entrada e saída de membros — Manual Geral Cap. 33</p>
+      <h2 style="font-size:18px;--c:#2dd4bf">👥 Membros — <span data-ala></span></h2>
+      <p style="font-size:12px;color:var(--text2);margin-top:4px">Controle de entrada e saída de membros — Manual Geral Cap. 33</p>
     </div>
   </div>
 
@@ -302,11 +302,11 @@
 
   <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap" id="membros-acoes">
     <button class="btn-primary" data-act="entrada" style="font-size:12px;padding:8px 14px;background:#2dd4bf;color:#0d1b2a">➕ Registrar Entrada</button>
-    <button class="btn-primary" data-act="saida" style="font-size:12px;padding:8px 14px;background:#e07070;color:#fff">📤 Registrar Saída</button>
+    <button class="btn-primary" data-act="saida" style="font-size:12px;padding:8px 14px;background:#e07070;color:#0d1b2a">📤 Registrar Saída</button>
     <button class="btn-primary" data-act="importar" style="font-size:12px;padding:8px 14px;background:#c9a84c;color:#0d1b2a">📄 Importar PDF do LCR</button>
     <input type="file" id="pdf-membros" accept="application/pdf,.pdf" style="display:none">
   </div>
-  <div id="roster-info" style="font-size:11px;color:#8eacc8;margin-bottom:12px"></div>
+  <div id="roster-info" style="font-size:11px;color:var(--text2);margin-bottom:12px"></div>
 
   <div class="filtros" id="filtros-membros">
     <button class="filtro-btn active" data-fil="ativos">Ativos</button>
@@ -325,8 +325,8 @@
 <div class="panel" id="panel-notas">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
     <div>
-      <h2 style="font-size:18px;color:#60a5fa">📝 Notas</h2>
-      <p style="font-size:12px;color:#8eacc8;margin-top:4px">Notas privadas e compartilhadas do bispado</p>
+      <h2 style="font-size:18px;--c:#60a5fa">📝 Notas</h2>
+      <p style="font-size:12px;color:var(--text2);margin-top:4px">Notas privadas e compartilhadas do bispado</p>
     </div>
   </div>
   <div class="filtros" id="filtros-notas">
@@ -336,18 +336,18 @@
   </div>
   <div style="display:flex;gap:8px;margin-bottom:12px" id="notas-acoes">
     <button class="btn-primary" style="font-size:12px;padding:8px 14px" data-scope="privada">🔒 Nova Nota Privada</button>
-    <button class="btn-primary" style="font-size:12px;padding:8px 14px;background:#60a5fa" data-scope="compartilhada">🌐 Nova Nota Compartilhada</button>
+    <button class="btn-primary" style="font-size:12px;padding:8px 14px;background:#60a5fa;color:#0d1b2a" data-scope="compartilhada">🌐 Nova Nota Compartilhada</button>
   </div>
   <div id="lista-notas"><div class="vazia">📭 Nenhuma nota</div></div>
 </div>
 
 <div class="panel" id="panel-ordenancas">
-  <h2 style="color:#f8c56d;margin-bottom:4px">🕊️ Ordenanças do Sacerdócio</h2>
-  <p style="color:#5a7a9a;font-size:12px;margin-bottom:16px">Manual Geral — Capítulo 18 · Sacerdócio de Melquisedeque</p>
+  <h2 style="--c:#f8c56d;margin-bottom:4px">🕊️ Ordenanças do Sacerdócio</h2>
+  <p style="color:var(--text2);font-size:12px;margin-bottom:16px">Manual Geral — Capítulo 18 · Sacerdócio de Melquisedeque</p>
 
-  <p style="font-size:12.5px;color:#6a8fa8;margin-bottom:16px;line-height:1.6">
-    As ordenanças com <span style="color:#f8c56d;font-weight:700">oração fixa</span> devem ser proferidas com as palavras exatas — se houver erro não corrigido, repete-se a ordenança.
-    As ordenanças <span style="color:#64b5f6;font-weight:700">guiadas pelo Espírito</span> seguem uma estrutura de passos, mas as palavras da bênção são inspiradas.
+  <p style="font-size:12.5px;color:var(--text2);margin-bottom:16px;line-height:1.6">
+    As ordenanças com <span style="--c:#f8c56d;font-weight:700">oração fixa</span> devem ser proferidas com as palavras exatas — se houver erro não corrigido, repete-se a ordenança.
+    As ordenanças <span style="--c:#64b5f6;font-weight:700">guiadas pelo Espírito</span> seguem uma estrutura de passos, mas as palavras da bênção são inspiradas.
   </p>
 
   <div class="ord-grid" id="lista-ordenancas">
@@ -716,9 +716,9 @@
   </div>
 
   <div style="margin-top:28px;padding-top:20px;border-top:2px solid #2a1a4a">
-    <h3 style="color:#c084fc;margin-bottom:4px;font-size:16px">📋 Roteiros de Entrevista</h3>
-    <p style="font-size:12px;color:#5a4a7a;margin-bottom:14px">Manual Geral — Cap. 26.3 · 31 · 18.10 · 32</p>
-    <p style="font-size:12px;color:#6a5a8a;line-height:1.6;margin-bottom:12px">
+    <h3 style="--c:#c084fc;margin-bottom:4px;font-size:16px">📋 Roteiros de Entrevista</h3>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Manual Geral — Cap. 26.3 · 31 · 18.10 · 32</p>
+    <p style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px">
       Cada roteiro traz os assuntos abordados na entrevista, na ordem, e o atalho para o texto oficial no Manual.
       Use o campo de anotações para guardar o texto que você usa e observações da sua ala — fica salvo neste aparelho.
     </p>
@@ -732,35 +732,35 @@
 <div class="panel" id="panel-sacramental">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
     <div>
-      <h2 style="font-size:18px;color:#e8d080">🕊️ Planejador de Sacramentais</h2>
-      <p style="font-size:12px;color:#8eacc8;margin-top:4px">Discursos, hinos e programação dos domingos</p>
+      <h2 style="font-size:18px;color:var(--sac)">🕊️ Planejador de Sacramentais</h2>
+      <p style="font-size:12px;color:var(--text2);margin-top:4px">Discursos, hinos e programação dos domingos</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center" id="sac-nav">
-      <button class="btn-sm" data-mes="-1" style="background:rgba(232,208,128,.15);color:#e8d080;border:1px solid rgba(232,208,128,.3);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px">‹</button>
-      <span id="sac-mes-titulo" style="color:#e8d080;font-size:14px;font-weight:600;min-width:120px;text-align:center"></span>
-      <button class="btn-sm" data-mes="1" style="background:rgba(232,208,128,.15);color:#e8d080;border:1px solid rgba(232,208,128,.3);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px">›</button>
+      <button class="btn-sm" data-mes="-1" style="background:rgba(232,208,128,.15);color:var(--sac);border:1px solid rgba(232,208,128,.3);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px">‹</button>
+      <span id="sac-mes-titulo" style="color:var(--sac);font-size:14px;font-weight:600;min-width:120px;text-align:center"></span>
+      <button class="btn-sm" data-mes="1" style="background:rgba(232,208,128,.15);color:var(--sac);border:1px solid rgba(232,208,128,.3);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px">›</button>
     </div>
   </div>
 
   <!-- Banco de Oradores -->
   <details style="margin-bottom:16px;background:rgba(232,208,128,.08);border:1px solid rgba(232,208,128,.15);border-radius:12px;padding:12px">
-    <summary style="color:#e8d080;font-weight:600;cursor:pointer;font-size:13px">📋 Banco de Oradores em Potencial</summary>
+    <summary style="color:var(--sac);font-weight:600;cursor:pointer;font-size:13px">📋 Banco de Oradores em Potencial</summary>
     <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px" id="banco-oradores">
       <div style="flex:1;min-width:140px">
-        <div style="color:#a78bfa;font-size:11px;font-weight:600;margin-bottom:4px">QUÓRUM</div>
-        <div id="banco-quorum" style="font-size:12px;color:#c8d8e8;line-height:1.8"></div>
+        <div style="--c:#a78bfa;font-size:11px;font-weight:600;margin-bottom:4px">QUÓRUM</div>
+        <div id="banco-quorum" style="font-size:12px;color:var(--text-corpo);line-height:1.8"></div>
       </div>
       <div style="flex:1;min-width:140px">
-        <div style="color:#f472b6;font-size:11px;font-weight:600;margin-bottom:4px">SOC. SOCORRO</div>
-        <div id="banco-socsoc" style="font-size:12px;color:#c8d8e8;line-height:1.8"></div>
+        <div style="--c:#f472b6;font-size:11px;font-weight:600;margin-bottom:4px">SOC. SOCORRO</div>
+        <div id="banco-socsoc" style="font-size:12px;color:var(--text-corpo);line-height:1.8"></div>
       </div>
       <div style="flex:1;min-width:140px">
-        <div style="color:#34d399;font-size:11px;font-weight:600;margin-bottom:4px">JOVENS</div>
-        <div id="banco-jovens" style="font-size:12px;color:#c8d8e8;line-height:1.8"></div>
+        <div style="--c:#34d399;font-size:11px;font-weight:600;margin-bottom:4px">JOVENS</div>
+        <div id="banco-jovens" style="font-size:12px;color:var(--text-corpo);line-height:1.8"></div>
       </div>
       <div style="flex:1;min-width:140px">
-        <div style="color:#60a5fa;font-size:11px;font-weight:600;margin-bottom:4px">OUTROS</div>
-        <div id="banco-outros" style="font-size:12px;color:#c8d8e8;line-height:1.8"></div>
+        <div style="--c:#60a5fa;font-size:11px;font-weight:600;margin-bottom:4px">OUTROS</div>
+        <div id="banco-outros" style="font-size:12px;color:var(--text-corpo);line-height:1.8"></div>
       </div>
     </div>
     <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
@@ -785,8 +785,8 @@
 <!-- ========== MANUAL & LINKS OFICIAIS ========== -->
 <div class="panel" id="panel-manual">
   <div style="text-align:center;margin-bottom:18px">
-    <h2 style="color:#c9a84c;font-size:18px">📖 Manual &amp; Links Oficiais</h2>
-    <p style="color:#8eacc8;font-size:12px;margin-top:4px">Consulta rápida às fontes oficiais da Igreja</p>
+    <h2 style="--c:#c9a84c;font-size:18px">📖 Manual &amp; Links Oficiais</h2>
+    <p style="color:var(--text2);font-size:12px;margin-top:4px">Consulta rápida às fontes oficiais da Igreja</p>
   </div>
 
   <a class="manual-hero" href="https://www.churchofjesuschrist.org/study/manual/general-handbook?lang=por" target="_blank" rel="noopener">
@@ -799,27 +799,27 @@
   </div>
 
   <div class="como-usar-section">
-    <div class="como-usar-titulo" style="color:#c9a84c">📑 Capítulos do Manual Geral relacionados ao bispado</div>
+    <div class="como-usar-titulo" style="--c:#c9a84c">📑 Capítulos do Manual Geral relacionados ao bispado</div>
     <div class="link-grid" id="lista-capitulos"></div>
-    <div id="manual-vazio" style="display:none;text-align:center;color:#4a6a8a;font-size:12px;padding:16px">Nenhum capítulo encontrado</div>
+    <div id="manual-vazio" style="display:none;text-align:center;color:var(--text3);font-size:12px;padding:16px">Nenhum capítulo encontrado</div>
   </div>
 
   <div class="como-usar-section">
-    <div class="como-usar-titulo" style="color:#34d399">🌐 Sites e Ferramentas Oficiais</div>
+    <div class="como-usar-titulo" style="--c:#34d399">🌐 Sites e Ferramentas Oficiais</div>
     <div class="link-grid" id="lista-sites"></div>
   </div>
 </div>
 
 <div class="panel" id="panel-como-usar">
   <div style="text-align:center;margin-bottom:20px">
-    <h2 style="color:#c9a84c;font-size:18px">ℹ️ Como Usar o Painel</h2>
-    <p style="color:#8eacc8;font-size:13px">Guia rápido do painel</p>
+    <h2 style="--c:#c9a84c;font-size:18px">ℹ️ Como Usar o Painel</h2>
+    <p style="color:var(--text2);font-size:13px">Guia rápido do painel</p>
   </div>
 
   <div class="como-usar-section">
-    <div class="como-usar-titulo" style="color:#e8edf2">🏠 Início</div>
+    <div class="como-usar-titulo" style="color:var(--text1)">🏠 Início</div>
     <div class="como-usar-item">É a tela que abre ao entrar no app: a saudação, o que está com você, as próximas entrevistas, o que precisa de atenção e a semana — a reunião sacramental do domingo e os eventos do calendário.</div>
-    <div class="como-usar-item"><strong>Precisa de atenção</strong> junta o que ficou para trás: membro que pediu outra data, convite a reenviar depois de um reagendamento, entrevista que passou da data sem resultado e designação com prazo vencido.</div>
+    <div class="como-usar-item"><strong>Precisa de atenção</strong> junta o que ficou para trás: membro que pediu outra data, convite a reenviar depois de um reagendamento, entrevista que passou da data sem resultado, designação com prazo vencido e designação que vence hoje ou amanhã.</div>
     <div class="como-usar-item">Toque em qualquer item ou atalho para abrir a aba correspondente. As contas seguem as mesmas regras das abas.</div>
     <div class="como-usar-item">Entrevistas sigilosas só aparecem para quem está identificado como Bispo — e, mesmo para ele, aparecem aqui como <strong>🔒 Entrevista sigilosa</strong>, sem nome nem tipo, porque esta é a tela que fica aberta. O detalhe está na aba Agenda.</div>
     <div class="como-usar-item">No Início, o botão <strong>+</strong> marca uma nova entrevista, como antes. Para outros registros, abra a aba correspondente.</div>
@@ -827,7 +827,7 @@
   </div>
 
   <div class="como-usar-section">
-    <div class="como-usar-titulo" style="color:#c9a84c">🏛️ Ala e Acesso</div>
+    <div class="como-usar-titulo" style="--c:#c9a84c">🏛️ Ala e Acesso</div>
     <div class="como-usar-item">O nome da ala aparece no cabeçalho, no rodapé, na aba Membros, no calendário e nos PDFs gerados.</div>
     <div class="como-usar-item">O painel não tem login: as tarefas são atribuídas por <strong>cargo</strong> (Bispo, 1º Conselheiro, 2º Conselheiro, Secretário e Secretário Executivo).</div>
     <div class="como-usar-item">Use <strong>A−</strong> e <strong>A+</strong> no topo para ajustar o tamanho de tudo na tela, de 80% a 150%. A escolha fica salva no aparelho.</div>
@@ -835,19 +835,21 @@
   </div>
 
   <div class="como-usar-section">
-    <div class="como-usar-titulo" style="color:#34d399">🗓️ Agenda de Entrevistas</div>
+    <div class="como-usar-titulo" style="--c:#34d399">🗓️ Agenda de Entrevistas</div>
     <div class="como-usar-item">Toque no botão <strong>+</strong> (canto inferior direito) para agendar uma nova entrevista com qualquer membro da ala.</div>
     <div class="como-usar-item">Use a busca para encontrar um membro rapidamente entre os cadastrados.</div>
     <div class="como-usar-item">Defina a prioridade: 🔴 Alta, 🟡 Média ou 🟢 Normal.</div>
-    <div class="como-usar-item">Para reagendar, abra a entrevista e toque em "Reagendar" — o histórico é preservado.</div>
+    <div class="como-usar-item">Para reagendar, toque em "Reagendar" no card — o histórico é preservado.</div>
+    <div class="como-usar-item"><strong>✏️ Editar</strong> corrige membro, tipo, responsável, telefone ou observação. Se a data ou o horário mudarem, conta como reagendamento: a confirmação anterior deixa de valer e o card pede para reenviar o convite.</div>
     <div class="como-usar-item">Marque como "Realizada" após a entrevista. "Não Realizada" exige informar o motivo.</div>
-    <div class="como-usar-item"><strong>💬 Convidar</strong> abre o WhatsApp com a mensagem pronta — nome, tipo de entrevista, data e horário. O telefone vem do quadro de membros (importe o PDF do LCR na aba Membros) e pode ser digitado à mão no formulário.</div>
-    <div class="como-usar-item">A mensagem leva um link. Ao tocar nele, o membro vê uma tela simples e escolhe <span style="color:#34d399">Confirmo</span>, <span style="color:#e8b040">Preciso de outra data</span> ou <span style="color:#e05555">Não poderei ir</span>. A resposta aparece no card da entrevista automaticamente.</div>
+    <div class="como-usar-item"><strong>💬 Convidar</strong> abre o WhatsApp com a mensagem pronta — nome, data e horário. O telefone vem do quadro de membros (importe o PDF do LCR na aba Membros) e pode ser digitado à mão no formulário.</div>
+    <div class="como-usar-item">O tipo da entrevista só aparece no convite quando é de rotina (recomendação para o templo, ordenação, entrevista de jovens, missão…). Nos demais tipos — e em qualquer entrevista sigilosa — a mensagem diz apenas <strong>"uma conversa com o bispado"</strong>, porque ela aparece na prévia da tela bloqueada e o número muitas vezes é o da família. O diálogo de convite mostra o que o membro vai ler.</div>
+    <div class="como-usar-item">A mensagem leva um link. Ao tocar nele, o membro vê uma tela simples e escolhe <span style="--c:#34d399">Confirmo</span>, <span style="--c:#e8b040">Preciso de outra data</span> ou <span style="--c:#e05555">Não poderei ir</span>. A resposta aparece no card da entrevista automaticamente.</div>
     <div class="como-usar-item">Os botões <strong>🧭 Acompanhar</strong> e <strong>🔒 Sigilo</strong> no card ligam ou desligam essas marcações a qualquer momento — não só ao criar a entrevista. Marcar 🧭 faz a entrevista aparecer na aba Acompanhamento.</div>
   </div>
 
   <div class="como-usar-section">
-    <div class="como-usar-titulo" style="color:#a78bfa">📋 Reuniões</div>
+    <div class="como-usar-titulo" style="--c:#a78bfa">📋 Reuniões</div>
     <div class="como-usar-item">Cobre as reuniões administrativas da ala: Conselho da Ala, Bispado, Conselho de Jovens, Liderança do Sacerdócio, Correlação Missionária, Bem-Estar e outras.</div>
     <div class="como-usar-item">O topo mostra quantas foram registradas, quantas houve no mês e quantos itens de pauta seguem em aberto.</div>
     <div class="como-usar-item">Os filtros por tipo só exibem as categorias já usadas, com a contagem de cada uma. A busca varre pauta, participantes e itens.</div>
@@ -856,7 +858,7 @@
   </div>
 
   <div class="como-usar-section">
-    <div class="como-usar-titulo" style="color:#fbbf24">🧭 Acompanhamento</div>
+    <div class="como-usar-titulo" style="--c:#fbbf24">🧭 Acompanhamento</div>
     <div class="como-usar-item">Reúne as situações que precisam de retorno do bispado, vindas de duas origens: entrevistas marcadas como <strong>"vai precisar de acompanhamento"</strong> e itens avulsos criados aqui pelo botão <strong>+</strong>.</div>
     <div class="como-usar-item">Cada item aceita <strong>registros datados</strong> — o que foi conversado, o que ficou combinado. Fica assinado com o cargo de quem registrou.</div>
     <div class="como-usar-item">O botão <strong>🔒</strong> em cada card liga ou desliga o sigilo depois de criado. Em item vindo de entrevista, isso também ajusta a própria entrevista.</div>
@@ -864,39 +866,39 @@
   </div>
 
   <div class="como-usar-section">
-    <div class="como-usar-titulo" style="color:#e05555">🔒 Assuntos Sigilosos</div>
+    <div class="como-usar-titulo" style="--c:#e05555">🔒 Assuntos Sigilosos</div>
     <div class="como-usar-item">Entrevistas e acompanhamentos podem ser marcados como sigilosos. Nesse caso <strong>só aparecem para quem estiver identificado como Bispo</strong> — some da lista, do contador e da busca dos demais.</div>
     <div class="como-usar-item">Toque no seu cargo no cabeçalho para trocar de identificação. Não há senha: a proteção depende da integridade de quem usa o painel.</div>
     <div class="como-usar-item">Para conversas que não devem sair do aparelho do bispo, prefira as <strong>Notas privadas</strong>.</div>
   </div>
 
   <div class="como-usar-section">
-    <div class="como-usar-titulo" style="color:#f472b6">✅ Designações</div>
-    <div class="como-usar-item">Registre tarefas atribuídas a cada membro do bispado com prazo e status.</div>
+    <div class="como-usar-titulo" style="--c:#f472b6">✅ Designações</div>
+    <div class="como-usar-item">Registre tarefas atribuídas a cada membro do bispado com prazo e status. As que vencem hoje ou amanhã aparecem no Início, em "Precisa de atenção".</div>
     <div class="como-usar-item">Acompanhe o andamento: Pendente → Em Andamento → Concluída.</div>
     <div class="como-usar-item">Filtre por responsável para ver só o que é de cada um.</div>
   </div>
 
   <div class="como-usar-section">
-    <div class="como-usar-titulo" style="color:#60a5fa">📆 Calendário</div>
+    <div class="como-usar-titulo" style="--c:#60a5fa">📆 Calendário</div>
     <div class="como-usar-item">Visualize os eventos da Ala e da Estaca mês a mês.</div>
     <div class="como-usar-item">Toque em qualquer dia para ver os detalhes dos eventos.</div>
     <div class="como-usar-item">Adicione eventos próprios da ala com o botão <strong>+</strong>.</div>
   </div>
 
   <div class="como-usar-section">
-    <div class="como-usar-titulo" style="color:#e8d080">🕊️ Planejador de Sacramentais</div>
+    <div class="como-usar-titulo" style="color:var(--sac)">🕊️ Planejador de Sacramentais</div>
     <div class="como-usar-item">Programe cada domingo com oradores, temas e hinos da reunião sacramental.</div>
     <div class="como-usar-item">Navegue entre os meses usando as setas <strong>‹</strong> e <strong>›</strong>. Cada card mostra um domingo.</div>
     <div class="como-usar-item">Toque em um domingo para montar a <strong>ata completa</strong>, na ordem da reunião: frequência e visitantes, quem presidiu e dirigiu, regente, pianista, reconhecimentos, anúncios, os 4 hinos, as 2 orações, apoios e desobrigações, e os 3 oradores com seus temas.</div>
     <div class="como-usar-item">Use o <strong>Banco de Oradores</strong> para manter uma lista de potenciais discursantes organizados por grupo (Quórum, Soc. Socorro, Jovens, Outros).</div>
     <div class="como-usar-item">Ao preencher oradores no modal, nomes do banco aparecem como sugestão automática.</div>
-    <div class="como-usar-item">Domingos programados mostram um <span style="color:#34d399">ponto verde</span>. Não programados mostram <span style="color:#e05555">ponto vermelho</span>.</div>
+    <div class="como-usar-item">Domingos programados mostram um <span style="--c:#34d399">ponto verde</span>. Não programados mostram <span style="--c:#e05555">ponto vermelho</span>.</div>
     <div class="como-usar-item">Com a ata preenchida, o botão <strong>📄 PDF</strong> gera o documento pronto para imprimir ou arquivar, com espaço para a assinatura do secretário.</div>
   </div>
 
   <div class="como-usar-section">
-    <div class="como-usar-titulo" style="color:#f8c56d">🕊️ Ordenanças</div>
+    <div class="como-usar-titulo" style="--c:#f8c56d">🕊️ Ordenanças</div>
     <div class="como-usar-item">Consulta rápida às ordenanças do sacerdócio com as <strong>palavras exatas</strong> das orações de oração fixa.</div>
     <div class="como-usar-item">Toque em uma ordenança para ver quem pode oficiar, a referência nas escrituras e os passos.</div>
     <div class="como-usar-item">Mais abaixo ficam os <strong>Roteiros de Entrevista</strong>: os assuntos de cada entrevista, na ordem, com atalho para o texto oficial no Manual.</div>
@@ -904,20 +906,20 @@
   </div>
 
   <div class="como-usar-section">
-    <div class="como-usar-titulo" style="color:#c9a84c">📖 Manual &amp; Links Oficiais</div>
+    <div class="como-usar-titulo" style="--c:#c9a84c">📖 Manual &amp; Links Oficiais</div>
     <div class="como-usar-item">Acesso direto ao <strong>Manual Geral</strong> e aos capítulos mais usados pelo bispado.</div>
     <div class="como-usar-item">Use o campo de filtro para achar um capítulo por número ou assunto.</div>
     <div class="como-usar-item">Também reúne atalhos para LCR, Biblioteca do Evangelho, Escrituras, Hinos, Templos e FamilySearch.</div>
   </div>
 
   <div class="como-usar-section">
-    <div class="como-usar-titulo" style="color:#5b9bd5">🔍 Busca Geral</div>
+    <div class="como-usar-titulo" style="--c:#5b9bd5">🔍 Busca Geral</div>
     <div class="como-usar-item">A barra de busca no topo procura em <strong>todo o app</strong>: entrevistas, designações, atas de reunião, notas, programação sacramental e ordenanças.</div>
     <div class="como-usar-item">Digite ao menos 2 caracteres. Toque em "Ver →" para ir direto ao item.</div>
   </div>
 
   <div class="como-usar-section">
-    <div class="como-usar-titulo" style="color:#c9a84c">📱 Instalar como App</div>
+    <div class="como-usar-titulo" style="--c:#c9a84c">📱 Instalar como App</div>
     <div class="como-usar-item"><strong>Android (Chrome):</strong> toque nos 3 pontinhos → "Adicionar à tela inicial".</div>
     <div class="como-usar-item"><strong>iPhone/iPad (Safari):</strong> toque em Compartilhar (□↑) → "Adicionar à Tela de Início".</div>
     <div class="como-usar-item"><strong>Computador:</strong> ícone de instalar na barra de endereços do Chrome/Edge.</div>
@@ -960,9 +962,9 @@
 <footer>
   Bispado <span data-ala></span> · A Igreja de Jesus Cristo dos Santos dos Últimos Dias<br>
   Consulte o <a href="https://www.churchofjesuschrist.org/study/manual/general-handbook?lang=por" target="_blank">Manual Geral</a> na aba 📖 Manual<br>
-  <span style="color:#4a6a8a;margin-top:4px;display:inline-block">© 2025 Léo Lucas · Todos os direitos reservados</span><br>
+  <span style="color:var(--text3);margin-top:4px;display:inline-block">© 2025 Léo Lucas · Todos os direitos reservados</span><br>
   <!-- preenchido por aplicarNomeAla a partir de VERSAO (js/config.js) -->
-  <span data-versao style="color:#2a4060;font-size:10px;margin-top:6px;display:inline-block"></span>
+  <span data-versao style="color:var(--text3);font-size:10px;margin-top:6px;display:inline-block"></span>
 </footer>
 
 <!-- ES Modules: main.js importa o grafo de módulos (js/) na ordem de dependência -->
