@@ -6,20 +6,20 @@ import { MEMBROS, setMembros } from './dados-membros.js';
 import { API_MEMBROS, MEMBROS_SAIDOS, MOVIMENTACOES, movimentacoesCarregadas, renderMembros, setMembrosSaidos, setRosterAtualizado } from './membros.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
-import { esc } from './utils.js';
+import { carregarScript, esc } from './utils.js';
 
 export const PDFJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
 export const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-export function carregarPdfJs() {
-  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
-  return new Promise((ok, erro) => {
-    const s = document.createElement('script');
-    s.src = PDFJS_SRC;
-    s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; ok(window.pdfjsLib); };
-    s.onerror = () => erro(new Error('Não foi possível carregar o leitor de PDF. Verifique a conexão.'));
-    document.head.appendChild(s);
-  });
+// Integridade do pdf.min.js no CDN: se o arquivo for trocado lá, o navegador
+// recusa. (O worker é carregado pelo próprio pdf.js e não aceita integrity.)
+const PDFJS_INTEGRIDADE = 'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e';
+export async function carregarPdfJs() {
+  if (window.pdfjsLib) return window.pdfjsLib;
+  try { await carregarScript(PDFJS_SRC, { integrity: PDFJS_INTEGRIDADE }); }
+  catch (e) { throw new Error('Não foi possível carregar o leitor de PDF. Verifique a conexão.'); }
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  return window.pdfjsLib;
 }
 
 export const norm = s => (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
@@ -270,7 +270,7 @@ export function mostrarPreviaImportacao(lidos, ala, nPaginas) {
 
 export async function aplicarImportacao() {
   if (!IMPORT_PENDENTE) return;
-  const { lidos, ala } = IMPORT_PENDENTE;
+  const { lidos } = IMPORT_PENDENTE;
 
   // conserva os ids já existentes para não quebrar movimentações e agenda
   const porNome = new Map(MEMBROS.map(m => [norm(m.name), m.id]));

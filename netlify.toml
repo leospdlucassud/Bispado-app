@@ -5,8 +5,29 @@
 [functions]
   node_bundler = "esbuild"
 
+# Cabeçalhos de segurança de todas as páginas.
+# Content-Security-Policy — o que a página pode carregar:
+#   - scripts só do próprio site e do cdnjs (pdf.js, para importar o PDF do LCR);
+#     nenhum script inline (o app não tem nenhum desde a migração para ES Modules);
+#   - worker: o pdf.js cria o dele a partir de um blob: que importa do cdnjs;
+#   - connect-src com o cdnjs: o service worker busca o pdf.js para guardá-lo
+#     offline, e essa busca segue a política do próprio sw.js;
+#   - estilos 'unsafe-inline': os templates usam style="..." (cores --c etc.);
+#   - frame-ancestors substitui o X-Frame-Options (mantido para navegador antigo).
+# Mudou o que o app carrega (CDN novo, fonte externa)? Ajuste aqui, ou o
+# navegador bloqueia em silêncio — o erro só aparece no console.
 [[headers]]
   for = "/*"
   [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; worker-src 'self' blob: https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://cdnjs.cloudflare.com; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'; frame-ancestors 'self'"
     X-Frame-Options = "SAMEORIGIN"
     X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "same-origin"
+    X-Robots-Tag = "noindex, nofollow"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()"
+    Strict-Transport-Security = "max-age=31536000"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"

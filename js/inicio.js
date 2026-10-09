@@ -15,14 +15,11 @@ import { aguardandoNovaData, precisaReenviarConvite, resumoAgenda, selosConfirma
 import { switchTab } from './app.js';
 import { DIAS_SEMANA, EVENTOS_FIXOS, MESES } from './calendario.js';
 import { comNome } from './chamados.js';
-import { DADOS, comAla } from './config.js';
+import { COR_STATUS, DADOS, cargoInfo, comAla, nomeDoResponsavel } from './config.js';
 import { USUARIO, abrirEscolhaCargo } from './usuario.js';
 import { corSegura, dataLocal, esc, formatarData } from './utils.js';
 
 const DIAS_LONGOS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-// responsável da entrevista (código) → cargo; o mesmo mapa de agenda.js
-const RESP_NOME = { bispo: 'Bispo', c1: '1º Conselheiro', c2: '2º Conselheiro', sec: 'Secretário' };
-const COR_STATUS = { pendente: '#f87171', agendada: '#3b82f6' };   // a borda do card na Agenda
 const MAX_ENTREVISTAS = 5, MAX_ATENCAO = 6, MAX_EVENTOS = 6;
 
 // Quais coleções já vieram do servidor nesta sessão. O app não guarda dados no
@@ -74,7 +71,7 @@ function rotuloDia(k, d) {
 const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
 const quandoData = (data, hora) => esc(formatarData(data)) + (hora ? ` às ${esc(hora)}` : '');
 const nomeEntrevista = e => e.sigiloso ? '🔒 Entrevista sigilosa' : esc(e.membro);
-const responsavel = e => esc(comNome(RESP_NOME[e.responsavel] || e.responsavel));
+const responsavel = e => esc(comNome(nomeDoResponsavel(e.responsavel)));
 const respsDe = d => Array.isArray(d.responsaveis) ? d.responsaveis : [d.responsavel || ''];   // = designacoes.js
 const desigAtivas = () => (DADOS.designacoes || []).filter(d =>                                 // = filtro "Ativas"
   d.tipo === 'permanente' ? d.status !== 'inativa' : d.status !== 'concluido');
@@ -157,7 +154,7 @@ function renderMeu(ag) {
   const link = (n, um, varios, aba) =>
     `<button type="button" class="inicio-link" data-act="ir" data-aba="${aba}">${plural(n, um, varios)}</button>`;
   // o Secretário Executivo não tem código de responsável na agenda
-  const codigo = Object.keys(RESP_NOME).find(k => RESP_NOME[k] === USUARIO);
+  const codigo = cargoInfo(USUARIO)?.cod;
   const partes = [];
   if (carregado.agenda && codigo) {
     const n = ag.proximas.filter(e => e.responsavel === codigo).length;
@@ -189,7 +186,7 @@ function renderEntrevistas(ag, d) {
 
   let html = futuras.length
     ? futuras.slice(0, MAX_ENTREVISTAS).map(e => item({
-        cor: COR_STATUS[e.status] || '#94a3b8', aba: 'agenda',
+        cor: COR_STATUS[e.status] || 'var(--text3)', aba: 'agenda',
         quando: esc(rotuloDia(e.data, d)) + (e.hora ? `<span class="inicio-hora">${esc(e.hora)}</span>` : ''),
         titulo: nomeEntrevista(e),
         sub: [

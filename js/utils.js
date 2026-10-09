@@ -29,6 +29,28 @@ export function dataParaExibir(v) {
 // uma cor com aspas ou ponto e vírgula desmontava a tela.
 export const corSegura = c => /^#[0-9a-f]{3,8}$/i.test(c || '') ? c : '#94a3b8';
 
+// Ícone do sprite (icons/sprite.svg, Lucide). Herda a cor do texto em volta;
+// aria-hidden porque o rótulo ao lado já diz o que o botão faz.
+export const ico = nome => `<svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-${nome}"/></svg>`;
+
+// Carrega um script clássico uma vez só — as bibliotecas grandes (PDF) vêm só
+// quando alguém precisa delas, e não na abertura de toda tela. Com `integrity`,
+// o navegador recusa o arquivo se ele tiver sido trocado no servidor de terceiros.
+const scriptsCarregando = new Map();
+export function carregarScript(src, { integrity } = {}) {
+  if (!scriptsCarregando.has(src)) {
+    scriptsCarregando.set(src, new Promise((ok, erro) => {
+      const s = document.createElement('script');
+      s.src = src;
+      if (integrity) { s.integrity = integrity; s.crossOrigin = 'anonymous'; }
+      s.onload = () => ok();
+      s.onerror = () => { scriptsCarregando.delete(src); s.remove(); erro(new Error('Não carregou: ' + src)); };
+      document.head.appendChild(s);
+    }));
+  }
+  return scriptsCarregando.get(src);
+}
+
 // Escapa texto do usuário antes de inserir via innerHTML.
 // A ordem importa: '&' primeiro, senão as demais entidades seriam re-escapadas.
 export function esc(s) {

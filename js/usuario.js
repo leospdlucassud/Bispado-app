@@ -6,13 +6,13 @@
 import { renderAcompanhamentos } from './acompanhamento.js';
 import { renderAgenda } from './agenda.js';
 import { abrirEdicaoChamados, nomeDoCargo } from './chamados.js';
-import { CARGOS } from './config.js';
+import { CARGOS, CARGOS_INFO } from './config.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { renderInicio } from './inicio.js';
 import { esc } from './utils.js';
 
 export const CARGO_KEY = 'cargo_atual';
-export const ICONE_CARGO = { 'Bispo':'⚜️', '1º Conselheiro':'🔵', '2º Conselheiro':'🟢', 'Secretário':'📝', 'Secretário Executivo':'🗓️' };
+export const ICONE_CARGO = Object.fromEntries(CARGOS_INFO.map(c => [c.nome, c.icone]));
 export let USUARIO = localStorage.getItem(CARGO_KEY) || '';
 
 export const ehBispo = () => USUARIO === 'Bispo';

@@ -2,7 +2,7 @@
 import { listaAcompanhamentos } from './acompanhamento.js';
 import { renderAgenda, setFilAgenda } from './agenda.js';
 import { switchTab } from './app.js';
-import { DADOS } from './config.js';
+import { DADOS, nomeDoResponsavel } from './config.js';
 import { NOTAS_COMPARTILHADAS, NOTAS_PRIVADAS } from './notas.js';
 import { tipoReuniao } from './reunioes.js';
 import { formatDateSac } from './sacramental.js';
@@ -48,9 +48,8 @@ export function doSearch(val){
   });
 
   // === 2. Busca dinâmica: Entrevistas/Agenda ===
-  const respNome = { bispo:'Bispo', c1:'1º Conselheiro', c2:'2º Conselheiro', sec:'Secretário' };
   const agendaMatches = (DADOS.agenda||[]).filter(podeVer).filter(e => {
-    const txt = [e.membro, e.tipo, e.obs, e.obs_conclusao, respNome[e.responsavel]||''].join(' ').toLowerCase();
+    const txt = [e.membro, e.tipo, e.obs, e.obs_conclusao, nomeDoResponsavel(e.responsavel)].join(' ').toLowerCase();
     return txt.includes(q);
   });
 

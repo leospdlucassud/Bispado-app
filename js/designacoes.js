@@ -4,7 +4,7 @@
 import { apiFetch, atualizarUltimaSinc, avisarPendente, idProvisorioDo, setSyncStatus } from './api.js';
 import { comNome } from './chamados.js';
 import { reativarAbaAtual } from './app.js';
-import { API_DESIG, CARGOS, DADOS } from './config.js';
+import { API_DESIG, CARGOS, DADOS, corDoCargo } from './config.js';
 import { confirmar, pedirTexto } from './dialogo.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
@@ -29,11 +29,10 @@ export function renderDesignacoes() {
   }).sort((a,b)=>(a.prazo||'9999').localeCompare(b.prazo||'9999'));
   if (!lista.length){el.innerHTML=`<div class="vazia">📭 Nenhuma designação</div>`;return;}
   const pct = {pendente:0,andamento:50,concluido:100,ativa:100,inativa:0};
-  const respCor = {'Bispo':'#c9a84c','1º Conselheiro':'#5b9bd5','2º Conselheiro':'#6dbf8c','Secretário':'#e8b040','Secretário Executivo':'#e86848'};
   el.innerHTML = lista.map(d=>{
     const isPerm = d.tipo === 'permanente';
     const resps = Array.isArray(d.responsaveis) ? d.responsaveis : [d.responsavel||''];
-    const respsHtml = resps.map(r => `<span style="--c:${respCor[r]||'#8eacc8'}">👤 ${esc(comNome(r))}</span>`).join(' ');
+    const respsHtml = resps.map(r => `<span style="--c:${corDoCargo(r)}">👤 ${esc(comNome(r))}</span>`).join(' ');
     const statusLabel = isPerm
       ? (d.status==='inativa'?'⏸ Inativa':'📌 Ativa')
       : (d.status==='andamento'?'Em Andamento':d.status.charAt(0).toUpperCase()+d.status.slice(1));

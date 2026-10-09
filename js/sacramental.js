@@ -69,7 +69,6 @@ export function getDomingosMes(mes, ano) {
 }
 
 export function formatDateSac(d) {
-  const dias = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
   const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   return `${d.getDate()} de ${meses[d.getMonth()]}`;
 }

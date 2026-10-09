@@ -1,8 +1,19 @@
-const CACHE = 'bispado-app-v5.19.0';
+const CACHE = 'bispado-app-v5.20.0';
 const ASSETS = [
   '/',
   '/index.html',
+  '/convite.html',
   '/css/style.css',
+  '/manifest.webmanifest',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/maskable-512.png',
+  '/icons/apple-touch-icon.png',
+  '/icons/sprite.svg',
+  // jsPDF (360 KB): a página só o carrega ao gerar uma ata, mas ele fica guardado
+  // desde a instalação — senão o "Sincronizar" e cada atualização (que renovam o
+  // cache) o apagavam, e a ata deixava de sair sem sinal
+  '/vendor/jspdf.umd.min.js',
   '/js/acompanhamento.js',
   '/js/agenda.js',
   '/js/api.js',
@@ -11,6 +22,7 @@ const ASSETS = [
   '/js/calendario.js',
   '/js/chamados.js',
   '/js/config.js',
+  '/js/convite.js',
   '/js/convite-regras.js',
   '/js/dados-membros.js',
   '/js/designacoes.js',
@@ -24,6 +36,7 @@ const ASSETS = [
   '/js/offline-pwa.js',
   '/js/pendentes.js',
   '/js/pdf.js',
+  '/js/redirecionar-convite.js',
   '/js/reunioes.js',
   '/js/sacramental.js',
   '/js/tema.js',

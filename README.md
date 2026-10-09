@@ -29,15 +29,26 @@ Trocar só o `ALA` faria a ala nova ler e gravar nos dados da anterior.
 
 ```
 index.html          apenas a marcação: cabeçalho, abas, painéis e modais
+convite.html        a página leve que o membro abre pelo link do convite
 css/style.css       toda a folha de estilo, incluindo o tema claro
 js/                 um módulo por área do app (ver ordem abaixo)
+icons/              ícones do app instalado e sprite.svg (ícones da interface, Lucide/ISC)
+vendor/             jsPDF (MIT), servido daqui; a página só o carrega ao gerar um PDF
+manifest.webmanifest  nome, ícones e atalhos do app instalado
 netlify/functions/  API — CRUD compartilhado em _crud.js; um arquivo curto por recurso;
                     _ala.js dá o nome dos stores da ala
+netlify.toml        publicação e cabeçalhos de segurança (CSP etc.)
 sw.js               service worker: cache offline e atualização
 version.json        versão publicada — o app instalado se compara com ela
 scripts/versao.mjs  sobe a versão nos quatro lugares de uma vez
-tests/              testes das regras puras (`npm test`, sem dependências)
+tests/              testes das regras puras e da estrutura (`npm test`, sem dependências)
+eslint.config.js    `npm run lint` — o npx baixa o ESLint na hora, só regras de erro
 ```
+
+Antes de publicar: `npm test` e `npm run lint`. O teste de estrutura confere o
+que já quebrou sem ninguém perceber — painel fora do lugar (3 abas ficaram em
+branco por dois meses), módulo fora do `main.js` ou do cache offline, handler
+inline, ícone inexistente, versões divergentes.
 
 As seis coleções simples (agenda, reuniões, designações, sacramentais,
 acompanhamentos, eventos) são funções de 3 linhas que delegam a
@@ -45,7 +56,9 @@ acompanhamentos, eventos) são funções de 3 linhas que delegam a
 `membros` e `notas` têm lógica própria. Todas respondem em `/api/<recurso>`.
 
 **`/api/convite`** é o único caminho da tela que o membro abre pelo link
-(`?confirmar=<id>`): o GET devolve só os campos daquela entrevista que a tela
+(`/convite.html?id=<id>`; os links antigos, `/?confirmar=<id>`, são redirecionados
+para ela). A página não carrega o app — uns 70 KB, para o celular de quem
+recebe. O GET devolve só os campos daquela entrevista que a tela
 mostra, e o PUT aceita só a resposta (`{ resposta, sugestao }`) — o status é
 decidido no servidor. As regras ficam em `js/convite-regras.js`, sem DOM,
 usadas pelo app e pela function. Não faça a tela do membro ler `/api/agenda`:
@@ -54,15 +67,17 @@ ela levaria para o celular dele as entrevistas sigilosas e as anotações do bis
 ### Módulos JavaScript
 
 ES Modules: o `index.html` carrega só `js/main.js`, que importa todos os
-módulos; cada um declara as próprias dependências com `import`.
+módulos; cada um declara as próprias dependências com `import`. Exceções:
+`convite.js` (entrada da `convite.html`) e `redirecionar-convite.js` (script
+clássico do `<head>`, manda os links antigos do convite para a página nova).
 
 | Arquivo | Responsabilidade |
 | --- | --- |
 | `dados-membros.js` | Começa vazio (o arquivo é público); o quadro vem do PDF do LCR e fica no servidor |
-| `config.js` | Constantes, estado global (`DADOS`), nome da ala e `MODO_CONVITE` |
+| `config.js` | Constantes, estado global (`DADOS`), nome da ala, a tabela única de cargos (`CARGOS_INFO`) e as cores de status |
 | `pendentes.js` | Reaplica a fila offline sobre o que veio do servidor (sem DOM, testado) |
 | `convite-regras.js` | Regras do convite sem DOM: o que o membro pode ler (`tipoNoConvite`) e o que a resposta grava |
-| `utils.js` | Formatação de data e `esc()` (escape de HTML para innerHTML) |
+| `utils.js` | Formatação de data, `esc()` (escape de HTML para innerHTML), `ico()` (ícone do sprite) e `carregarScript()` |
 | `ui.js` | Troca de abas e abertura/fechamento de modais |
 | `dialogo.js` | `confirmar()` e `pedirTexto()` — substituem prompt/confirm nativos |
 | `chamados.js` | Nomes de quem ocupa cada chamado — ficam no servidor, editáveis no app |
@@ -70,7 +85,9 @@ módulos; cada um declara as próprias dependências com `import`.
 | `api.js` | Chamadas ao servidor, indicador de sincronização e carga inicial |
 | `offline-pwa.js` | Fila offline em IndexedDB, service worker e instalação |
 | `tema.js` | Tema claro/escuro e tamanho da fonte |
-| `agenda.js` | Agenda de entrevistas, convite por WhatsApp e tela de confirmação |
+| `agenda.js` | Agenda de entrevistas e convite por WhatsApp, e-mail ou link |
+| `convite.js` | A tela do membro (`convite.html`): mostra o convite e grava a resposta |
+| `redirecionar-convite.js` | Script clássico: leva `/?confirmar=<id>` para `/convite.html?id=<id>` |
 | `acompanhamento.js` | Aba Acompanhamento |
 | `reunioes.js` | Reuniões administrativas |
 | `designacoes.js` | Designações do bispado |
@@ -80,7 +97,7 @@ módulos; cada um declara as próprias dependências com `import`.
 | `membros-import.js` | Leitura do PDF de membros do LCR |
 | `notas.js` | Notas privadas (aparelho) e compartilhadas (nuvem) |
 | `manual.js` | Manual Geral, links oficiais e roteiros de entrevista |
-| `pdf.js` | Geração das atas em PDF |
+| `pdf.js` | Geração das atas em PDF (o jsPDF só é baixado no primeiro uso) |
 | `busca.js` | Busca global |
 | `inicio.js` | Tela de boas-vindas (aba Início, a primeira ao abrir): saudação, resumo, pendências e atalhos |
 | `app.js` | Botão flutuante e inicialização |
@@ -92,7 +109,8 @@ v5.4.0: não existe mais `onclick=` (nem outro handler inline) na marcação e
 nada é exposto no `window`. Os eventos usam delegação — o HTML marca a ação
 com `data-act` e cada módulo liga os seus numa função `ligar<Área>()`.
 
-- **Arquivo novo em `js/`** → importar em `js/main.js` e incluir em `ASSETS` no `sw.js`.
+- **Arquivo novo em `js/`** → importar em `js/main.js` e incluir em `ASSETS` no `sw.js`
+  (o `npm test` acusa se faltar um dos dois).
 - Binding importado é somente-leitura: para trocar um valor de outro módulo,
   use o setter que ele exporta (`setMembros`, `setNomesCargos`…).
 - No console do navegador nada do app existe (`window.esc` é `undefined`);
@@ -118,6 +136,19 @@ com `data-act` e cada módulo liga os seus numa função `ligar<Área>()`.
   status, de responsável) escrita no HTML vai como `style="--c:#34d399"`, não
   `color:#34d399`: uma regra no fim do `style.css` aplica e escurece no tema
   claro. Cor escrita direto fica presa ao tema escuro e some no creme.
+- **Cargos: só em `CARGOS_INFO`** (de `config.js`) — código, nome, cor e ícone.
+  Use `nomeDoResponsavel()`, `corDoCargo()` e `cargoInfo()`; antes cada tela
+  tinha a sua cópia da tabela, e cada cópia, a sua falha. A cor de cada status
+  da entrevista está nos tokens `--st-*` do `style.css` (com versão no tema claro),
+  e `COR_STATUS` aponta para eles.
+- **Ícones da interface:** `ico('nome')` (de `utils.js`) ou, no HTML,
+  `<svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-nome"/></svg>`.
+  Ícone novo: copie as formas de `lucide-static/icons/<nome>.svg` (versão 0.460.0)
+  para um `<symbol id="i-<nome>">` no `icons/sprite.svg`. No `<select>` do
+  celular as abas continuam com emoji — `<option>` não aceita SVG.
+- **CSP (`netlify.toml`):** nenhum script inline, e só carregam scripts do próprio
+  site e do cdnjs. Uma biblioteca ou fonte de outro endereço é bloqueada em
+  silêncio (o erro só aparece no console) — inclua o endereço na política.
 - **Modais: sempre por `abrirModal(id, opções)` e `fecharModal(id)`** (de `ui.js`),
   nunca mexendo na classe `open` à mão. A pilha de `ui.js` dá a todos o Esc, o
   Voltar do Android (cada modal tem uma entrada no histórico), o ✕, o toque fora,

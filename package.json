@@ -1,12 +1,13 @@
 {
   "name": "bispado-palmas-4",
-  "version": "5.19.0",
+  "version": "5.20.0",
   "type": "module",
   "dependencies": {
     "@netlify/blobs": "^8.1.0"
   },
   "scripts": {
     "versao": "node scripts/versao.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "lint": "npx --yes eslint@10.12.0 ."
   }
 }

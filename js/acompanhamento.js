@@ -5,7 +5,7 @@
 // =============================================
 import { renderAgenda } from './agenda.js';
 import { apiFetch, atualizarUltimaSinc, avisarPendente, idProvisorioDo, setSyncStatus } from './api.js';
-import { API_AGENDA, CARGOS, DADOS } from './config.js';
+import { API_AGENDA, CARGOS, DADOS, nomeDoResponsavel } from './config.js';
 import { MEMBROS } from './dados-membros.js';
 import { confirmar, pedirTexto } from './dialogo.js';
 import { abrirModal, fecharModal } from './ui.js';
@@ -38,7 +38,7 @@ export function listaAcompanhamentos() {
     .filter(e => e.acompanhar)
     .map(e => ({
       id: e.id, origem: 'entrevista', titulo: e.membro, assunto: e.tipo,
-      responsavel: { bispo:'Bispo', c1:'1º Conselheiro', c2:'2º Conselheiro', sec:'Secretário' }[e.responsavel] || e.responsavel,
+      responsavel: nomeDoResponsavel(e.responsavel),
       sigiloso: !!e.sigiloso, situacao: e.situacaoAcomp || 'aberto',
       registros: e.registros || [], data: e.data || '', ref: e,
     }));

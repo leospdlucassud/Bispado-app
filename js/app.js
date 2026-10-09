@@ -3,7 +3,7 @@
 // Carregado por último: depende de todos os demais módulos.
 // =============================================
 import { abrirModalAcomp } from './acompanhamento.js';
-import { abrirModalAgenda, abrirTelaConfirmacao } from './agenda.js';
+import { abrirModalAgenda } from './agenda.js';
 import { carregarDados, iniciarAtualizacaoAutomatica, sincronizarManual } from './api.js';
 import { clearSearch, doSearch } from './busca.js';
 import { abrirModalEvento, renderCalendario } from './calendario.js';
@@ -106,9 +106,10 @@ export function switchTab(t, { historico = true } = {}) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Link do convite de entrevista: mostra só a tela de resposta
+  // Link de convite antigo (?confirmar=): vai para a página própria do convite
   const convite = new URLSearchParams(location.search).get('confirmar');
-  if (convite) { abrirTelaConfirmacao(convite); return; }
+  // (o js/redirecionar-convite.js, no <head>, já faz isso antes; aqui é a reserva)
+  if (convite) { location.replace('/convite.html?id=' + encodeURIComponent(convite)); return; }
 
   aplicarNomeAla();
   // A entrada de histórico da aba vem ANTES do "Quem está usando?": o modal

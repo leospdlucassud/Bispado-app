@@ -166,11 +166,6 @@ export async function atualizarContadorPendentes() {
   ].filter(Boolean).join('; ');
   el.title = descricao + ' — toque para ver e enviar';
   el.setAttribute('aria-label', el.title);
-  return;
-  const txt = n === 1 ? ' alteração não enviada' : ' alterações não enviadas';
-  // n é número: não há texto de usuário aqui
-  el.innerHTML = `<span class="pend-num">⚠ ${n}</span><span class="pend-txt">${txt}</span>`;
-  el.title = `${n}${txt} — ficou guardada neste aparelho. Toque para enviar agora.`;
 }
 
 // Uma remessa por vez: o "voltou a rede" e o Sincronizar ao mesmo tempo

@@ -6,10 +6,27 @@ import { ALA, DADOS } from './config.js';
 import { tipoReuniao } from './reunioes.js';
 import { ATA_ORDEM, campoAta, formatDateSac, getSacPorData } from './sacramental.js';
 import { toast } from './usuario.js';
-import { formatarData } from './utils.js';
+import { carregarScript, formatarData } from './utils.js';
 
-export function imprimirAtaSacramental(dataKey) {
-  if (!window.jspdf) return toast('O gerador de PDF não carregou. Recarregue o app.');
+// jsPDF fica no próprio site (vendor/, MIT) e a página só o carrega ao gerar a
+// primeira ata. Antes vinha de um CDN no <head> de toda tela — inclusive na do
+// convite — e segurava a abertura do app até chegar. O service worker já o
+// guarda na instalação (está no ASSETS), então a ata sai também sem sinal.
+const JSPDF_SRC = '/vendor/jspdf.umd.min.js';
+let preparando = false;
+async function geradorPronto() {
+  if (window.jspdf) return true;
+  // segundo toque enquanto o gerador chega: sem isso, saíam dois PDFs
+  if (preparando) return false;
+  preparando = true;
+  try { await carregarScript(JSPDF_SRC); } catch (e) { /* tratado abaixo */ } finally { preparando = false; }
+  if (window.jspdf) return true;
+  toast('Não foi possível abrir o gerador de PDF. Verifique a conexão e tente de novo.');
+  return false;
+}
+
+export async function imprimirAtaSacramental(dataKey) {
+  if (!await geradorPronto()) return;
   const sac = getSacPorData(dataKey);
   if (!sac) return toast('Este domingo ainda não foi programado');
 
@@ -97,8 +114,8 @@ export function imprimirAtaSacramental(dataKey) {
   doc.save('ata-sacramental-' + dataKey + '.pdf');
 }
 
-export function imprimirAtaPDF(id) {
-  if (!window.jspdf) return toast('O gerador de PDF não carregou. Recarregue o app.');
+export async function imprimirAtaPDF(id) {
+  if (!await geradorPronto()) return;
   const r = DADOS.reunioes.find(x => x.id === id);
   if (!r) return toast('Reunião não encontrada');
 

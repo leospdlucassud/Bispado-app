@@ -5,7 +5,9 @@
 // (tema, offline-pwa) também avaliem e registrem seus listeners (`ligar*()`).
 // A ordem abaixo é só de leitura — quem manda na avaliação é o grafo de imports.
 //
-// Arquivo novo em js/ → incluir aqui E em ASSETS no sw.js.
+// Arquivo novo em js/ → incluir aqui E em ASSETS no sw.js. Exceções: convite.js
+// (entrada da página convite.html — importá-lo aqui abriria a tela do membro) e
+// redirecionar-convite.js (script clássico do <head>); esses só vão no ASSETS.
 // =============================================
 import './dados-membros.js';
 import './config.js';

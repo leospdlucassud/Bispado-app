@@ -224,7 +224,6 @@ export async function salvarEntrada() {
 export function abrirModalSaida() {
   const motivosOpts = MOTIVOS_SAIDA.map(m => `<option value="${m}">${m}</option>`).join('');
   const membrosAtivos = MEMBROS.filter(m => !MEMBROS_SAIDOS.includes(m.id)).sort((a,b) => a.name.localeCompare(b.name));
-  const membrosOpts = membrosAtivos.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
 
   document.getElementById('modal-agenda-content').innerHTML = `
     <h3>📤 Registrar Saída de Membro <button class="modal-close" data-act="fechar">✕</button></h3>
