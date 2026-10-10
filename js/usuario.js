@@ -9,6 +9,7 @@ import { abrirEdicaoChamados, nomeDoCargo } from './chamados.js';
 import { CARGOS, CARGOS_INFO } from './config.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { renderInicio } from './inicio.js';
+import { renderAbaSacramental, sacCarregado } from './sacramental.js';
 import { esc } from './utils.js';
 
 export const CARGO_KEY = 'cargo_atual';
@@ -60,6 +61,8 @@ export function definirCargo(cargo) {
   // sem isto, trocar de Bispo para outro cargo deixaria na tela inicial as
   // contas que incluem os sigilosos
   renderInicio();
+  // o convite de discurso é assinado pelo cargo de quem está usando
+  if (sacCarregado) renderAbaSacramental();
 }
 
 export function initUsuario() {

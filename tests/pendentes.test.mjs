@@ -48,3 +48,44 @@ test('itens estranhos na fila são ignorados', () => {
   const fila = [null, { url: '/api/membros', method: 'POST', body: {}, ts: 1 }, { method: 'PUT', ts: 2 }, { url: '::', method: 'PUT', ts: 3 }];
   assert.equal(aplicarPendentes(d, fila, todas), 0);
 });
+
+// ---------- coleções com campo único (domingo por data, orador por chave) ----------
+const comSac = () => ({
+  sacramentais: [{ id: '10', data: '2026-10-18', orador1: 'Ana Souza', orador1Status: 'aceito', primeiroHino: '' }],
+  oradores: [{ id: '20', chave: 'ana souza', nome: 'Ana Souza', grupo: '' }],
+});
+const sacOrad = new Set(['sacramentais', 'oradores']);
+
+test('POST de domingo que já existe junta no registro, sem trocar a vaga de outra pessoa', () => {
+  const d = comSac();
+  const fila = [{ url: '/api/sacramentais', method: 'POST', ts: 100,
+    body: { data: '2026-10-18', orador1: 'Bruno Lima', orador1Status: 'planejado', primeiroHino: '3' } }];
+  assert.equal(aplicarPendentes(d, fila, sacOrad), 1);
+  assert.equal(d.sacramentais.length, 1);
+  assert.equal(d.sacramentais[0].id, '10');
+  assert.equal(d.sacramentais[0].orador1, 'Ana Souza');
+  assert.equal(d.sacramentais[0].primeiroHino, '3');
+  assert.ok(!d.sacramentais.some(s => String(s.id).startsWith('local_')));
+});
+
+test('POST de domingo novo entra com o id provisório', () => {
+  const d = comSac();
+  const item = { url: '/api/sacramentais', method: 'POST', ts: 101, body: { data: '2026-10-25', tipo: 'jejum' } };
+  aplicarPendentes(d, [item], sacOrad);
+  assert.equal(d.sacramentais.find(s => s.data === '2026-10-25').id, idProvisorio(item));
+});
+
+test('PUT para o id provisório vale para o registro em que a criação foi juntada', () => {
+  const d = comSac();
+  const post = { url: '/api/sacramentais', method: 'POST', ts: 100, body: { data: '2026-10-18', tema1: 'Fé' } };
+  const put = { url: '/api/sacramentais?id=' + idProvisorio(post), method: 'PUT', ts: 110, body: { hinoFinal: '9' } };
+  aplicarPendentes(d, [post, put], sacOrad);
+  assert.equal(d.sacramentais[0].tema1, 'Fé');
+  assert.equal(d.sacramentais[0].hinoFinal, '9');
+});
+
+test('ajuste do rodízio (oradores) é reaplicado', () => {
+  const d = comSac();
+  aplicarPendentes(d, [{ url: '/api/oradores?id=20', method: 'PUT', ts: 1, body: { grupo: 'jas' } }], sacOrad);
+  assert.equal(d.oradores[0].grupo, 'jas');
+});

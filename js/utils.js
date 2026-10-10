@@ -51,6 +51,72 @@ export function carregarScript(src, { integrity } = {}) {
   return scriptsCarregando.get(src);
 }
 
+// Comparação de nomes sem acento, caixa ou espaço sobrando. Morava em
+// membros-import.js (que segue reexportando): agenda, rodízio e servidor usam.
+export const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+// Meses como vêm no PDF do LCR ("03 fev 2010")
+export const MESES_PT = { jan:0, fev:1, mar:2, abr:3, mai:4, jun:5, jul:6, ago:7, set:8, out:9, nov:10, dez:11 };
+
+// "03 fev 2010" → { a:2010, m:2, d:3 } (m de 1 a 12), ou null
+export function partesDoNascimento(nasc) {
+  const r = /^(\d{1,2})\s+([a-zç]{3})\.?\s+(\d{4})$/i.exec(String(nasc || '').trim());
+  if (!r) return null;
+  const m = MESES_PT[r[2].toLowerCase()];
+  if (m === undefined) return null;
+  const d = +r[1], a = +r[3];
+  const t = new Date(a, m, d);
+  return t.getMonth() === m && t.getDate() === d ? { a, m: m + 1, d } : null;
+}
+
+// wa.me exige só dígitos com o código do país. Abaixo de 10 dígitos falta o
+// DDD: antes virava '55'+número e o WhatsApp abria a conversa de outra pessoa.
+export function digitosTelefone(t) {
+  let d = String(t || '').replace(/\D/g, '');
+  if (d.length < 10) return '';
+  if (d.length <= 11) d = '55' + d;
+  return d;
+}
+
+// Link do WhatsApp com a mensagem pronta. Sem número, o WhatsApp abre e pede o
+// contato — o caminho de quem não está no quadro de membros.
+export function hrefWhatsApp(telefone, msg) {
+  const d = digitosTelefone(telefone);
+  return `https://wa.me/${d}?text=${encodeURIComponent(msg || '')}`;
+}
+
+// Destaca o termo buscado. Parte o texto CRU e escapa cada pedaço: o antigo
+// highlight() rodava sobre o HTML já escapado e, buscando "amp", partia o &amp;.
+export function realcar(texto, q) {
+  const t = String(texto ?? '');
+  const termo = String(q || '').trim();
+  if (!termo) return esc(t);
+  const re = new RegExp(termo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  let out = '', ultimo = 0, m;
+  while ((m = re.exec(t))) {
+    if (!m[0]) { re.lastIndex++; continue; }
+    out += esc(t.slice(ultimo, m.index)) + '<mark>' + esc(m[0]) + '</mark>';
+    ultimo = m.index + m[0].length;
+  }
+  return out + esc(t.slice(ultimo));
+}
+
+// Fila por chave: tarefas da mesma chave rodam uma de cada vez, na ordem em que
+// chegaram (a 2ª gravação de um domingo novo espera o POST da 1ª, e já sai como
+// PUT com o id real). Chaves diferentes não se esperam; uma falha não trava a
+// seguinte.
+export function encadearPorChave() {
+  const caudas = new Map();
+  return (chave, tarefa) => {
+    const anterior = caudas.get(chave) || Promise.resolve();
+    const atual = anterior.catch(() => {}).then(tarefa);
+    const cauda = atual.catch(() => {});
+    caudas.set(chave, cauda);
+    cauda.then(() => { if (caudas.get(chave) === cauda) caudas.delete(chave); });
+    return atual;
+  };
+}
+
 // Escapa texto do usuário antes de inserir via innerHTML.
 // A ordem importa: '&' primeiro, senão as demais entidades seriam re-escapadas.
 export function esc(s) {

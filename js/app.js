@@ -15,7 +15,7 @@ import { carregarMovimentacoes } from './membros.js';
 import { carregarNotasCompartilhadas } from './notas.js';
 import { installPWA, verRecusadas } from './offline-pwa.js';
 import { abrirModalReuniao } from './reunioes.js';
-import { abrirModalSac, carregarSacramentais, formatDateKey, sacCarregado } from './sacramental.js';
+import { acaoMaisSacramental, carregarSacramentais, renderAbaSacramental, sacCarregado } from './sacramental.js';
 import { changeFontSize, toggleTheme } from './tema.js';
 import { ativarAba, definirVoltarAba, registrarNoHistorico } from './ui.js';
 import { abrirEscolhaCargo, initUsuario } from './usuario.js';
@@ -42,7 +42,9 @@ document.getElementById('main-fab')?.addEventListener('click', () => {
   else if (fabTab === 'reuniao') abrirModalReuniao('');
   else if (fabTab === 'designacoes') abrirModalDesig('');
   else if (fabTab === 'calendario') abrirModalEvento();
-  else if (fabTab === 'sacramental') abrirModalSac(formatDateKey(new Date()));
+  // depende da vista: escolher o orador da 1ª vaga aberta, a ata do próximo
+  // domingo ou adicionar alguém ao rodízio — nunca a data de hoje
+  else if (fabTab === 'sacramental') acaoMaisSacramental();
   else if (fabTab === 'acompanhamento') abrirModalAcomp();
 });
 
@@ -97,7 +99,8 @@ export function switchTab(t, { historico = true } = {}) {
   if (t === 'inicio') renderInicio();
   if (t === 'notas') carregarNotasCompartilhadas();
   if (t === 'membros') carregarMovimentacoes();
-  if (t === 'sacramental' && !sacCarregado) carregarSacramentais();
+  // sempre redesenha: os dados podem ter chegado com a aba fechada
+  if (t === 'sacramental') { if (sacCarregado) renderAbaSacramental(); else carregarSacramentais(); }
   if (mudou) {
     if (historico) registrarNoHistorico({ aba: t }, '#' + t);
     // com a barra de abas fixa no topo, a aba nova abre do começo

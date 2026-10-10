@@ -137,7 +137,7 @@
 <div class="search-wrap">
   <div class="search-box">
     <span>🔍</span>
-    <input type="text" id="search-input" placeholder="Buscar entrevista, designação, ata, nota, ordenança…" autocomplete="off">
+    <input type="text" id="search-input" placeholder="Buscar entrevista, orador, designação, ata, nota, ordenança…" autocomplete="off">
     <button class="search-clear" id="search-clear">✕</button>
   </div>
 </div>
@@ -185,7 +185,7 @@
       <button type="button" class="link-card" style="--lc:#f472b6" data-act="ir" data-aba="designacoes"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-list-checks"/></svg></span><span class="lc-txt"><span class="lc-title">Designações</span><span class="lc-sub">Tarefas do bispado e seus prazos</span></span></button>
       <button type="button" class="link-card" style="--lc:#a78bfa" data-act="ir" data-aba="reuniao"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-clipboard-list"/></svg></span><span class="lc-txt"><span class="lc-title">Reuniões</span><span class="lc-sub">Atas, pautas e itens em aberto</span></span></button>
       <button type="button" class="link-card" style="--lc:#60a5fa" data-act="ir" data-aba="calendario"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-calendar-days"/></svg></span><span class="lc-txt"><span class="lc-title">Calendário</span><span class="lc-sub">Eventos da ala e da estaca</span></span></button>
-      <button type="button" class="link-card" style="--lc:#e8d080" data-act="ir" data-aba="sacramental"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-church"/></svg></span><span class="lc-txt"><span class="lc-title">Sacramental</span><span class="lc-sub">Oradores, hinos e ata de cada domingo</span></span></button>
+      <button type="button" class="link-card" style="--lc:#e8d080" data-act="ir" data-aba="sacramental"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-church"/></svg></span><span class="lc-txt"><span class="lc-title">Sacramental</span><span class="lc-sub">Oradores, convites e ata de cada domingo</span></span></button>
       <button type="button" class="link-card" style="--lc:#2dd4bf" data-act="ir" data-aba="membros"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-users"/></svg></span><span class="lc-txt"><span class="lc-title">Membros</span><span class="lc-sub">Quadro do LCR, entradas e saídas</span></span></button>
       <button type="button" class="link-card" style="--lc:#60a5fa" data-act="ir" data-aba="notas"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-notebook-pen"/></svg></span><span class="lc-txt"><span class="lc-title">Notas</span><span class="lc-sub">Privadas neste aparelho ou compartilhadas</span></span></button>
       <button type="button" class="link-card" style="--lc:#a78bfa" data-act="ir" data-aba="ordenancas"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-hand-heart"/></svg></span><span class="lc-txt"><span class="lc-title">Ordenanças</span><span class="lc-sub">Palavras das ordenanças e roteiros de entrevista</span></span></button>
@@ -750,59 +750,53 @@
 
 </div><!-- fim panel-ordenancas -->
 
-<!-- ========== PLANEJADOR DE SACRAMENTAIS ========== -->
+<!-- ========== SACRAMENTAL ========== -->
+<!-- Três vistas: Próximos domingos (vagas e convites) e Rodízio — rodizio.js —
+     e Atas por mês — sacramental.js. Não entram no histórico do Voltar. -->
 <div class="panel" id="panel-sacramental">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px">
-    <div>
-      <h2 style="font-size:18px;color:var(--sac)"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-church"/></svg> Planejador de Sacramentais</h2>
-      <p style="font-size:12px;color:var(--text2);margin-top:4px">Discursos, hinos e programação dos domingos</p>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center" id="sac-nav">
-      <button class="btn-sm" data-mes="-1" style="background:rgba(232,208,128,.15);color:var(--sac);border:1px solid rgba(232,208,128,.3);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px">‹</button>
-      <span id="sac-mes-titulo" style="color:var(--sac);font-size:14px;font-weight:600;min-width:120px;text-align:center"></span>
-      <button class="btn-sm" data-mes="1" style="background:rgba(232,208,128,.15);color:var(--sac);border:1px solid rgba(232,208,128,.3);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px">›</button>
-    </div>
+  <div style="margin-bottom:12px">
+    <h2 style="font-size:18px;color:var(--sac)"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-church"/></svg> Sacramental</h2>
+    <p style="font-size:12px;color:var(--text2);margin-top:4px">Oradores, convites e ata de cada domingo</p>
+  </div>
+  <div class="filtros" id="sac-vistas">
+    <button type="button" class="filtro-btn active" data-vista="plano">Próximos domingos</button>
+    <button type="button" class="filtro-btn" data-vista="rodizio">Rodízio</button>
+    <button type="button" class="filtro-btn" data-vista="atas">Atas por mês</button>
+  </div>
+  <div class="sac-aviso" id="sac-aviso-carga" hidden>📡 A programação não veio do servidor. Toque em Sincronizar para tentar de novo. O que você salvar agora será juntado ao que já existe lá — uma vaga que outro aparelho já preencheu não é trocada.</div>
+
+  <div id="sac-vista-plano">
+    <div class="plano-resumo" id="plano-resumo"></div>
+    <div id="plano-lista"><div class="loading">Carregando…</div></div>
+    <button type="button" class="btn-secondary" id="plano-mais">Mostrar mais 4 domingos</button>
   </div>
 
-  <!-- Banco de Oradores -->
-  <details style="margin-bottom:16px;background:rgba(232,208,128,.08);border:1px solid rgba(232,208,128,.15);border-radius:12px;padding:12px">
-    <summary style="color:var(--sac);font-weight:600;cursor:pointer;font-size:13px">📋 Banco de Oradores em Potencial</summary>
-    <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px" id="banco-oradores">
-      <div style="flex:1;min-width:140px">
-        <div style="--c:#a78bfa;font-size:11px;font-weight:600;margin-bottom:4px">QUÓRUM</div>
-        <div id="banco-quorum" style="font-size:12px;color:var(--text-corpo);line-height:1.8"></div>
-      </div>
-      <div style="flex:1;min-width:140px">
-        <div style="--c:#f472b6;font-size:11px;font-weight:600;margin-bottom:4px">SOC. SOCORRO</div>
-        <div id="banco-socsoc" style="font-size:12px;color:var(--text-corpo);line-height:1.8"></div>
-      </div>
-      <div style="flex:1;min-width:140px">
-        <div style="--c:#34d399;font-size:11px;font-weight:600;margin-bottom:4px">JOVENS</div>
-        <div id="banco-jovens" style="font-size:12px;color:var(--text-corpo);line-height:1.8"></div>
-      </div>
-      <div style="flex:1;min-width:140px">
-        <div style="--c:#60a5fa;font-size:11px;font-weight:600;margin-bottom:4px">OUTROS</div>
-        <div id="banco-outros" style="font-size:12px;color:var(--text-corpo);line-height:1.8"></div>
-      </div>
+  <div id="sac-vista-rodizio" hidden>
+    <div id="rod-migrar"></div>
+    <div class="membros-stats" id="rod-stats"></div>
+    <div class="filtros" id="rod-filtros"></div>
+    <div class="rod-linha">
+      <input type="text" class="form-input" id="rod-busca" placeholder="🔍 Buscar pessoa…" autocomplete="off">
+      <button type="button" class="btn-secondary" id="rod-adicionar">+ Adicionar nome</button>
     </div>
-    <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
-      <input type="text" class="form-input" id="novo-orador-nome" placeholder="Nome do orador" style="flex:1;min-width:120px;font-size:12px;padding:6px 10px">
-      <select class="form-select" id="novo-orador-grupo" style="width:auto;font-size:12px;padding:6px 8px">
-        <option value="quorum">Quórum</option>
-        <option value="socsoc">Soc. Socorro</option>
-        <option value="jovens">Jovens</option>
-        <option value="outros">Outros</option>
-      </select>
-      <button id="sac-add-orador" style="background:#e8d080;color:#0d1b2a;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:600">+ Adicionar</button>
-    </div>
-  </details>
+    <div id="rod-lista"></div>
+  </div>
 
-  <!-- Lista de Domingos -->
-  <div id="lista-sacramentais"><div class="loading">Carregando…</div></div>
+  <div id="sac-vista-atas" hidden>
+    <div style="display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:12px" id="sac-nav">
+      <button class="btn-sm" type="button" data-mes="-1" style="background:rgba(232,208,128,.15);color:var(--sac);border:1px solid rgba(232,208,128,.3);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px">‹</button>
+      <span id="sac-mes-titulo" style="color:var(--sac);font-size:14px;font-weight:600;min-width:120px;text-align:center"></span>
+      <button class="btn-sm" type="button" data-mes="1" style="background:rgba(232,208,128,.15);color:var(--sac);border:1px solid rgba(232,208,128,.3);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px">›</button>
+      <button class="btn-sm" type="button" data-act="mes-atual" style="background:rgba(232,208,128,.15);color:var(--sac);border:1px solid rgba(232,208,128,.3);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:13px">Hoje</button>
+    </div>
+    <div id="lista-sacramentais"><div class="loading">Carregando…</div></div>
+  </div>
 </div>
 
 <!-- Modal Sacramental -->
 <div class="modal-overlay" id="modal-sacramental"><div class="modal-box" id="modal-sacramental-content"></div></div>
+<!-- Seletor de orador, ficha e diálogos do rodízio (empilha sobre a ata) -->
+<div class="modal-overlay" id="modal-orador"><div class="modal-box" id="modal-orador-content"></div></div>
 
 <!-- ========== MANUAL & LINKS OFICIAIS ========== -->
 <div class="panel" id="panel-manual">
@@ -913,14 +907,15 @@
   </div>
 
   <div class="como-usar-section">
-    <div class="como-usar-titulo" style="color:var(--sac)">🕊️ Planejador de Sacramentais</div>
-    <div class="como-usar-item">Programe cada domingo com oradores, temas e hinos da reunião sacramental.</div>
-    <div class="como-usar-item">Navegue entre os meses usando as setas <strong>‹</strong> e <strong>›</strong>. Cada card mostra um domingo.</div>
-    <div class="como-usar-item">Toque em um domingo para montar a <strong>ata completa</strong>, na ordem da reunião: frequência e visitantes, quem presidiu e dirigiu, regente, pianista, reconhecimentos, anúncios, os 4 hinos, as 2 orações, apoios e desobrigações, e os 3 oradores com seus temas.</div>
-    <div class="como-usar-item">Use o <strong>Banco de Oradores</strong> para manter uma lista de potenciais discursantes organizados por grupo (Quórum, Soc. Socorro, Jovens, Outros).</div>
-    <div class="como-usar-item">Ao preencher oradores no modal, nomes do banco aparecem como sugestão automática.</div>
-    <div class="como-usar-item">Domingos programados mostram um <span style="--c:#34d399">ponto verde</span>. Não programados mostram <span style="--c:#e05555">ponto vermelho</span>.</div>
-    <div class="como-usar-item">Com a ata preenchida, o botão <strong>📄 PDF</strong> gera o documento pronto para imprimir ou arquivar, com espaço para a assinatura do secretário.</div>
+    <div class="como-usar-titulo" style="color:var(--sac)">🕊️ Sacramental</div>
+    <div class="como-usar-item"><strong>Próximos domingos</strong> mostra as 8 semanas seguintes, cada domingo com as 3 vagas na ordem da ata: 1º discurso (5 min), 2º (10 min), hino intermediário e 3º (15 min). O tempo de cada vaga pode ser mudado — é costume da ala, não regra do Manual.</div>
+    <div class="como-usar-item"><strong>Escolher orador</strong> sugere primeiro quem nunca discursou ou está há mais tempo sem discursar. No 1º discurso aparecem antes os jovens; quem falou nos últimos 6 meses fica numa lista à parte. Dá para buscar qualquer nome, digitar alguém que não está no quadro ou marcar um orador de fora da ala.</div>
+    <div class="como-usar-item"><strong>Convidar</strong> abre o WhatsApp com a mensagem pronta. Sem telefone no quadro, o WhatsApp pede para você escolher o contato. O número nunca fica salvo no app. Quando a pessoa responder, toque em <strong>Aceitou</strong> ou <strong>Não pode</strong>. Na semana do discurso, o <strong>Lembrete</strong> já sai pronto.</div>
+    <div class="como-usar-item">Em <strong>Mais</strong>, cada vaga tem: outro número ou copiar a mensagem, trocar a pessoa, mudar de domingo, tempo e tema, "não haverá este discurso" e tirar. Trocar a pessoa zera o convite — avise quem tinha sido convidado.</div>
+    <div class="como-usar-item"><strong>Tipo do domingo:</strong> jejum, conferências e a apresentação da Primária não pedem oradores. No 1º domingo do mês o app pergunta se é jejum — ele nunca marca sozinho.</div>
+    <div class="como-usar-item"><strong>Rodízio</strong> lista as pessoas por organização com o último discurso de cada uma. Em <strong>Ajustar</strong> você muda a organização (JAS e membros novos são marcados à mão), a posição preferida, informa um discurso feito antes do app ou pausa as sugestões por 3 ou 6 meses. O app não guarda motivo — não anote o motivo em lugar nenhum.</div>
+    <div class="como-usar-item"><strong>Atas por mês</strong> traz a ata completa de cada domingo, na ordem da reunião, e o <strong>📄 PDF</strong> pronto para imprimir, agora com o tempo de cada orador. Toque num domingo para preencher frequência, hinos, orações e apoios, ou para corrigir quem de fato discursou — a ata é o que conta no histórico do rodízio.</div>
+    <div class="como-usar-item">O ponto <span style="--c:#34d399">verde</span> marca domingo com programação; o <span style="--c:#e05555">vermelho</span>, sem nada ainda.</div>
   </div>
 
   <div class="como-usar-section">

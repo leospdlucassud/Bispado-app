@@ -1,5 +1,6 @@
 import { getStore } from "@netlify/blobs";
 import { ALA_ID } from "./_ala.js";
+import { inserirOuMesclar, limparCorpo } from "../../js/crud-regras.js";
 
 // Um store por ala (ver _ala.js).
 const STORE = "bispado-" + ALA_ID;
@@ -48,7 +49,10 @@ export async function alterar(store, key, mutar, tentativas = 4) {
 // Cria um handler CRUD completo para uma coleção guardada em Netlify Blobs.
 // Todas as coleções (agenda, reuniões, designações, etc.) compartilham este
 // comportamento — muda só a chave.
-export function crudHandler(key) {
+// `unicoPor`: campo que não se repete na coleção (a data do domingo, a chave do
+// orador). O POST com um valor que já existe junta no registro existente (200),
+// e `fundir` decide o que entra; o PUT não troca esse campo.
+export function crudHandler(key, { unicoPor = "", fundir } = {}) {
   return async (req) => {
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: H });
 
@@ -65,14 +69,27 @@ export function crudHandler(key) {
       }
       if (req.method === "POST") {
         const body = await req.json();
-        const item = { ...body, id: Date.now().toString(), criadoEm: new Date().toISOString() };
+        if (unicoPor) {
+          return await alterar(store, key, data => {
+            const r = inserirOuMesclar(data, body, {
+              campo: unicoPor, agora: new Date().toISOString(), novoId: Date.now().toString(), fundir,
+            });
+            const saida = r.descartados.length ? { ...r.item, _descartados: r.descartados } : r.item;
+            return {
+              data: r.lista,
+              resposta: () => new Response(JSON.stringify(saida), { status: r.criado ? 201 : 200, headers: H }),
+            };
+          });
+        }
+        const item = { ...limparCorpo(body), id: Date.now().toString(), criadoEm: new Date().toISOString() };
         return await alterar(store, key, data => ({
           data: [...data, item],
           resposta: () => new Response(JSON.stringify(item), { status: 201, headers: H }),
         }));
       }
       if (req.method === "PUT" && id) {
-        const body = await req.json();
+        // o merge raso não troca id, datas nem o campo único (a data do domingo)
+        const body = limparCorpo(await req.json(), unicoPor ? [unicoPor] : []);
         return await alterar(store, key, data => {
           const idx = data.findIndex(i => i.id === id);
           if (idx === -1) {

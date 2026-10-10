@@ -6,6 +6,11 @@ export const API_REUNIOES  = '/api/reunioes';
 export const API_DESIG     = '/api/designacoes';
 export const API_EVENTOS   = '/api/eventos_extras';
 export const API_SAC       = '/api/sacramentais';
+// ajustes do rodízio de discursos por pessoa (organização, pausa…) — rodizio.js
+export const API_ORADORES  = '/api/oradores';
+// Horário da reunião sacramental, "HH:MM". Preenchido, entra na mensagem do
+// convite para discursar ("domingo, 18 de outubro, às 9h"); vazio, fica de fora.
+export const HORARIO_SACRAMENTAL = '';
 // A tela do membro (link do convite) usa só este caminho, que devolve só a
 // entrevista dele — ver netlify/functions/convite.js
 export const API_CONVITE   = '/api/convite';
@@ -42,7 +47,7 @@ export const COR_STATUS = {
   realizada: 'var(--st-realizada)', 'nao-realizada': 'var(--st-nao-realizada)',
 };
 
-export let DADOS = { agenda:[], reunioes:[], designacoes:[], eventos_extras:[], sacramentais:[], acompanhamentos:[] };
+export let DADOS = { agenda:[], reunioes:[], designacoes:[], eventos_extras:[], sacramentais:[], acompanhamentos:[], oradores:[] };
 // O estado de filtro/mês de cada aba mora no módulo da própria aba (filAgenda em
 // agenda.js, filDesig em designacoes.js, calMes/calAno em calendario.js): só ela
 // lê e escreve, e binding importado é somente-leitura.
@@ -51,7 +56,7 @@ export let DADOS = { agenda:[], reunioes:[], designacoes:[], eventos_extras:[], 
 // (o que esta publicado) para o app instalado se atualizar sozinho.
 // Nao editar a mao: `node scripts/versao.mjs patch|minor|major` atualiza este,
 // o version.json, o CACHE do sw.js e o package.json juntos.
-export const VERSAO = '5.20.0';
+export const VERSAO = '5.21.0';
 
 // =============================================
 // NOME DA ALA

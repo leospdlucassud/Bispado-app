@@ -6,7 +6,7 @@ import { MEMBROS, setMembros } from './dados-membros.js';
 import { API_MEMBROS, MEMBROS_SAIDOS, MOVIMENTACOES, movimentacoesCarregadas, renderMembros, setMembrosSaidos, setRosterAtualizado } from './membros.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
-import { carregarScript, esc } from './utils.js';
+import { MESES_PT, carregarScript, esc, norm } from './utils.js';
 
 export const PDFJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
 export const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -22,7 +22,8 @@ export async function carregarPdfJs() {
   return window.pdfjsLib;
 }
 
-export const norm = s => (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+// norm e MESES_PT moram em utils.js; seguem exportados daqui para quem já importa
+export { MESES_PT, norm };
 
 // Agrupa os trechos do PDF em linhas (por Y). Guarda a largura para saber
 // quando dois trechos vizinhos formam a mesma palavra (acentos vêm separados).
@@ -59,7 +60,6 @@ export function juntarNome(partes) {
   return out.replace(/\s+/g, ' ').trim();
 }
 
-export const MESES_PT = { jan:0, fev:1, mar:2, abr:3, mai:4, jun:5, jul:6, ago:7, set:8, out:9, nov:10, dez:11 };
 
 export function idadeDeNascimento(nasc) {
   const m = /^(\d{1,2})\s+([a-zç]{3})\.?\s+(\d{4})$/i.exec(nasc || '');

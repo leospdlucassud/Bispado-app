@@ -3,10 +3,11 @@
 // =============================================
 // Ata da reunião sacramental em PDF, na mesma ordem do formulário
 import { ALA, DADOS } from './config.js';
+import { estadoDaVaga, minutosDaVaga, nomeNatural, tipoDe } from './discursos-regras.js';
 import { tipoReuniao } from './reunioes.js';
 import { ATA_ORDEM, campoAta, formatDateSac, getSacPorData } from './sacramental.js';
 import { toast } from './usuario.js';
-import { carregarScript, formatarData } from './utils.js';
+import { carregarScript, dataLocal, formatarData } from './utils.js';
 
 // jsPDF fica no próprio site (vendor/, MIT) e a página só o carrega ao gerar a
 // primeira ata. Antes vinha de um CDN no <head> de toda tela — inclusive na do
@@ -47,6 +48,12 @@ export async function imprimirAtaSacramental(dataKey) {
   doc.setFontSize(10);
   doc.setFont(undefined, 'normal');
   doc.text(formatDateSac(d) + ' de ' + d.getFullYear(), W/2, 26, { align:'center' });
+  // jejum, conferência, Primária: a ata diz que tipo de reunião foi
+  const tipo = tipoDe(sac);
+  if (sac.tipo && sac.tipo !== 'normal' && tipo.rotulo) {
+    doc.setFontSize(9);
+    doc.text(tipo.rotulo, W/2, 31, { align:'center' });
+  }
 
   let y = 44;
   doc.setTextColor(30, 30, 30);
@@ -83,9 +90,14 @@ export async function imprimirAtaSacramental(dataKey) {
 
   ATA_ORDEM.forEach(c => {
     if (c.orador) {
-      const nome = sac['orador' + c.orador] || '';
-      const tema = sac['tema' + c.orador] || '';
-      linha(c.orador + 'º Orador', nome + (tema ? ' — ' + tema : ''));
+      const n = c.orador;
+      const nome = String(sac['orador' + n] || '').trim();
+      const tema = sac['tema' + n] || '';
+      // "não haverá este discurso", ou domingo sem oradores: a linha não sai
+      if (!nome && (sac['orador' + n + 'Status'] === 'dispensada' || !tipo.vagas)) return;
+      // quem respondeu "não poderá" e não foi trocado não discursou: a ata não o lista
+      if (!nome || estadoDaVaga({ ...sac, data: dataKey }, n, dataLocal()) === 'recusou') linha(n + 'º Orador', '');
+      else linha(`${n}º Orador (${minutosDaVaga(sac, n)} min)`, nomeNatural(nome) + (tema ? ' — ' + tema : ''));
     } else {
       linha(c.r, campoAta(sac, c.k));
     }

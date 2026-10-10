@@ -9,10 +9,9 @@ import { ALA, API_AGENDA, CARGOS_INFO, COR_STATUS, DADOS, corDoCargo, nomeDoResp
 import { primeiroNome, tipoNoConvite } from './convite-regras.js';
 import { MEMBROS } from './dados-membros.js';
 import { confirmar, pedirTexto } from './dialogo.js';
-import { norm } from './membros-import.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { podeVer, toast } from './usuario.js';
-import { esc, formatarData, ico } from './utils.js';
+import { digitosTelefone, esc, formatarData, ico, norm } from './utils.js';
 
 // Começa em "Em aberto" (pendentes e agendadas), o botão marcado como active no
 // index.html. Em "Todas", as realizadas se acumulavam para sempre na frente.
@@ -192,7 +191,8 @@ export function abrirModalConvite(id) {
     </div>
     <div class="form-group">
       <label>WhatsApp</label>
-      <input type="tel" class="form-input" id="conv-tel" value="${esc(tel)}" placeholder="(21) 90000-0000">
+      <input type="tel" class="form-input" id="conv-tel" value="${esc(tel)}" placeholder="(63) 90000-0000">
+      <div class="ficha-dica" id="conv-aviso-tel" hidden></div>
     </div>
     <div class="form-group">
       <label>E-mail</label>
@@ -244,8 +244,14 @@ function atualizarLinksConvite(e) {
     a.title = '';
   };
 
+  // número sem DDD: antes abria a conversa de outra pessoa; agora o link fica
+  // desligado — e o motivo aparece na tela (o title não aparece no celular)
+  const bruto = (document.getElementById('conv-tel')?.value || '').replace(/\D/g, '');
+  const semDDD = !!bruto && !tel;
+  const aviso = document.getElementById('conv-aviso-tel');
+  if (aviso) { aviso.hidden = !semDDD; aviso.textContent = semDDD ? 'Falta o DDD — digite-o antes do número, ex.: (63) 90000-0000.' : ''; }
   if (tel) ligar(aW, `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`);
-  else desligar(aW, 'Informe um número de WhatsApp');
+  else desligar(aW, semDDD ? 'Falta o DDD do número' : 'Informe um número de WhatsApp');
 
   if (/.+@.+\..+/.test(email)) {
     ligar(aE, `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(assuntoConvite(e))}&body=${encodeURIComponent(msg)}`);
@@ -258,28 +264,29 @@ function atualizarLinksConvite(e) {
 // de clipboard REJEITA quando o documento não está em foco, então o resultado
 // tem de ser esperado — senão o app diz "copiado" sem ter copiado. O
 // execCommand vem primeiro por ser síncrono e não pedir permissão.
-async function copiarLinkConvite(id) {
+async function copiarLinkConvite(id, contato) {
   const campo = document.getElementById('conv-link');
   let copiou = false;
   try { campo?.select(); copiou = document.execCommand('copy'); } catch (err) {}
   if (!copiou) {
     try { await navigator.clipboard.writeText(campo?.value || ''); copiou = true; } catch (err) {}
   }
-  registrarEnvioConvite(id, copiou ? 'copiar' : 'copiar-manual');
+  registrarEnvioConvite(id, copiou ? 'copiar' : 'copiar-manual', contato);
 }
 
 // Guarda o contato digitado junto com o registro do convite: da próxima vez o
-// número certo já vem preenchido.
-export async function registrarEnvioConvite(id, via) {
+// número certo já vem preenchido. `contato` ({telefone, email}) vem só do
+// diálogo, lido no clique. Antes a função procurava #conv-tel no DOM — e o
+// diálogo fechado continua lá: o link direto de OUTRA entrevista gravava nela o
+// telefone e o e-mail da anterior. Pelo card, contato é null e nada é tocado.
+export async function registrarEnvioConvite(id, via, contato = null) {
   const e = DADOS.agenda.find(x => x.id === id);
   if (!e) return;
-  // Pelo link direto do card não há diálogo aberto: gravar os campos como ''
-  // apagaria o telefone que estava salvo.
   const campos = { convidadoEm: new Date().toISOString() };
-  const campoTel = document.getElementById('conv-tel');
-  const campoEmail = document.getElementById('conv-email');
-  if (campoTel) campos.telefone = campoTel.value.trim();
-  if (campoEmail) campos.email = campoEmail.value.trim();
+  if (contato) {
+    campos.telefone = String(contato.telefone || '').trim();
+    campos.email = String(contato.email || '').trim();
+  }
 
   Object.assign(e, campos);   // otimista: o selo some na hora
   // se a cópia falhou, o diálogo continua aberto com o link à mostra
@@ -339,13 +346,8 @@ export function emailDoMembro(nome) {
   return m ? (m.email || '') : '';
 }
 
-// wa.me exige só dígitos com código do país
-export function digitosTelefone(t) {
-  let d = (t || '').replace(/\D/g, '');
-  if (!d) return '';
-  if (d.length <= 11) d = '55' + d;
-  return d;
-}
+// mora em utils.js (o rodízio de discursos também usa); reexportado daqui
+export { digitosTelefone };
 
 export function linkConfirmacao(id) {
   // página própria e leve (convite.html). Os links antigos, ?confirmar=<id>,
@@ -490,7 +492,7 @@ export function abrirModalAgenda(id) {
       </div>
       <div class="form-group">
         <label>WhatsApp <span style="opacity:.6;font-weight:400">(do quadro de membros)</span></label>
-        <input type="text" class="form-input" id="ag-telefone" placeholder="(21) 90000-0000"
+        <input type="text" class="form-input" id="ag-telefone" placeholder="(63) 90000-0000"
                value="${esc(e?.telefone || telefoneDoMembro(e?.membro || ''))}"
                data-auto="${esc(e?.telefone || telefoneDoMembro(e?.membro || ''))}">
       </div>
@@ -697,13 +699,18 @@ function ligarAgenda() {
     const alvo = ev.target.closest('[data-act]');
     if (!alvo) return;
     const { act, id } = alvo.dataset;
+    // o contato é lido aqui, no clique, do diálogo que está aberto
+    const contatoDoDialogo = () => ({
+      telefone: document.getElementById('conv-tel')?.value || '',
+      email: document.getElementById('conv-email')?.value || '',
+    });
     if (act === 'fechar') fecharModal('modal-agenda');
     else if (act === 'salvar') salvarEntrevista(id);
     else if (act === 'conv-enviar') {
       if (!alvo.getAttribute('href')) return;      // desligado: falta contato
-      registrarEnvioConvite(id, alvo.dataset.via); // sem preventDefault
+      registrarEnvioConvite(id, alvo.dataset.via, contatoDoDialogo()); // sem preventDefault
     } else if (act === 'conv-copiar') {
-      copiarLinkConvite(id);
+      copiarLinkConvite(id, contatoDoDialogo());
     }
   });
 

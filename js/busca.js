@@ -5,15 +5,11 @@ import { switchTab } from './app.js';
 import { DADOS, nomeDoResponsavel } from './config.js';
 import { NOTAS_COMPARTILHADAS, NOTAS_PRIVADAS } from './notas.js';
 import { tipoReuniao } from './reunioes.js';
-import { formatDateSac } from './sacramental.js';
+import { nomeNatural } from './discursos-regras.js';
+import { formatDateSac, irParaDomingo } from './sacramental.js';
 import { podeVer } from './usuario.js';
-import { esc, formatarData } from './utils.js';
+import { esc, formatarData, realcar } from './utils.js';
 
-export function highlight(text, query){
-  if(!query) return text;
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-  return text.replace(new RegExp('('+escaped+')', 'gi'), '<mark>$1</mark>');
-}
 
 export function doSearch(val){
   const q = val.trim().toLowerCase();
@@ -42,6 +38,8 @@ export function doSearch(val){
       s.oracaoAbertura, s.oracaoEncerramento,
       s.primeiroHino, s.hinoSacramental, s.hinoIntermediario || s.hinoEspecial, s.hinoFinal,
       s.orador1, s.tema1, s.orador2, s.tema2, s.orador3, s.tema3,
+      // o nome também como aparece na tela ("Sobrenome, Nome" → "Nome Sobrenome")
+      ...[s.orador1, s.orador2, s.orador3].filter(Boolean).map(nomeNatural),
       s.observacoes,
     ].filter(Boolean).join(' ').toLowerCase();
     return txt.includes(q);
@@ -103,25 +101,25 @@ export function doSearch(val){
   // Resultados de Sacramentais
   html += sacMatches.map(s => {
     const d = new Date(s.data + 'T12:00:00');
-    const quem = [s.orador1, s.orador2, s.orador3].filter(Boolean).join(', ');
+    const quem = [s.orador1, s.orador2, s.orador3].filter(Boolean).map(nomeNatural).join(', ');
     const temas = [s.tema1, s.tema2, s.tema3].filter(Boolean).join(' · ');
-    const snippet = highlight(esc([quem, temas].filter(Boolean).join(' — ').substring(0,120)), val);
+    const snippet = realcar([quem, temas].filter(Boolean).join(' — ').substring(0,120), val);
     return `<div class="search-result-card" style="border-color:#e8d080">
       <div class="search-result-head"><span style="font-size:16px">🕊️</span><div style="flex:1">
         <div class="search-result-who" style="color:var(--sac)">Sacramental</div>
         <div class="search-result-title">${formatDateSac(d)} de ${d.getFullYear()}</div>
-      </div><button data-act="ir" data-aba="sacramental" style="background:#e8d080;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
+      </div><button data-act="ir" data-aba="sacramental" data-dk="${esc(s.data)}" style="background:#e8d080;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
     </div>`;
   }).join('');
 
   // Resultados de Entrevistas
   html += agendaMatches.map(e => {
-    const snippet = highlight(esc([e.membro, e.tipo, e.obs||''].join(' — ').substring(0,120)), val);
+    const snippet = realcar([e.membro, e.tipo, e.obs||''].join(' — ').substring(0,120), val);
     return `<div class="search-result-card" style="border-color:#34d399">
       <div class="search-result-head"><span style="font-size:16px">🗓️</span><div style="flex:1">
         <div class="search-result-who" style="--c:#34d399">Agenda</div>
-        <div class="search-result-title">${highlight(esc(e.membro), val)} — ${highlight(esc(e.tipo), val)}</div>
+        <div class="search-result-title">${realcar(e.membro, val)} — ${realcar(e.tipo, val)}</div>
       </div><button data-act="ir" data-aba="agenda" data-membro="${esc(e.membro)}" data-status="${esc(e.status || '')}" style="background:#34d399;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
     </div>`;
@@ -133,19 +131,19 @@ export function doSearch(val){
     return `<div class="search-result-card" style="border-color:#fbbf24">
       <div class="search-result-head"><span style="font-size:16px">🧭</span><div style="flex:1">
         <div class="search-result-who" style="--c:#fbbf24">Acompanhamento${a.sigiloso?' 🔒':''}</div>
-        <div class="search-result-title">${highlight(esc(a.titulo), val)}</div>
+        <div class="search-result-title">${realcar(a.titulo, val)}</div>
       </div><button data-act="ir" data-aba="acompanhamento" style="background:#fbbf24;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
-      <div class="search-result-body"><div class="search-result-snippet">${highlight(esc(a.assunto || (ult && ult.texto) || '').slice(0,120), val)}</div></div>
+      <div class="search-result-body"><div class="search-result-snippet">${realcar((a.assunto || (ult && ult.texto) || '').slice(0,120), val)}</div></div>
     </div>`;
   }).join('');
 
   // Resultados de Designações
   html += desigMatches.map(d => {
-    const snippet = highlight(esc([d.tarefa, d.responsavel||'', d.obs||''].join(' — ').substring(0,120)), val);
+    const snippet = realcar([d.tarefa, d.responsavel||'', d.obs||''].join(' — ').substring(0,120), val);
     return `<div class="search-result-card" style="border-color:#f472b6">
       <div class="search-result-head"><span style="font-size:16px">✅</span><div style="flex:1">
         <div class="search-result-who" style="--c:#f472b6">Designação</div>
-        <div class="search-result-title">${highlight(esc(d.tarefa), val)}</div>
+        <div class="search-result-title">${realcar(d.tarefa, val)}</div>
       </div><button data-act="ir" data-aba="designacoes" style="background:#f472b6;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
     </div>`;
@@ -153,7 +151,7 @@ export function doSearch(val){
 
   // Resultados de Reuniões
   html += reuniaoMatches.map(r => {
-    const snippet = highlight(esc([(r.pauta||'').substring(0,100), (r.itens||[]).map(i=>i.texto).join(', ').substring(0,60)].join(' · ')), val);
+    const snippet = realcar([(r.pauta||'').substring(0,100), (r.itens||[]).map(i=>i.texto).join(', ').substring(0,60)].join(' · '), val);
     return `<div class="search-result-card" style="border-color:#a78bfa">
       <div class="search-result-head"><span style="font-size:16px">📋</span><div style="flex:1">
         <div class="search-result-who" style="--c:#a78bfa">Reunião</div>
@@ -165,12 +163,12 @@ export function doSearch(val){
 
   // Resultados de Notas
   html += notasMatches.map(n => {
-    const snippet = highlight(esc((n.texto||'').substring(0,120)), val);
+    const snippet = realcar((n.texto||'').substring(0,120), val);
     const cor = n.scope==='privada' ? '#f59e0b' : '#60a5fa';
     return `<div class="search-result-card" style="border-color:${cor}">
       <div class="search-result-head"><span style="font-size:16px">📝</span><div style="flex:1">
         <div class="search-result-who" style="--c:${cor}">Nota ${n.scope==='privada'?'Privada':'Compartilhada'}</div>
-        <div class="search-result-title">${highlight(esc(n.titulo||'Nota'), val)}</div>
+        <div class="search-result-title">${realcar(n.titulo||'Nota', val)}</div>
       </div><button data-act="ir" data-aba="notas" style="background:${cor};color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
     </div>`;
@@ -181,7 +179,7 @@ export function doSearch(val){
     return `<div class="search-result-card" style="border-color:#a78bfa">
       <div class="search-result-head"><span style="font-size:16px">🕊️</span><div style="flex:1">
         <div class="search-result-who" style="--c:#a78bfa">Ordenança</div>
-        <div class="search-result-title">${highlight(esc(o.titulo), val)}</div>
+        <div class="search-result-title">${realcar(o.titulo, val)}</div>
       </div><button data-act="ir" data-aba="ordenancas" data-card="${o.card.id}" style="background:#a78bfa;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
     </div>`;
   }).join('');
@@ -199,9 +197,11 @@ function ligarBusca() {
   document.getElementById('search-hits')?.addEventListener('click', e => {
     const btn = e.target.closest('button[data-act="ir"]');
     if (!btn) return;
-    const { aba, card, membro } = btn.dataset;
+    const { aba, card, membro, dk } = btn.dataset;
     clearSearch();
     switchTab(aba);
+    // a vista e o mês do domingo achado (antes abria no mês atual)
+    if (aba === 'sacramental' && dk) irParaDomingo(dk);
     // A Agenda abre em "Em aberto": uma entrevista realizada achada na busca
     // não apareceria. Abre em "Todas", já filtrada pelo nome do membro.
     // Qualquer filtro que não fosse "Todas" podia esconder justamente o resultado.

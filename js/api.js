@@ -5,14 +5,15 @@ import { loadAcompanhamentos, renderAcompanhamentos } from './acompanhamento.js'
 import { renderAgenda } from './agenda.js';
 import { renderCalendario } from './calendario.js';
 import { carregarChamados } from './chamados.js';
-import { API_AGENDA, API_DESIG, API_EVENTOS, API_REUNIOES, API_SAC, DADOS } from './config.js';
+import { API_AGENDA, API_DESIG, API_EVENTOS, API_ORADORES, API_REUNIOES, API_SAC, DADOS } from './config.js';
 import { renderDesignacoes } from './designacoes.js';
 import { inicioAposCarga } from './inicio.js';
 import { carregarMovimentacoes } from './membros.js';
 import { ajustarCriacaoNaFila, comIdReal, enviarFilaPendente, esperarEnvio, isOnline, lerFila, limparCacheApp, salvarNaFila } from './offline-pwa.js';
 import { aplicarPendentes } from './pendentes.js';
 import { renderReunioes } from './reunioes.js';
-import { renderSacramentais, sacCarregado, setSacCarregado } from './sacramental.js';
+import { setOradoresCarregados } from './rodizio.js';
+import { renderAbaSacramental, sacCarregado, setSacCarregado, setSacDoServidor } from './sacramental.js';
 import { haModalAberto } from './ui.js';
 import { toast } from './usuario.js';
 
@@ -202,9 +203,19 @@ export async function loadEventos() {
 export async function loadSacramentais() {
   try {
     const data = await apiFetch(API_SAC);
-    if (Array.isArray(data)) { DADOS.sacramentais = data; setSacCarregado(true); renderSacramentais(); return true; }
+    if (Array.isArray(data)) { DADOS.sacramentais = data; setSacCarregado(true); setSacDoServidor(true); renderAbaSacramental(); return true; }
     return false;
-  } catch(e) { if (sacCarregado) renderSacramentais(); return false; }
+  } catch(e) { if (sacCarregado) renderAbaSacramental(); return false; }
+}
+
+// Ajustes do rodízio de discursos (organização, pausa…) — esparsos: a falha
+// só deixa o rodízio com os grupos automáticos até a próxima carga
+export async function loadOradores() {
+  try {
+    const data = await apiFetch(API_ORADORES);
+    if (Array.isArray(data)) { DADOS.oradores = data; setOradoresCarregados(true); if (sacCarregado) renderAbaSacramental(); return true; }
+    return false;
+  } catch(e) { return false; }
 }
 
 async function carregarTudo() {
@@ -220,7 +231,7 @@ async function carregarTudo() {
   const [okChamados, okMembros] = await Promise.all([carregarChamados(), carregarMovimentacoes()].map(semRejeitar));
   const r = await Promise.all([
     loadAgenda(), loadReunioes(), loadDesignacoes(),
-    loadEventos(), loadSacramentais(), loadAcompanhamentos(),
+    loadEventos(), loadSacramentais(), loadAcompanhamentos(), loadOradores(),
   ].map(semRejeitar));
   // O Início junta várias coleções: redesenha uma vez, depois que todas
   // voltaram, sabendo quais vieram do servidor. Não usa o `ok` geral abaixo —
@@ -228,12 +239,12 @@ async function carregarTudo() {
   // diria "sem conexão" com a agenda carregada.
   // O que ainda está na fila (salvo sem sinal) volta por cima do que o servidor
   // mandou — senão sumia da tela até ser enviado. Ver pendentes.js.
-  const colecoes = ['agenda', 'reunioes', 'designacoes', 'eventos_extras', 'sacramentais', 'acompanhamentos'];
+  const colecoes = ['agenda', 'reunioes', 'designacoes', 'eventos_extras', 'sacramentais', 'acompanhamentos', 'oradores'];
   const recarregadas = new Set(colecoes.filter((c, i) => r[i]));
   const fila = recarregadas.size ? await lerFila() : [];
   if (fila.length && aplicarPendentes(DADOS, fila, recarregadas)) {
     renderAgenda(); renderReunioes(); renderDesignacoes(); renderCalendario(); renderAcompanhamentos();
-    if (sacCarregado) renderSacramentais();
+    if (sacCarregado) renderAbaSacramental();
   }
   const [agenda, , designacoes, eventos, sacramentais, acomp] = r;
   inicioAposCarga({ agenda, designacoes, eventos, sacramentais, acomp });
@@ -262,8 +273,9 @@ export const INTERVALO_ATUALIZACAO = 30000;
 
 export async function atualizarEmSegundoPlano() {
   if (document.visibilityState !== 'visible' || !isOnline) return;
-  // não troca os dados debaixo de um formulário aberto
-  if (haModalAberto()) return;
+  // não troca os dados debaixo de um formulário aberto — nem de uma gravação em
+  // voo: a lista nova viria sem ela, e a tela "desfaria" a escolha por um instante
+  if (haModalAberto() || haGravacoes()) return;
   try {
     // a fila sai primeiro; o que não sair continua aparecendo (aplicarPendentes)
     await enviarFilaPendente();

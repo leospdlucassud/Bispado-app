@@ -50,10 +50,19 @@ que já quebrou sem ninguém perceber — painel fora do lugar (3 abas ficaram e
 branco por dois meses), módulo fora do `main.js` ou do cache offline, handler
 inline, ícone inexistente, versões divergentes.
 
-As seis coleções simples (agenda, reuniões, designações, sacramentais,
-acompanhamentos, eventos) são funções de 3 linhas que delegam a
+As sete coleções simples (agenda, reuniões, designações, sacramentais,
+acompanhamentos, eventos e oradores) são funções de 3 linhas que delegam a
 `netlify/functions/_crud.js` (o prefixo `_` faz o Netlify não tratá-lo como rota).
 `membros` e `notas` têm lógica própria. Todas respondem em `/api/<recurso>`.
+
+`sacramentais` e `oradores` declaram um campo único (`crudHandler(chave,
+{ unicoPor })`): um POST com uma data de domingo (ou uma chave de orador) que
+já existe **junta** no registro dela em vez de criar outro, e responde 200 com
+o mesmo id. No domingo, `fundirDomingo` (de `discursos-regras.js`) não troca uma
+vaga que outro aparelho já preencheu com outra pessoa — devolve
+`_descartados: [n]`, e a fila conta isso como "recusada". A fila offline
+(`pendentes.js`) junta do mesmo jeito, com a mesma função. O PUT nunca troca
+`id`, `criadoEm` nem o campo único.
 
 **`/api/convite`** é o único caminho da tela que o membro abre pelo link
 (`/convite.html?id=<id>`; os links antigos, `/?confirmar=<id>`, são redirecionados
@@ -77,6 +86,8 @@ clássico do `<head>`, manda os links antigos do convite para a página nova).
 | `config.js` | Constantes, estado global (`DADOS`), nome da ala, a tabela única de cargos (`CARGOS_INFO`) e as cores de status |
 | `pendentes.js` | Reaplica a fila offline sobre o que veio do servidor (sem DOM, testado) |
 | `convite-regras.js` | Regras do convite sem DOM: o que o membro pode ler (`tipoNoConvite`) e o que a resposta grava |
+| `crud-regras.js` | Upsert por campo único (`inserirOuMesclar`, `limparCorpo`), usado pelo servidor e pela fila (sem DOM, testado) |
+| `discursos-regras.js` | Rodízio de discursos sem DOM: datas por partes, chave do nome, estado da vaga, histórico, sugestões, mensagem do WhatsApp, pendências do Início (testado) |
 | `utils.js` | Formatação de data, `esc()` (escape de HTML para innerHTML), `ico()` (ícone do sprite) e `carregarScript()` |
 | `ui.js` | Troca de abas e abertura/fechamento de modais |
 | `dialogo.js` | `confirmar()` e `pedirTexto()` — substituem prompt/confirm nativos |
@@ -92,7 +103,8 @@ clássico do `<head>`, manda os links antigos do convite para a página nova).
 | `reunioes.js` | Reuniões administrativas |
 | `designacoes.js` | Designações do bispado |
 | `calendario.js` | Calendário da ala e da estaca |
-| `sacramental.js` | Planejador e ata da reunião sacramental |
+| `sacramental.js` | Aba Sacramental: as 3 vistas, "Atas por mês", formulário da ata (grava só o que mudou) e `gravarCamposDomingo` |
+| `rodizio.js` | Vistas "Próximos domingos" e "Rodízio": vagas, seletor de orador, convite por WhatsApp, ficha da pessoa |
 | `membros.js` | Entradas, saídas e histórico de membros |
 | `membros-import.js` | Leitura do PDF de membros do LCR |
 | `notas.js` | Notas privadas (aparelho) e compartilhadas (nuvem) |
@@ -136,6 +148,20 @@ com `data-act` e cada módulo liga os seus numa função `ligar<Área>()`.
   status, de responsável) escrita no HTML vai como `style="--c:#34d399"`, não
   `color:#34d399`: uma regra no fim do `style.css` aplica e escurece no tema
   claro. Cor escrita direto fica presa ao tema escuro e some no creme.
+- **Rodízio de discursos** (vistas da Sacramental):
+  - o nome do orador mora no domingo (`orador{n}`, em ordem natural) — a ata é a
+    verdade; o histórico do rodízio é derivado dos domingos, nada é guardado à parte;
+  - o estado do convite (`orador{n}Status`, datas, `Por`) só vale quando
+    `orador{n}Chave` é a chave do nome atual: trocar a pessoa nunca herda resposta;
+  - toda escrita de domingo passa por `gravarCamposDomingo` (de `sacramental.js`),
+    com só os campos que mudaram, uma por vez em cada domingo;
+  - a identidade é `chavePessoa(nome)` — o `id` do membro muda a cada importação
+    do LCR. Telefone, sexo e idade só saem de um membro com a chave idêntica e
+    único no quadro, lidos na hora;
+  - **nunca gravar** telefone do orador, motivo de pausa ou de "não convidar", nem
+    histórico de recusas (a API não tem senha); a mensagem leva só o primeiro nome;
+  - 5/10/15 min e "jovem no 1º discurso" são costume, não norma do Manual:
+    ficam como padrões editáveis em `discursos-regras.js`.
 - **Cargos: só em `CARGOS_INFO`** (de `config.js`) — código, nome, cor e ícone.
   Use `nomeDoResponsavel()`, `corDoCargo()` e `cargoInfo()`; antes cada tela
   tinha a sua cópia da tabela, e cada cópia, a sua falha. A cor de cada status

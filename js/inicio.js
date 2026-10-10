@@ -16,6 +16,8 @@ import { switchTab } from './app.js';
 import { DIAS_SEMANA, EVENTOS_FIXOS, MESES } from './calendario.js';
 import { comNome } from './chamados.js';
 import { COR_STATUS, DADOS, cargoInfo, comAla, nomeDoResponsavel } from './config.js';
+import { nomeCurto, pendenciasDiscurso, registroDoDomingo, resumoDomingo } from './discursos-regras.js';
+import { irParaDomingo } from './sacramental.js';
 import { USUARIO, abrirEscolhaCargo } from './usuario.js';
 import { corSegura, dataLocal, esc, formatarData } from './utils.js';
 
@@ -82,8 +84,9 @@ const vazio = txt => `<div class="vazia inicio-vazia">${txt}</div>`;
 const mudo = txt => `<div class="inicio-mudo">${txt}</div>`;
 const verMais = (txt, aba) => `<button type="button" class="inicio-mais" data-act="ir" data-aba="${aba}">${txt} →</button>`;
 
-function item({ cor, aba, quando = '', titulo, sub = '' }) {
-  return `<button type="button" class="inicio-item${quando ? '' : ' sem-quando'}" style="--ic:${cor}" data-act="ir" data-aba="${aba}">`
+// `dk`: o item leva ao card daquele domingo (pendências de discurso)
+function item({ cor, aba, quando = '', titulo, sub = '', dk = '' }) {
+  return `<button type="button" class="inicio-item${quando ? '' : ' sem-quando'}" style="--ic:${cor}" data-act="ir" data-aba="${aba}"${dk ? ` data-dk="${esc(dk)}"` : ''}>`
     + (quando ? `<span class="inicio-item-quando">${quando}</span>` : '')
     + `<span class="inicio-item-titulo">${titulo}</span>`
     + (sub ? `<span class="inicio-item-sub">${sub}</span>` : '')
@@ -249,13 +252,54 @@ function pendencias(ag, d) {
         }));
       });
   }
-  const faltando = [!carregado.agenda && 'entrevistas', !carregado.designacoes && 'designações'].filter(Boolean);
+  // discursos dos próximos domingos: vagas abertas, convites sem resposta…
+  if (carregado.sacramentais) {
+    for (const p of pendenciasDiscurso(DADOS.sacramentais, d.kHoje)) itens.push(itemDiscurso(p, d));
+  }
+  // o verbo concorda com o item, não com a quantidade ("as entrevistas … vieram")
+  const faltando = [
+    !carregado.agenda && { txt: 'as entrevistas', plural: true },
+    !carregado.designacoes && { txt: 'as designações', plural: true },
+    !carregado.sacramentais && { txt: 'a programação sacramental', plural: false },
+  ].filter(Boolean);
   return { itens, faltando };
+}
+
+function itemDiscurso(p, d) {
+  const quando = esc(rotuloDia(p.dk, d));
+  const base = { aba: 'sacramental', dk: p.dk };
+  switch (p.tipo) {
+    case 'recusou':
+      return item({ ...base, cor: '#f87171', titulo: `❌ Escolher outro orador — <strong>${esc(nomeCurto(p.nome))}</strong> não poderá`, sub: `${p.n}º discurso · ${quando}` });
+    case 'sem-resposta':
+      return item({ ...base, cor: '#e8b040', titulo: `⏳ Sem resposta — <strong>${esc(nomeCurto(p.nome))}</strong>`,
+        sub: `${p.n}º discurso · ${quando} · convidado ${p.dias === 0 ? 'hoje' : `há ${plural(p.dias, 'dia', 'dias')}`}` });
+    case 'vagas': {
+      const k = p.ns.length;
+      const sub = k === 3 ? 'nenhum orador definido' : `falta o ${p.ns.map(n => n + 'º').join(' e o ')}`;
+      return item({ ...base, cor: '#e8d080', titulo: `🎤 ${plural(k, 'vaga aberta', 'vagas abertas')} — ${quando}`, sub });
+    }
+    case 'convidar':
+      return item({ ...base, cor: '#e8d080', titulo: `💬 Convidar <strong>${esc(nomeCurto(p.nome))}</strong>`, sub: `${p.n}º discurso · ${quando}` });
+    default:
+      return item({ ...base, cor: '#e8d080', titulo: `📅 ${quando}: é ${p.provavel === 'jejum' ? 'jejum e testemunhos' : 'conferência geral'}? Marque o tipo`,
+        sub: 'o app não cobra oradores em jejum nem em conferência' });
+  }
+}
+
+// "As entrevistas e a programação sacramental ainda não vieram do servidor"
+function avisoFaltando(faltando) {
+  if (!faltando.length) return '';
+  const nomes = faltando.map(f => f.txt);
+  const lista = nomes.length === 1 ? nomes[0] : nomes.slice(0, -1).join(', ') + ' e ' + nomes[nomes.length - 1];
+  const plural = faltando.length > 1 || faltando[0].plural;
+  return lista.charAt(0).toUpperCase() + lista.slice(1)
+    + (plural ? ' ainda não vieram do servidor' : ' ainda não veio do servidor');
 }
 
 function renderAtencao({ itens, faltando }) {
   if (!cargaTerminou) return preencher('inicio-atencao', CARREGANDO);
-  const aviso = faltando.length ? `As ${faltando.join(' e as ')} ainda não vieram do servidor` : '';
+  const aviso = avisoFaltando(faltando);
   if (!itens.length) {
     return preencher('inicio-atencao', aviso ? semServidor(aviso) : vazio('✅ Nenhuma pendência no momento'));
   }
@@ -269,14 +313,11 @@ function renderSemana(d) {
   let situacao;
   if (!cargaTerminou) situacao = 'carregando…';
   else if (!carregado.sacramentais) situacao = '📡 programação não carregada';
-  else {
-    const sac = (DADOS.sacramentais || []).find(s => s.data === d.kDomingo);
-    const n = [1, 2, 3].filter(i => String(sac?.['orador' + i] ?? '').trim()).length;
-    situacao = n === 3 ? '✅ os 3 oradores definidos' : n ? `${n} de 3 oradores definidos` : '⚠️ ainda sem oradores definidos';
-  }
+  // jejum e conferência não cobram oradores; o resumo diz quem já confirmou
+  else situacao = esc(resumoDomingo(registroDoDomingo(DADOS.sacramentais, d.kDomingo), d.kDomingo, d.kHoje));
   let html = item({
     cor: '#e8d080', aba: 'sacramental', quando: esc(rotuloDia(d.kDomingo, d)),
-    titulo: '🕊️ Reunião sacramental', sub: situacao,
+    titulo: '🕊️ Reunião sacramental', sub: situacao, dk: d.kDomingo,
   });
 
   // calendário embutido + os eventos cadastrados pela ala
@@ -303,7 +344,10 @@ function ligarInicio() {
     if (alvo.dataset.act === 'identificar') abrirEscolhaCargo();
     else if (alvo.dataset.act === 'ir' && alvo.dataset.aba) {
       switchTab(alvo.dataset.aba);
-      window.scrollTo(0, 0);   // a tela é comprida: sem isto a aba nova abriria rolada
+      // item de um domingo: vai até o card dele; senão, o topo da aba
+      // (a tela é comprida: sem isto a aba nova abriria rolada)
+      if (alvo.dataset.dk) irParaDomingo(alvo.dataset.dk);
+      else window.scrollTo(0, 0);
     }
   });
   // O app instalado fica aberto por dias. Ao voltar para ele, saudação, data e

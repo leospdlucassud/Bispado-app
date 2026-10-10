@@ -136,8 +136,8 @@ function mostrarRecusadas() {
 export function verRecusadas() {
   if (!recusadasNaoVistas) return false;
   toast(recusadasNaoVistas === 1
-    ? 'Uma alteração foi recusada pelo servidor (o item já não existia lá) e não foi salva'
-    : `${recusadasNaoVistas} alterações foram recusadas pelo servidor (os itens já não existiam lá) e não foram salvas`);
+    ? 'Uma alteração foi recusada pelo servidor (o item já não existia lá ou tinha mudado em outro aparelho) e não foi salva'
+    : `${recusadasNaoVistas} alterações foram recusadas pelo servidor (os itens já não existiam lá ou tinham mudado em outro aparelho) e não foram salvas`);
   recusadasNaoVistas = 0;
   guardarRecusadas();
   atualizarContadorPendentes();
@@ -208,6 +208,9 @@ async function enviarFila() {
         if (item.method === 'POST') {
           const criado = await res.clone().json().catch(() => null);
           if (criado?.id != null) idsReais.set(idProvisorio(item), String(criado.id));
+          // domingo que outro aparelho já tinha criado: o servidor juntou, mas
+          // não trocou a vaga que lá estava com outra pessoa (fundirDomingo)
+          if (Array.isArray(criado?._descartados) && criado._descartados.length) recusados++;
         }
         if (caminhoDa(item.url) === '/api/notas') enviouNotas = true;
         await removerDaFila(item.id); enviados++; continue;

@@ -10,6 +10,7 @@ import { CARGOS } from './config.js';
 import { renderDesignacoes } from './designacoes.js';
 import { pedirTexto } from './dialogo.js';
 import { renderInicio } from './inicio.js';
+import { renderAbaSacramental, sacCarregado } from './sacramental.js';
 import { renderQuemBadge, toast } from './usuario.js';
 
 export const API_BISPADO = '/api/bispado';
@@ -87,4 +88,5 @@ function redesenhar() {
   renderAgenda();
   renderDesignacoes();
   renderInicio();   // saudação e responsáveis
+  if (sacCarregado) renderAbaSacramental();   // a assinatura do convite de discurso leva o nome
 }
