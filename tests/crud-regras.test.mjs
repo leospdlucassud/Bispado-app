@@ -42,3 +42,40 @@ test('limparCorpo tira os campos do servidor e não mexe no original', () => {
   assert.deepEqual(limparCorpo(null), {});
   assert.deepEqual(limparCorpo([1, 2]), {});
 });
+
+// ---------- trava (a vaga de orador que outro aparelho mudou) ----------
+import { aplicarPut } from '../js/crud-regras.js';
+import { travarVagas } from '../js/discursos-regras.js';
+
+const domingo = { id: '1', data: '2026-10-18', criadoEm: 'c1', orador1: 'Helena Teste', orador1Chave: 'helena teste',
+  orador1Status: 'convidado', orador1ConvidadoEm: 'ontem' };
+
+test('PUT de tela velha ("Aceitou" para quem saiu da vaga) não apaga o convite da pessoa nova', () => {
+  const r = aplicarPut(domingo, { orador1Status: 'aceito', orador1Chave: 'gil teste', orador1RespostaEm: 'agora', _vaga1: 'gil teste', primeiroHino: '2' },
+    { agora: 'AGORA', travar: travarVagas });
+  assert.deepEqual(r.descartados, [1]);
+  assert.equal(r.item.orador1Status, 'convidado');
+  assert.equal(r.item.orador1Chave, 'helena teste');
+  assert.equal(r.item.primeiroHino, '2');            // o resto do corpo entra
+  assert.ok(!('_vaga1' in r.item));
+});
+
+test('PUT com a vaga como o aparelho a viu passa, e a marca não é gravada', () => {
+  const r = aplicarPut(domingo, { orador1Status: 'aceito', orador1Chave: 'helena teste', _vaga1: 'helena teste' },
+    { agora: 'AGORA', travar: travarVagas });
+  assert.deepEqual(r.descartados, []);
+  assert.equal(r.item.orador1Status, 'aceito');
+  assert.ok(!('_vaga1' in r.item));
+});
+
+test('POST: domingo novo com marca de vaga vazia entra; marca de alguém que não está lá é descartada', () => {
+  const novo = inserirOuMesclar([], { data: '2026-10-25', orador2: 'Ana', orador2Chave: 'ana', _vaga2: '' },
+    { ...opts, travar: travarVagas });
+  assert.equal(novo.item.orador2, 'Ana');
+  assert.deepEqual(novo.descartados, []);
+  assert.ok(!('_vaga2' in novo.item));
+  const velho = inserirOuMesclar([domingo], { data: '2026-10-18', orador1Status: 'aceito', _vaga1: 'gil teste' },
+    { ...opts, travar: travarVagas });
+  assert.deepEqual(velho.descartados, [1]);
+  assert.equal(velho.item.orador1Status, 'convidado');
+});

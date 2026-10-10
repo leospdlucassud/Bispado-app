@@ -22,7 +22,7 @@ import {
   nomeNatural, ordenarRodizio, parecidos, partesData, pausadoEm, perfilParaMensagem, perguntarTipo,
   proximosDomingos, registroDoDomingo, somaMinutos, sugerirParaVaga, tipoDe,
 } from './discursos-regras.js';
-import { MEMBROS_SAIDOS } from './membros.js';
+import { MEMBROS_SAIDOS, movimentacoesCarregadas } from './membros.js';
 import {
   abrirModalSac, campoAta, chavesNaAta, getSacPorData, gravarCamposDomingo,
   renderAbaSacramental, sacCarregado, sacDoServidor, seloVaga,
@@ -118,12 +118,16 @@ function textoSelo(reg, n, estado, hoje) {
 function chaveDoFoco(container) {
   const el = document.activeElement;
   if (!el || el === document.body || !container.contains(el)) return null;
-  if (el.tagName === 'SUMMARY') return { summary: el.closest('details')?.dataset.id || '' };
+  const v = el.closest('.vaga');
+  const vaga = v ? { vdk: v.dataset.dk || '', vn: v.dataset.n || '' } : {};
+  if (el.tagName === 'SUMMARY') return { summary: el.closest('details')?.dataset.id || '', ...vaga };
   const alvo = el.closest('[data-act]');
   if (!alvo) return null;
   const d = alvo.dataset;
-  return { act: d.act, dk: d.dk || '', n: d.n || '', chave: d.chave || '', tipo: d.tipo || '' };
+  return { act: d.act, dk: d.dk || '', n: d.n || '', chave: d.chave || '', tipo: d.tipo || '', fil: d.fil || '', ...vaga };
 }
+
+const visivel = x => x.getClientRects().length > 0;
 
 function restaurarFoco(container, k) {
   if (!k) return;
@@ -132,12 +136,14 @@ function restaurarFoco(container, k) {
   else {
     const mesmo = x => (x.dataset.dk || '') === k.dk && (x.dataset.n || '') === k.n;
     el = [...container.querySelectorAll('[data-act]')].find(x => x.dataset.act === k.act && mesmo(x)
-      && (x.dataset.chave || '') === k.chave && (x.dataset.tipo || '') === k.tipo)
-      // a ação mudou com o estado (Escolher → Convidar): o 1º botão da mesma vaga
-      || (k.dk && k.n ? [...container.querySelectorAll('.vaga [data-act], .vaga summary')].find(x => {
-        const v = x.closest('.vaga');
-        return v && v.dataset.dk === k.dk && v.dataset.n === k.n;
-      }) : null);
+      && (x.dataset.chave || '') === k.chave && (x.dataset.tipo || '') === k.tipo && (x.dataset.fil || '') === (k.fil || '')
+      && visivel(x));
+  }
+  // a ação ou o menu sumiram com o novo estado (Escolher → Convidar; "Não haverá
+  // este discurso" tira o ⋯ Mais): o 1º controle visível da mesma vaga
+  if (!el && k.vdk && k.vn) {
+    const v = [...container.querySelectorAll('.vaga')].find(x => x.dataset.dk === k.vdk && x.dataset.n === k.vn);
+    el = v ? [...v.querySelectorAll('[data-act], summary')].find(visivel) : null;
   }
   el?.focus({ preventScroll: true });
 }
@@ -323,13 +329,13 @@ export function registrarConviteDiscurso(dk, n, chave) {
   return gravarCamposDomingo(dk, {
     ['orador' + n + 'Status']: 'convidado', ['orador' + n + 'Chave']: chave,
     ['orador' + n + 'ConvidadoEm']: agoraIso(), ['orador' + n + 'RespostaEm']: '', ['orador' + n + 'Por']: codAtual(),
-  });
+  }, { vagas: [n] });
 }
 
 export function marcarResposta(dk, n, chave, resposta) {
   return gravarCamposDomingo(dk, {
     ['orador' + n + 'Status']: resposta, ['orador' + n + 'Chave']: chave, ['orador' + n + 'RespostaEm']: agoraIso(),
-  });
+  }, { vagas: [n] });
 }
 
 function jaAceitouPessoalmente(dk, n, chave) {
@@ -339,7 +345,7 @@ function jaAceitouPessoalmente(dk, n, chave) {
     ['orador' + n + 'ConvidadoEm']: sac['orador' + n + 'ConvidadoEm'] || agoraIso(),
     ['orador' + n + 'RespostaEm']: agoraIso(),
     ['orador' + n + 'Por']: sac['orador' + n + 'Por'] || codAtual(),
-  });
+  }, { vagas: [n] });
 }
 
 export function desfazerResposta(dk, n, chave) {
@@ -347,7 +353,7 @@ export function desfazerResposta(dk, n, chave) {
   return gravarCamposDomingo(dk, {
     ['orador' + n + 'Status']: sac['orador' + n + 'ConvidadoEm'] ? 'convidado' : 'planejado',
     ['orador' + n + 'Chave']: chave, ['orador' + n + 'RespostaEm']: '',
-  });
+  }, { vagas: [n] });
 }
 
 export async function dispensarVaga(dk, n) {
@@ -356,7 +362,7 @@ export async function dispensarVaga(dk, n) {
   if ((est === 'convidado' || est === 'aceito') && !await confirmar(
     `${nomeCurto(sac['orador' + n])} já ${quemJa(est)} ${n}º discurso. Marcar que não haverá este discurso? Lembre-se de avisar.`,
     { okLabel: 'Marcar' })) return;
-  return gravarCamposDomingo(dk, { ...camposVagaVazia(n), ['orador' + n + 'Status']: 'dispensada' });
+  return gravarCamposDomingo(dk, { ...camposVagaVazia(n), ['orador' + n + 'Status']: 'dispensada' }, { vagas: [n] });
 }
 
 export async function limparVaga(dk, n) {
@@ -364,7 +370,7 @@ export async function limparVaga(dk, n) {
   const est = sac ? estadoDaVaga(sac, n, hojeK()) : 'vazia';
   if ((est === 'convidado' || est === 'aceito') && !await confirmar(
     `Tirar ${nomeCurto(sac['orador' + n])} do ${n}º discurso? Lembre-se de avisar.`, { perigo: true, okLabel: 'Tirar' })) return;
-  return gravarCamposDomingo(dk, camposVagaVazia(n));
+  return gravarCamposDomingo(dk, camposVagaVazia(n), { vagas: [n] });
 }
 
 async function definirTipo(dk, tipo) {
@@ -522,8 +528,9 @@ function selecionar(chave, nomeDigitado = '') {
   const ultimo = !pessoa.ultimo ? 'nunca discursou'
     : pessoa.ultimo.n ? `último discurso ${haMeses(Math.max(0, mesesEntre(pessoa.ultimo.data, ctx.hoje)))} (${pessoa.ultimo.n}º)`
       : `último discurso em ${formatarData(pessoa.ultimo.data)} (antes do app)`;
-  // só quem está no rodízio (o quadro tem também as crianças abaixo de 8 anos)
-  const parec = membro ? [] : parecidos(pessoa.nome, ctx.indice).filter(m => ctx.pessoas.has(chavePessoa(m.name)));
+  // só quem está no rodízio (o quadro tem também as crianças abaixo de 8 anos) —
+  // filtra antes de cortar em 3, senão elas tomavam as vagas da sugestão válida
+  const parec = membro ? [] : parecidos(pessoa.nome, ctx.indice, Infinity).filter(m => ctx.pessoas.has(chavePessoa(m.name))).slice(0, 3);
   // A programação não veio e este domingo não está no aparelho: a vaga pode já
   // ter orador no servidor. Reservar é seguro (o servidor não troca quem está
   // lá); mandar o convite agora pode convidar alguém para uma vaga ocupada.
@@ -610,7 +617,13 @@ function atualizarLinkEscolha() {
   a.href = hrefWhatsApp(tel, msg);
 }
 
-const vagaIncerta = dk => !sacDoServidor && !getSacPorData(dk);
+// Também depois de "Só reservar" sem sinal: o domingo só existe neste aparelho
+// (id provisório), e o servidor ainda pode manter a vaga com outra pessoa
+const vagaIncerta = dk => {
+  if (sacDoServidor) return false;
+  const r = getSacPorData(dk);
+  return !r || !r.id || String(r.id).startsWith('local_');
+};
 
 function reservarVaga(convidar) {
   if (!escolha?.sel) return;
@@ -624,7 +637,7 @@ function reservarVaga(convidar) {
     });
   }
   fecharModal('modal-orador');
-  gravarCamposDomingo(dk, campos).then(r => {
+  gravarCamposDomingo(dk, campos, { vagas: [n] }).then(r => {
     if (r === 'ok') toast(convidar ? 'Convite registrado — a vaga fica aguardando a resposta' : 'Vaga reservada');
   });
 }
@@ -639,7 +652,7 @@ function reservarFora() {
   const campos = { ...camposAoTrocarOrador(n, nome, { passado: false, fora: true }), ['orador' + n + 'Status']: '',
     ['tema' + n]: tema, ['orador' + n + 'Min']: min };
   fecharModal('modal-orador');
-  gravarCamposDomingo(dk, campos).then(r => { if (r === 'ok') toast('Vaga reservada'); });
+  gravarCamposDomingo(dk, campos, { vagas: [n] }).then(r => { if (r === 'ok') toast('Vaga reservada'); });
 }
 
 // ---------- outro meio (outro número, copiar a mensagem) ----------
@@ -647,6 +660,7 @@ export function abrirOutroMeio(dk, n) {
   const sac = getSacPorData(dk);
   const nome = sac?.['orador' + n] || '';
   if (!nome) return;
+  if (vagaIncerta(dk)) { toast('Sincronize antes de convidar — a programação deste domingo ainda não veio do servidor'); return; }
   const { msg, tel } = mensagemDaVaga(contexto(), sac, dk, n, 'convite');
   outroMeio = { dk, n, chave: chavePessoa(nome) };
   document.getElementById('modal-orador-content').innerHTML = `
@@ -746,12 +760,13 @@ function salvarTempoTema() {
   if (!mudou) { toast('Nada foi alterado'); return; }
   const est = estadoDaVaga(sac, n, hojeK());
   const nome = nomeCurto(sac['orador' + n]);
-  gravarCamposDomingo(dk, { ['orador' + n + 'Min']: min, ['tema' + n]: tema }).then(r => {
-    if (!r) return;
+  gravarCamposDomingo(dk, { ['orador' + n + 'Min']: min, ['tema' + n]: tema }, { vagas: [n] }).then(r => {
+    // 'pendente' e 'descartado' já mostraram o seu aviso, que este cobriria
+    if (r !== 'ok') return;
     // o caminho para avisar depende do estado: quem aceitou não tem "Reenviar"
     if (est === 'convidado') toast(`Tempo ou tema alterado — avise ${nome} (Mais › Reenviar convite)`);
     else if (est === 'aceito') toast(`Tempo ou tema alterado — avise ${nome} pelo WhatsApp; na semana do discurso, o Lembrete já leva o novo`);
-    else if (r === 'ok') toast('Vaga atualizada');
+    else toast('Vaga atualizada');
   });
 }
 
@@ -804,16 +819,17 @@ async function moverVaga(destino) {
   // pode manter a vaga com quem outro aparelho escolheu ('descartado') — ou,
   // sem sinal, só vai saber disso ao sincronizar. Nos dois casos a pessoa
   // continua na vaga de origem: melhor estar em dois domingos do que em nenhum.
-  const destinoTinhaId = !!getSacPorData(destino.dk)?.id;
-  const r = await gravarCamposDomingo(destino.dk, campos);
+  // Sem sinal, também com o destino já no servidor: a trava pode descartar o
+  // destino quando a fila sair, e a origem já teria sido esvaziada.
+  const r = await gravarCamposDomingo(destino.dk, campos, { vagas: [m] });
   const ficou = chavePessoa(getSacPorData(destino.dk)?.['orador' + m] || '') === chave;
   if (r === 'descartado' || !ficou) return;
-  if (r === 'pendente' && !destinoTinhaId) {
+  if (r === 'pendente') {
     toast(`Sem conexão: a vaga de ${dm(destino.dk)} ficou com ${nomeCurto(nome)}. Depois de sincronizar, tire ${nomeCurto(nome)} do ${n}º discurso de ${dm(dk)} (Mais › Tirar).`);
     return;
   }
   if (!r) return;
-  await gravarCamposDomingo(dk, camposVagaVazia(n));
+  await gravarCamposDomingo(dk, camposVagaVazia(n), { vagas: [n] });
   toast(`${nomeCurto(nome)} passou para ${dm(destino.dk)} · ${m}º discurso`);
 }
 
@@ -828,7 +844,9 @@ export function renderRodizio() {
     for (const id of ['rod-stats', 'rod-filtros']) { const el = document.getElementById(id); if (el) el.innerHTML = ''; }
     return;
   }
-  const foco = chaveDoFoco(lista);
+  // os filtros ficam fora da lista: o foco é guardado na vista inteira
+  const vista = document.getElementById('sac-vista-rodizio') || lista;
+  const foco = chaveDoFoco(vista);
   const ctx = contexto();
   const todas = [...ctx.pessoas.values()];
   const ativos = todas.filter(p => !p.pausadoAte && p.grupo !== 'primaria');
@@ -853,18 +871,26 @@ export function renderRodizio() {
     (filRodizio === 'todos' || (filRodizio === 'pausados' ? p.pausadoAte : p.grupo === filRodizio))
     && (!q || norm(p.nome).includes(q))));
 
-  const vazioQuadro = !MEMBROS.length
-    ? `<div class="vazia rod-quadro-vazio">O quadro de membros ainda não foi importado. Os nomes aparecem aqui conforme vocês planejam os domingos — ou importe o PDF do LCR na aba Membros.
-         <div style="margin-top:10px"><button type="button" class="btn-secondary" data-act="adicionar">+ Adicionar nome</button></div></div>` : '';
+  // quadro vazio porque a carga falhou não é quadro "ainda não importado"
+  const vazioQuadro = MEMBROS.length ? '' : !movimentacoesCarregadas
+    ? '<div class="vazia rod-quadro-vazio">📡 O quadro de membros não veio do servidor — toque em Sincronizar. Até lá, aparecem aqui só os nomes que já têm domingo ou ajuste.</div>'
+    : `<div class="vazia rod-quadro-vazio">O quadro de membros ainda não foi importado. Os nomes aparecem aqui conforme vocês planejam os domingos — ou importe o PDF do LCR na aba Membros.
+         <div style="margin-top:10px"><button type="button" class="btn-secondary" data-act="adicionar">+ Adicionar nome</button></div></div>`;
   if (!sel.length) {
     lista.innerHTML = vazioQuadro + (todas.length ? '<div class="vazia">Ninguém neste filtro.</div>' : (vazioQuadro ? '' : '<div class="vazia">Ninguém no rodízio ainda.</div>'));
+    restaurarFoco(vista, foco);
     return;
   }
   const total = sel.length;
   sel = sel.slice(0, rodLimite);
   lista.innerHTML = vazioQuadro + sel.map(p => cardPessoa(p, ctx)).join('')
     + (total > rodLimite ? `<button type="button" class="btn-secondary" data-act="mais-rod">Mostrar mais (${total - rodLimite})</button>` : '');
-  restaurarFoco(lista, foco);
+  restaurarFoco(vista, foco);
+  // "Mostrar mais" sumiu (não há mais ninguém): o foco vai para o 1º dos que acabaram de aparecer
+  if (foco?.act === 'mais-rod' && !vista.contains(document.activeElement)) {
+    const novos = [...lista.querySelectorAll('[data-act="ficha"]')];
+    novos[Math.max(0, rodLimite - 50)]?.focus({ preventScroll: true });
+  }
 }
 
 function cardPessoa(p, ctx) {
@@ -974,8 +1000,7 @@ async function salvarFicha(chaveDada) {
     else toast('Nada foi alterado');
     return;
   }
-  await gravarDoc(anterior, campos);
-  toast(chaveDada ? 'Ajuste salvo' : 'Nome adicionado ao rodízio');
+  if (await gravarDoc(anterior, campos) === 'ok') toast(chaveDada ? 'Ajuste salvo' : 'Nome adicionado ao rodízio');
 }
 
 // Documento criado há pouco ainda sem id (o POST não voltou): a edição ou a
@@ -983,8 +1008,11 @@ async function salvarFicha(chaveDada) {
 const criando = new WeakMap();
 const esperarCriacao = async doc => { if (doc && !doc.id && criando.has(doc)) await criando.get(doc).catch(() => {}); };
 
+// 'ok' | 'pendente' (na fila): quem chama só diz "salvo" com 'ok' — o toast de
+// sucesso cobria o aviso de que a alteração ainda não foi enviada
 async function gravarDoc(anterior, campos) {
   if (!DADOS.oradores) DADOS.oradores = [];
+  let resultado = 'ok';
   if (anterior) {
     Object.assign(anterior, campos);   // otimista
     renderAbaSacramental();
@@ -993,7 +1021,7 @@ async function gravarDoc(anterior, campos) {
       const r = await apiFetch(API_ORADORES + '?id=' + encodeURIComponent(anterior.id), 'PUT', campos);
       if (r) Object.assign(anterior, r);
       atualizarUltimaSinc(); setSyncStatus('ok');
-    } catch (e) { avisarPendente('ajuste do rodízio'); }
+    } catch (e) { avisarPendente('alteração do rodízio'); resultado = 'pendente'; }
   } else {
     const novo = { ...campos };
     DADOS.oradores.push(novo);
@@ -1004,10 +1032,11 @@ async function gravarDoc(anterior, campos) {
       const r = await p;
       if (r) Object.assign(novo, r);
       atualizarUltimaSinc(); setSyncStatus('ok');
-    } catch (e) { novo.id = idProvisorioDo(e); avisarPendente('ajuste do rodízio'); }
+    } catch (e) { novo.id = idProvisorioDo(e); avisarPendente('alteração do rodízio'); resultado = 'pendente'; }
     criando.delete(novo);
   }
   renderAbaSacramental();
+  return resultado;
 }
 
 async function removerDoc(doc) {
@@ -1016,7 +1045,7 @@ async function removerDoc(doc) {
   await esperarCriacao(doc);
   if (doc.id) {
     try { await apiFetch(API_ORADORES + '?id=' + encodeURIComponent(doc.id), 'DELETE'); atualizarUltimaSinc(); setSyncStatus('ok'); }
-    catch (e) { avisarPendente('ajuste do rodízio'); }
+    catch (e) { avisarPendente('alteração do rodízio'); return; }
   }
   toast('Ajuste removido');
 }
@@ -1099,18 +1128,19 @@ async function migrarBancoLocal() {
   fecharModal('modal-orador');
   const hoje = hojeK();
   const indice = indiceDoQuadro(MEMBROS, MEMBROS_SAIDOS);
-  let n = 0;
+  let n = 0, pendentes = 0;
   for (const x of marcados) {
     const chave = chavePessoa(x.nome);
     if ((DADOS.oradores || []).some(o => o.chave === chave)) continue;
     const grupo = grupoDoBancoAntigo(x.grupoAntigo);
     // quem já está no quadro sem grupo a ajustar não precisa de documento
     if (!grupo && membroDaChave(chave, indice)) { n++; continue; }
-    await gravarDoc(null, docOrador({ nome: x.nome, grupo }, null, hoje).campos);
+    if (await gravarDoc(null, docOrador({ nome: x.nome, grupo }, null, hoje).campos) === 'pendente') pendentes++;
     n++;
   }
   try { localStorage.setItem(BANCO_MIGRADO, new Date().toISOString()); } catch (e) {}
-  toast(`${n} ${n === 1 ? 'nome trazido' : 'nomes trazidos'} para o rodízio`);
+  toast(`${n} ${n === 1 ? 'nome trazido' : 'nomes trazidos'} para o rodízio`
+    + (pendentes ? ` — sem conexão: ${pendentes === 1 ? 'um ainda será enviado' : `${pendentes} ainda serão enviados`} ao sincronizar` : ''));
   renderAbaSacramental();
 }
 
@@ -1142,6 +1172,7 @@ function aoClicarPlano(e) {
     // tenha mudado em outro aparelho, aí o convite não deve sair
     case 'convidar':
       if (vagaMudou(dk, n, chave)) { e.preventDefault(); return; }
+      if (vagaIncerta(dk)) { e.preventDefault(); toast('Sincronize antes de convidar — a programação deste domingo ainda não veio do servidor'); return; }
       registrarConviteDiscurso(dk, n, chave);
       break;
     case 'lembrete': break;

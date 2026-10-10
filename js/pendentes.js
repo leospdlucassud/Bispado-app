@@ -7,8 +7,8 @@
 // Agora, depois de cada carga, a fila é reaplicada por cima do que veio.
 // =============================================
 
-import { fundirSimples, limparCorpo } from './crud-regras.js';
-import { fundirDomingo } from './discursos-regras.js';
+import { fundirSimples, limparCorpo, semTrava } from './crud-regras.js';
+import { fundirDomingo, travarVagas } from './discursos-regras.js';
 
 // Coleção de DADOS de cada endpoint que passa pela fila
 const COLECAO = {
@@ -25,10 +25,12 @@ const COLECAO = {
 // Coleções em que o POST não duplica: o servidor junta no registro que já tem
 // o mesmo valor (crudHandler com unicoPor), e a fila faz igual, com a MESMA
 // função de fusão — senão a tela mostraria uma coisa e o servidor gravaria outra.
+// A trava da vaga (travarVagas) também vale aqui, no POST e no PUT.
 const UNICO = {
-  sacramentais: { campo: 'data', fundir: fundirDomingo },
+  sacramentais: { campo: 'data', fundir: fundirDomingo, travar: travarVagas },
   oradores: { campo: 'chave', fundir: fundirSimples },
 };
+const travaDe = col => UNICO[col]?.travar || semTrava;
 
 // Id provisório do que foi criado sem sinal. Estável entre as cargas (vem do
 // instante em que entrou na fila), para não aparecer duplicado.
@@ -58,12 +60,13 @@ export function aplicarPendentes(dados, fila, recarregadas) {
         ? dados[col].findIndex(x => x && x[u.campo] === valor && x.id !== local) : -1;
       if (idx >= 0) {
         const existente = dados[col][idx];
-        dados[col][idx] = { ...u.fundir(existente, limparCorpo(corpo)).registro, id: existente.id };
+        const { corpo: travado } = travaDe(col)(existente, limparCorpo(corpo));
+        dados[col][idx] = { ...u.fundir(existente, travado).registro, id: existente.id };
         aliases.set(local, String(existente.id));
         n++;
-      } else if (!dados[col].some(x => x.id === local)) { dados[col].push({ ...corpo, id: local }); n++; }
+      } else if (!dados[col].some(x => x.id === local)) { dados[col].push({ ...travaDe(col)(undefined, corpo).corpo, id: local }); n++; }
     } else if (item.method === 'PUT' && id) {
-      dados[col] = dados[col].map(x => String(x.id) === id ? { ...x, ...corpo } : x); n++;
+      dados[col] = dados[col].map(x => String(x.id) === id ? { ...x, ...travaDe(col)(x, corpo).corpo } : x); n++;
     } else if (item.method === 'DELETE' && id) {
       dados[col] = dados[col].filter(x => String(x.id) !== id); n++;
     }

@@ -151,19 +151,24 @@ export function quandoPorExtenso(dk, horario = '', hojeKey = '') {
 // ---------- nomes ----------
 // A identidade da pessoa é a CHAVE do nome — o id do membro muda a cada
 // importação do LCR e pode ser reaproveitado por outra pessoa.
-// Comparados com o acento: "Irmã"/"Élder" são tratamento; "Irma"/"Elder" são
-// prenomes comuns e ficam. E nada é tirado de um nome no formato do LCR
+// Comparados com o acento: "Irmã" é tratamento; "Irma" é prenome e fica.
+// "Élder"/"Elder" não entram: são prenomes reais no LCR, e um tratamento só
+// num dos lados separava a chave do quadro ("elder ficticio") da chave do nome
+// gravado na vaga ("ficticio"). E nada é tirado de um nome no formato do LCR
 // ("Sobrenome, Prenomes"), que nunca traz tratamento.
-const TRATAMENTOS = new Set(['irmão', 'irmã', 'irmao', 'ir', 'irm', 'élder', 'bispo', 'presidente', 'pres', 'sr', 'sra', 'dona']);
+const TRATAMENTOS = new Set(['irmão', 'irmã', 'irmao', 'ir', 'irm', 'bispo', 'presidente', 'pres', 'sr', 'sra', 'dona']);
 const PARTICULAS = new Set(['de', 'da', 'do', 'das', 'dos', 'e']);
 const ehTratamento = p => TRATAMENTOS.has(String(p).toLowerCase().replace(/[.,;:]+$/, ''));
 
-// "Sobrenome, Prenomes" (formato do LCR) → "Prenomes Sobrenome"
+// "Sobrenome, Prenomes" (formato do LCR) → "Prenomes Sobrenome". Vírgula
+// seguida de minúscula não é esse formato: é um orador de fora descrito à mão
+// ("Irmão Lima, da Estaca Exemplo"), que fica como foi digitado.
 export function nomeNatural(nome) {
   const s = String(nome || '').replace(/\s+/g, ' ').trim();
   const i = s.indexOf(',');
   if (i < 0) return s;
   const sobrenome = s.slice(0, i).trim(), prenomes = s.slice(i + 1).trim();
+  if (/^\p{Ll}/u.test(prenomes)) return s;
   return prenomes ? `${prenomes} ${sobrenome}`.trim() : sobrenome;
 }
 
@@ -173,8 +178,10 @@ function palavrasSemTratamento(nome) {
   return p;
 }
 
-// "Ana Beatriz Fictícia Souza" → "Ana Souza"
+// "Ana Beatriz Fictícia Souza" → "Ana Souza"; "Irmão Lima, da Estaca Exemplo" → "Irmão Lima"
 export function nomeCurto(nome) {
+  const nat = nomeNatural(nome);
+  if (nat.includes(',')) return nat.slice(0, nat.indexOf(',')).trim();
   const p = palavrasSemTratamento(nome);
   return p.length <= 2 ? p.join(' ') : `${p[0]} ${p[p.length - 1]}`;
 }
@@ -434,7 +441,8 @@ export function fundirDomingo(existente, corpo) {
     const atual = String(existente?.['orador' + n] ?? '').trim();
     if (!atual) continue;
     const chave = chavePessoa(atual);
-    if (chave !== chavePessoa(c['orador' + n])) {
+    // estrita: "Maria Souza" não toma a vaga (nem o "Confirmado") de "Maria de Souza"
+    if (chaveEstrita(atual) !== chaveEstrita(c['orador' + n])) {
       for (const k of camposDaVaga(n)) delete c[k];
       descartados.push(n);
       continue;
@@ -448,6 +456,29 @@ export function fundirDomingo(existente, corpo) {
   }
   for (const k of Object.keys(c)) if (vazio(c[k]) && !vazio(existente?.[k])) delete c[k];
   return { registro: { ...existente, ...c }, descartados };
+}
+
+// Trava da vaga no servidor (POST e PUT) e na fila: a escrita que age sobre
+// quem está na vaga (convite, resposta, tempo e tema, tirar, trocar) leva
+// `_vaga{n}` = a chave estrita de quem o aparelho via ali ('' = vaga vazia).
+// Se a vaga mudou em outro aparelho, nada daquela vaga é gravado. Antes, um
+// "Aceitou" tocado numa tela velha gravava o estado por cima da pessoa nova e
+// apagava o convite feito a ela.
+export const marcaVaga = n => '_vaga' + n;
+export function travarVagas(existente, corpo) {
+  const c = { ...corpo };
+  const descartados = [];
+  for (const n of POSICOES) {
+    const k = marcaVaga(n);
+    if (!Object.prototype.hasOwnProperty.call(c, k)) continue;
+    const esperado = String(c[k] ?? '');
+    delete c[k];
+    if (chaveEstrita(existente?.['orador' + n] || '') !== esperado) {
+      for (const f of camposDaVaga(n)) delete c[f];
+      descartados.push(n);
+    }
+  }
+  return { corpo: c, descartados };
 }
 
 // ---------- rodízio ----------
@@ -495,11 +526,13 @@ const FILTROS_SUGESTAO = {
   todos: () => true,
 };
 
-// "este mês" / "há 1 mês" / "há N meses"
-export const haMeses = m => m < 1 ? 'este mês' : m === 1 ? 'há 1 mês' : `há ${m} meses`;
+// "há menos de 1 mês" / "há 1 mês" / "há N meses" (meses completos: "este mês"
+// saía para um discurso de 27/09 visto em 10/10)
+export const haMeses = m => m < 1 ? 'há menos de 1 mês' : m === 1 ? 'há 1 mês' : `há ${m} meses`;
 
-// `hojeKey`: o texto ("há 4 meses") conta até hoje; o corte dos 6 meses conta
-// até o domingo da vaga
+// `hojeKey`: o texto ("há 4 meses") e o corte dos 6 meses contam os dois até
+// hoje — com o corte no domingo da vaga, "há 4 meses" aparecia nos Sugeridos,
+// fora da seção "Falaram há menos de 6 meses"
 export function sugerirParaVaga({ pessoas, dk, n, ocupadas = new Map(), gruposNoDomingo = new Set(), filtro = 'sugeridos', hojeKey = dk }) {
   const passa = FILTROS_SUGESTAO[filtro] || FILTROS_SUGESTAO.sugeridos;
   const lista = [], recentes = [];
@@ -514,9 +547,8 @@ export function sugerirParaVaga({ pessoas, dk, n, ocupadas = new Map(), gruposNo
     else if (JOVEM_PRIMEIRO) afinidade = n === 1 ? (jovem(p) ? 0 : 1) : (jovem(p) ? 2 : 0);
     else afinidade = 0;
     if (gruposNoDomingo.has(p.grupo)) afinidade += 1;
-    const meses = p.ultimo ? mesesEntre(p.ultimo.data, dk) : null;
-    const partes = [infoGrupo(p.grupo).curto,
-      meses === null ? 'nunca discursou' : haMeses(Math.max(0, mesesEntre(p.ultimo.data, hojeKey)))];
+    const meses = p.ultimo ? Math.max(0, mesesEntre(p.ultimo.data, hojeKey)) : null;
+    const partes = [infoGrupo(p.grupo).curto, meses === null ? 'nunca discursou' : haMeses(meses)];
     if (pos && pos === String(n)) partes.push(`prefere o ${n}º`);
     if (n === 1 && jovem(p)) partes.push('jovem');
     const item = { pessoa: p, motivo: partes.join(' · '), ocupada,
@@ -645,13 +677,15 @@ export function resumoDomingo(sac, dk, hojeKey) {
   }
   if (c.T === 0) return 'sem discursos designados';
   if (c.C === c.T) return c.T === 1 ? '✅ o orador confirmado' : `✅ os ${c.T} oradores confirmados`;
-  if (c.V === c.T) return '⚠️ ainda sem oradores definidos';
+  // o programa especial tem vagas, mas não cobra oradores: vaga aberta sem ⚠️
+  // (as pendências já não cobravam — o resumo da semana se contradizia)
+  if (c.V === c.T) return tipo.cobra ? '⚠️ ainda sem oradores definidos' : `${tipo.curto} · sem oradores designados`;
   return [
     c.C && `✅ ${pl(c.C, 'confirmado', 'confirmados')}`,
     c.W && `⏳ ${c.W} aguardando resposta`,
     c.P && `💬 ${c.P} a convidar`,
     c.R && `❌ ${c.R} ${c.R === 1 ? 'não poderá' : 'não poderão'}`,
-    c.V && `⚠️ ${pl(c.V, 'vaga aberta', 'vagas abertas')}`,
+    c.V && `${tipo.cobra ? '⚠️ ' : ''}${pl(c.V, 'vaga aberta', 'vagas abertas')}`,
   ].filter(Boolean).join(' · ');
 }
 

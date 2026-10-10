@@ -1,6 +1,6 @@
 import { getStore } from "@netlify/blobs";
 import { ALA_ID } from "./_ala.js";
-import { inserirOuMesclar, limparCorpo } from "../../js/crud-regras.js";
+import { aplicarPut, inserirOuMesclar, limparCorpo } from "../../js/crud-regras.js";
 
 // Um store por ala (ver _ala.js).
 const STORE = "bispado-" + ALA_ID;
@@ -52,7 +52,10 @@ export async function alterar(store, key, mutar, tentativas = 4) {
 // `unicoPor`: campo que não se repete na coleção (a data do domingo, a chave do
 // orador). O POST com um valor que já existe junta no registro existente (200),
 // e `fundir` decide o que entra; o PUT não troca esse campo.
-export function crudHandler(key, { unicoPor = "", fundir } = {}) {
+// `travar`: no POST e no PUT, tira do corpo o que dependia de um estado que já
+// mudou (a vaga de orador que outro aparelho trocou); a resposta diz o quê em
+// `_descartados`.
+export function crudHandler(key, { unicoPor = "", fundir, travar } = {}) {
   return async (req) => {
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: H });
 
@@ -72,7 +75,7 @@ export function crudHandler(key, { unicoPor = "", fundir } = {}) {
         if (unicoPor) {
           return await alterar(store, key, data => {
             const r = inserirOuMesclar(data, body, {
-              campo: unicoPor, agora: new Date().toISOString(), novoId: Date.now().toString(), fundir,
+              campo: unicoPor, agora: new Date().toISOString(), novoId: Date.now().toString(), fundir, travar,
             });
             const saida = r.descartados.length ? { ...r.item, _descartados: r.descartados } : r.item;
             return {
@@ -95,12 +98,13 @@ export function crudHandler(key, { unicoPor = "", fundir } = {}) {
           if (idx === -1) {
             return { erro: new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: H }) };
           }
-          const atualizado = { ...data[idx], ...body, atualizadoEm: new Date().toISOString() };
+          const { item: atualizado, descartados } = aplicarPut(data[idx], body, { agora: new Date().toISOString(), travar });
           const novo = [...data];
           novo[idx] = atualizado;
+          const saida = descartados.length ? { ...atualizado, _descartados: descartados } : atualizado;
           return {
             data: novo,
-            resposta: () => new Response(JSON.stringify(atualizado), { headers: H }),
+            resposta: () => new Response(JSON.stringify(saida), { headers: H }),
           };
         });
       }

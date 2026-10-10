@@ -213,7 +213,7 @@ export async function salvarEvento() {
     toast('Evento salvo');
   } catch(e) {
     DADOS.eventos_extras.push({ ...payload, id: idProvisorioDo(e) });
-    avisarPendente('evento');
+    avisarPendente('criação do evento');
   }
   renderCalendario();
 }

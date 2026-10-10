@@ -17,6 +17,17 @@ export function limparCorpo(body, extra = []) {
 
 export const fundirSimples = (existente, corpo) => ({ registro: { ...existente, ...corpo }, descartados: [] });
 
+// `travar(existente, corpo)` tira do corpo o que dependia de um estado que já
+// mudou no servidor (ver travarVagas, em discursos-regras.js) e diz o quê
+export const semTrava = (existente, corpo) => ({ corpo, descartados: [] });
+const unir = (a, b) => [...new Set([...a, ...b])].sort((x, y) => x - y);
+
+// PUT: merge raso, depois da trava
+export function aplicarPut(existente, body, { agora, travar = semTrava }) {
+  const t = travar(existente, limparCorpo(body));
+  return { item: { ...existente, ...t.corpo, atualizadoEm: agora }, descartados: t.descartados };
+}
+
 // Índice do PRIMEIRO item com o mesmo valor — o critério da tela também
 export function acharPorUnico(lista, campo, valor) {
   if (typeof valor !== 'string' || !valor) return -1;
@@ -27,18 +38,19 @@ export function acharPorUnico(lista, campo, valor) {
 // junta no existente em vez de criar um duplicado. Antes, salvar um domingo
 // com a programação sem carregar criava um segundo registro, escondido pelo
 // primeiro — e o que foi digitado parecia perdido.
-export function inserirOuMesclar(lista, body, { campo, agora, novoId, fundir = fundirSimples }) {
+export function inserirOuMesclar(lista, body, { campo, agora, novoId, fundir = fundirSimples, travar = semTrava }) {
   const base = Array.isArray(lista) ? lista : [];
-  const corpo = limparCorpo(body);
-  const idx = acharPorUnico(base, campo, corpo[campo]);
+  const limpo = limparCorpo(body);
+  const idx = acharPorUnico(base, campo, limpo[campo]);
+  const existente = idx < 0 ? undefined : base[idx];
+  const t = travar(existente, limpo);
   if (idx < 0) {
-    const item = { ...corpo, id: novoId, criadoEm: agora };
-    return { lista: [...base, item], item, criado: true, descartados: [] };
+    const item = { ...t.corpo, id: novoId, criadoEm: agora };
+    return { lista: [...base, item], item, criado: true, descartados: t.descartados };
   }
-  const existente = base[idx];
-  const { registro, descartados } = fundir(existente, corpo);
+  const { registro, descartados } = fundir(existente, t.corpo);
   const item = { ...registro, id: existente.id, criadoEm: existente.criadoEm, atualizadoEm: agora };
   const nova = [...base];
   nova[idx] = item;
-  return { lista: nova, item, criado: false, descartados };
+  return { lista: nova, item, criado: false, descartados: unir(t.descartados, descartados) };
 }

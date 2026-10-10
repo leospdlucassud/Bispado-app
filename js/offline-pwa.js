@@ -87,7 +87,11 @@ async function ajustar(url, method, body, id) {
         // nunca chegou ao servidor: some da fila, com o que mais houver para ele
         for (const i of fila) if (i === criacao || idDaUrl(i.url) === id) st.delete(i.id);
       } else {
-        st.put({ ...criacao, body: { ...(criacao.body || {}), ...(body || {}) } });
+        // marcas da requisição (_vaga1…: quem o aparelho via na vaga) valem
+        // contra o servidor; as desta edição se referem à própria criação que
+        // está na fila — ficam as da criação
+        const edicao = Object.fromEntries(Object.entries(body || {}).filter(([k]) => !k.startsWith('_')));
+        st.put({ ...criacao, body: { ...(criacao.body || {}), ...edicao } });
       }
       tx.oncomplete = resolve;
       tx.onerror = () => reject(tx.error);
@@ -123,22 +127,39 @@ export async function removerDaFila(id) {
 // Alterações recusadas de vez pelo servidor (ex.: editar algo já excluído em
 // outro aparelho). Um toast sumia — coberto pelo toast da gravação seguinte —
 // e a perda passava despercebida: fica no botão da barra até a pessoa tocar.
+// "Em parte": o servidor gravou a alteração, menos a vaga de orador que outro
+// aparelho já tinha mudado (_descartados). Contar como "recusada… não foi
+// salva" levava a refazer o que já estava gravado.
 const CHAVE_RECUSADAS = 'recusadas_nao_vistas';
-let recusadasNaoVistas = (() => { try { return parseInt(localStorage.getItem(CHAVE_RECUSADAS), 10) || 0; } catch (e) { return 0; } })();
-const guardarRecusadas = () => { try { localStorage.setItem(CHAVE_RECUSADAS, String(recusadasNaoVistas)); } catch (e) {} };
-function mostrarRecusadas() {
+const CHAVE_PARCIAIS = 'parciais_nao_vistas';
+const lerNumero = k => { try { return parseInt(localStorage.getItem(k), 10) || 0; } catch (e) { return 0; } };
+let recusadasNaoVistas = lerNumero(CHAVE_RECUSADAS);
+let parciaisNaoVistas = lerNumero(CHAVE_PARCIAIS);
+const guardarRecusadas = () => {
+  try { localStorage.setItem(CHAVE_RECUSADAS, String(recusadasNaoVistas)); localStorage.setItem(CHAVE_PARCIAIS, String(parciaisNaoVistas)); } catch (e) {}
+};
+const textoParciais = p => p === 1
+  ? 'Uma alteração foi salva em parte: a vaga de orador que ela mudava já tinha mudado em outro aparelho e ficou como estava — confira na Sacramental'
+  : `${p} alterações foram salvas em parte: as vagas de orador que elas mudavam já tinham mudado em outro aparelho e ficaram como estavam — confira na Sacramental`;
+function mostrarRecusadas(novasRecusadas, novasParciais) {
   guardarRecusadas();
-  toast(recusadasNaoVistas === 1
-    ? 'Uma alteração foi recusada pelo servidor e descartada'
-    : `${recusadasNaoVistas} alterações foram recusadas pelo servidor e descartadas`);
+  if (novasRecusadas) {
+    toast(novasRecusadas === 1
+      ? 'Uma alteração foi recusada pelo servidor e descartada'
+      : `${novasRecusadas} alterações foram recusadas pelo servidor e descartadas`);
+  } else if (novasParciais) toast(textoParciais(novasParciais));
   atualizarContadorPendentes();
 }
 export function verRecusadas() {
-  if (!recusadasNaoVistas) return false;
-  toast(recusadasNaoVistas === 1
+  const r = recusadasNaoVistas, p = parciaisNaoVistas;
+  if (!r && !p) return false;
+  const partes = [];
+  if (r) partes.push(r === 1
     ? 'Uma alteração foi recusada pelo servidor (o item já não existia lá ou tinha mudado em outro aparelho) e não foi salva'
-    : `${recusadasNaoVistas} alterações foram recusadas pelo servidor (os itens já não existiam lá ou tinham mudado em outro aparelho) e não foram salvas`);
-  recusadasNaoVistas = 0;
+    : `${r} alterações foram recusadas pelo servidor (os itens já não existiam lá ou tinham mudado em outro aparelho) e não foram salvas`);
+  if (p) partes.push(textoParciais(p));
+  toast(partes.join('. '));
+  recusadasNaoVistas = 0; parciaisNaoVistas = 0;
   guardarRecusadas();
   atualizarContadorPendentes();
   return true;
@@ -150,19 +171,21 @@ export async function atualizarContadorPendentes() {
   const el = document.getElementById('sync-pendentes');
   if (!el) return;
   const n = (await lerFila()).filter(i => i.url).length;
-  const r = recusadasNaoVistas;
-  el.hidden = !n && !r;
+  const r = recusadasNaoVistas, p = parciaisNaoVistas;
+  el.hidden = !n && !r && !p;
   // Recusada tem cara própria (✕, vermelho, texto curto que aparece também no
   // celular): igual a "⚠ 1 não enviada", parecia algo que ainda ia sair.
-  el.classList.toggle('recusadas', !!r);
+  el.classList.toggle('recusadas', !!(r || p));
   const partes = [];
   if (n) partes.push(`<span class="pend-num">⚠ ${n}</span><span class="pend-txt">${n === 1 ? ' alteração não enviada' : ' alterações não enviadas'}</span>`);
   if (r) partes.push(`<span class="pend-rec">✕ ${r} ${r === 1 ? 'recusada' : 'recusadas'}</span>`);
+  if (p) partes.push(`<span class="pend-rec">◐ ${p} ${p === 1 ? 'salva em parte' : 'salvas em parte'}</span>`);
   // só números e textos fixos: nada de texto de usuário aqui
   el.innerHTML = partes.join('<span class="pend-sep"> · </span>');
   const descricao = [
     n && `${n} ${n === 1 ? 'alteração não enviada' : 'alterações não enviadas'} (guardada neste aparelho)`,
     r && `${r} ${r === 1 ? 'recusada' : 'recusadas'} pelo servidor`,
+    p && `${p} ${p === 1 ? 'salva' : 'salvas'} em parte`,
   ].filter(Boolean).join('; ');
   el.title = descricao + ' — toque para ver e enviar';
   el.setAttribute('aria-label', el.title);
@@ -196,7 +219,7 @@ async function enviarFila() {
   setSyncStatus('syncing');
   rotuloSync(` Enviando ${pendentes.length} pendente${pendentes.length > 1 ? 's' : ''}…`);
 
-  let enviados = 0, recusados = 0, falhou = false, enviouNotas = false;
+  let enviados = 0, recusados = 0, parciais = 0, falhou = false, enviouNotas = false;
   for (const item of pendentes) {
     try {
       const res = await fetch(comIdReal(item.url), {
@@ -205,12 +228,12 @@ async function enviarFila() {
         body: item.body != null ? JSON.stringify(item.body) : undefined,
       });
       if (res.ok) {
-        if (item.method === 'POST') {
-          const criado = await res.clone().json().catch(() => null);
-          if (criado?.id != null) idsReais.set(idProvisorio(item), String(criado.id));
-          // domingo que outro aparelho já tinha criado: o servidor juntou, mas
-          // não trocou a vaga que lá estava com outra pessoa (fundirDomingo)
-          if (Array.isArray(criado?._descartados) && criado._descartados.length) recusados++;
+        if (item.method === 'POST' || item.method === 'PUT') {
+          const resp = await res.clone().json().catch(() => null);
+          if (item.method === 'POST' && resp?.id != null) idsReais.set(idProvisorio(item), String(resp.id));
+          // domingo que outro aparelho já tinha criado, ou vaga que ele mudou:
+          // o servidor gravou o resto, mas não aquela vaga (fundirDomingo, travarVagas)
+          if (Array.isArray(resp?._descartados) && resp._descartados.length) parciais++;
         }
         if (caminhoDa(item.url) === '/api/notas') enviouNotas = true;
         await removerDaFila(item.id); enviados++; continue;
@@ -226,7 +249,10 @@ async function enviarFila() {
 
   // o servidor recusou de vez (ex.: editar algo que já foi excluído em outro
   // aparelho): sai da fila, mas sem fingir que deu certo
-  if (recusados) { recusadasNaoVistas += recusados; mostrarRecusadas(); }
+  if (recusados || parciais) {
+    recusadasNaoVistas += recusados; parciaisNaoVistas += parciais;
+    mostrarRecusadas(recusados, parciais);
+  }
   // as notas compartilhadas não estão no carregarTudo: recarrega para pegar o id do servidor
   // ...depois das gravações em voo (uma nota nova pode estar saindo agora)
   if (enviouNotas) import('./notas.js').then(async m => { await esperarGravacoes(); m.carregarNotasCompartilhadas(); }).catch(() => {});

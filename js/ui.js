@@ -220,8 +220,18 @@ function ligarModais() {
       const lista = focaveis(document.getElementById(topo.id));
       if (!lista.length) return;
       const [primeiro, ultimo] = [lista[0], lista.at(-1)];
-      if (e.shiftKey && document.activeElement === primeiro) { e.preventDefault(); ultimo.focus(); }
-      else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primeiro.focus(); }
+      const atual = document.activeElement;
+      // foco fora da ordem do Tab (a caixa da pessoa escolhida, com tabindex=-1,
+      // ou o <body>): o navegador sairia do modal — vai para o vizinho de dentro
+      if (!lista.includes(atual)) {
+        const depois = x => !!(atual.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING);
+        const alvo = e.shiftKey ? [...lista].reverse().find(x => !depois(x)) : lista.find(depois);
+        e.preventDefault();
+        (alvo || (e.shiftKey ? ultimo : primeiro)).focus();
+        return;
+      }
+      if (e.shiftKey && atual === primeiro) { e.preventDefault(); ultimo.focus(); }
+      else if (!e.shiftKey && atual === ultimo) { e.preventDefault(); primeiro.focus(); }
     }
   });
 

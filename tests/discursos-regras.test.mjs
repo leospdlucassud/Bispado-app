@@ -311,10 +311,25 @@ test('Elder e Irma são prenomes: não saem do nome do LCR (nem sem acento, digi
   assert.equal(primeiroNomeDe('Teste, Irma'), 'Irma');
   assert.equal(chavePessoa('Exemplo, Elder'), 'elder exemplo');
   assert.equal(chavePessoa('Irma Teste'), 'irma teste');
-  assert.equal(chavePessoa('Élder Exemplo'), 'exemplo');           // com acento é tratamento
   assert.equal(chavePessoa('Irmã Ana Souza'), chavePessoa('Souza, Ana'));
   const m = mensagemDiscurso({ n: 2, dk: '2026-10-18', minutos: 10, assinatura: 'o bispado', hojeKey: '2026-10-09', nome: 'Exemplo, Elder', genero: 'M' });
   assert.ok(m.startsWith('Olá, irmão Elder!') && !m.includes('Exemplo'));
+});
+
+test('Élder com acento também é prenome: a chave do quadro e a do nome gravado batem', () => {
+  // o app grava a vaga em ordem natural; o quadro tem o formato do LCR
+  assert.equal(chavePessoa('Élder Fictício'), chavePessoa('Fictício, Élder'));
+  assert.equal(primeiroNomeDe('Élder Fictício'), 'Élder');
+  assert.equal(nomeCurto('Élder Fictício'), 'Élder Fictício');
+  const quadro = [{ id: 1, name: 'Fictício, Élder', gender: 'M', telefone: '(63) 90000-0010' }];
+  assert.equal(membroDaChave(chavePessoa('Élder Fictício'), indiceDoQuadro(quadro))?.id, 1);
+});
+
+test('orador de fora com vírgula fica como foi digitado', () => {
+  assert.equal(nomeNatural('Irmão Lima, da Estaca Exemplo'), 'Irmão Lima, da Estaca Exemplo');
+  assert.equal(nomeNatural('Presidente Exemplo, sumo conselheiro'), 'Presidente Exemplo, sumo conselheiro');
+  assert.equal(nomeCurto('Irmão Lima, da Estaca Exemplo'), 'Irmão Lima');
+  assert.equal(nomeNatural('de Souza, Ana'), 'Ana de Souza');          // LCR continua invertido
 });
 
 test('chave estrita separa "Maria de Souza" de "Maria Souza"', () => {
@@ -351,5 +366,33 @@ test('textos no singular', () => {
   const k = chavePessoa('Ana Souza');
   const um = { orador1Status: 'dispensada', orador2Status: 'dispensada', orador3: 'Ana Souza', orador3Chave: k, orador3Status: 'aceito' };
   assert.equal(resumoDomingo(um, '2026-10-18', HOJE), '✅ o orador confirmado');
-  assert.deepEqual([0, 1, 2, 7].map(haMeses), ['este mês', 'há 1 mês', 'há 2 meses', 'há 7 meses']);
+  assert.deepEqual([0, 1, 2, 7].map(haMeses), ['há menos de 1 mês', 'há 1 mês', 'há 2 meses', 'há 7 meses']);
+});
+
+test('"há N meses" com N < 6 nunca aparece nos Sugeridos', () => {
+  // hoje 10/10; a vaga é de 06/12: o corte conta até hoje, como o texto
+  const pessoas = [
+    { chave: 'ana souza', nome: 'Ana Souza', grupo: 'ss', ultimo: { data: '2026-05-31', n: 2 } },
+    { chave: 'bruno lima', nome: 'Bruno Lima', grupo: 'quorum', ultimo: null },
+  ];
+  const r = sugerirParaVaga({ pessoas, dk: '2026-12-06', n: 2, hojeKey: '2026-10-10' });
+  assert.deepEqual(r.lista.map(x => x.pessoa.chave), ['bruno lima']);
+  assert.deepEqual(r.recentes.map(x => x.pessoa.chave), ['ana souza']);
+  assert.ok(r.recentes[0].motivo.includes('há 4 meses'));
+});
+
+test('upsert: "Maria Souza" não toma a vaga nem o Confirmado de "Maria de Souza"', () => {
+  const existente = { id: '1', data: '2026-10-18', orador1: 'Maria de Souza', orador1Chave: chavePessoa('Maria de Souza'), orador1Status: 'aceito' };
+  const r = fundirDomingo(existente, { data: '2026-10-18', ...camposAoTrocarOrador(1, 'Maria Souza') });
+  assert.deepEqual(r.descartados, [1]);
+  assert.equal(r.registro.orador1, 'Maria de Souza');
+  assert.equal(r.registro.orador1Status, 'aceito');
+});
+
+test('programa especial sem oradores não alarma o resumo da semana', () => {
+  assert.equal(resumoDomingo({ tipo: 'especial' }, '2026-12-20', '2026-12-15'), 'Especial · sem oradores designados');
+  const k = chavePessoa('Ana Souza');
+  const um = { tipo: 'especial', orador1: 'Ana Souza', orador1Chave: k, orador1Status: 'aceito' };
+  assert.equal(resumoDomingo(um, '2026-12-20', '2026-12-15'), '✅ 1 confirmado · 2 vagas abertas');
+  assert.ok(!pendenciasDiscurso([{ data: '2026-12-20', tipo: 'especial' }], '2026-12-15').some(p => p.dk === '2026-12-20'));
 });

@@ -11,8 +11,8 @@ import { MEMBROS } from './dados-membros.js';
 import { confirmar } from './dialogo.js';
 import {
   CORES_POSICAO, MAX_SEMANAS, ORDEM_TIPOS, POSICOES, ROTULO_ESTADO, TEMPOS_OPCOES, TIPOS_DOMINGO,
-  camposAoTrocarOrador, chaveEstrita, chavePessoa, diffCampos, ehDomingo, estadoDaVaga, minutosDaVaga, nomeCurto,
-  nomeNatural, partesData, proximoDomingo, proximosDomingos, registroDoDomingo, tipoDe,
+  camposAoTrocarOrador, camposDaVaga, chaveEstrita, chavePessoa, diffCampos, ehDomingo, estadoDaVaga, marcaVaga,
+  minutosDaVaga, nomeCurto, nomeNatural, partesData, proximoDomingo, proximosDomingos, registroDoDomingo, tipoDe,
 } from './discursos-regras.js';
 import { inicioColecaoCarregada, renderInicio } from './inicio.js';
 import { imprimirAtaSacramental } from './pdf.js';
@@ -407,7 +407,9 @@ export async function salvarSac(dataKey) {
   if (avisos.length && !await confirmar(avisos.join(' ') + ' Trocar mesmo assim? Lembre-se de avisar.', { okLabel: 'Trocar' })) return;
 
   fecharModal('modal-sacramental');
-  const r = await gravarCamposDomingo(dataKey, diff);
+  // a vaga que outro aparelho mudou enquanto a ata estava aberta não é sobrescrita
+  const vagas = POSICOES.filter(n => camposDaVaga(n).some(k => k in diff));
+  const r = await gravarCamposDomingo(dataKey, diff, { vagas });
   if (r === 'ok') toast('Programação salva');
 }
 
@@ -438,10 +440,15 @@ export async function excluirSac(id) {
 // domingo novo espera o POST da primeira e já sai como PUT com o id real.
 const emOrdem = encadearPorChave();
 
-export function gravarCamposDomingo(dk, campos) {
+// `vagas`: as vagas (1, 2, 3) sobre cuja pessoa esta escrita age. Cada uma vai
+// com a marca de quem o aparelho via nela, e o servidor não grava naquela vaga
+// se ela tiver mudado em outro aparelho (travarVagas).
+export function gravarCamposDomingo(dk, campos, { vagas = [] } = {}) {
   if (!ehDomingo(dk)) { toast('Esta data não é um domingo'); return Promise.resolve(false); }
   if (!DADOS.sacramentais) DADOS.sacramentais = [];
   let reg = getSacPorData(dk);
+  // lida ANTES da escrita otimista: é o que a pessoa via ao tocar
+  const marcas = Object.fromEntries(vagas.map(n => [marcaVaga(n), chaveEstrita(reg?.['orador' + n] || '')]));
   // otimista: a tela mostra na hora
   if (reg) Object.assign(reg, campos);
   else { reg = { data: dk, ...campos }; DADOS.sacramentais.push(reg); }
@@ -454,23 +461,24 @@ export function gravarCamposDomingo(dk, campos) {
     // de preferência um que já tenha id (a gravação anterior deste domingo)
     const vivo = (reg.id && DADOS.sacramentais.find(s => String(s.id) === String(reg.id)))
       || DADOS.sacramentais.find(s => s && s.data === dk && s.id) || getSacPorData(dk) || reg;
-    if (vivo !== reg) Object.assign(vivo, campos);   // a escolha aparece no registro que vale
+    // a escolha aparece no registro que vale — de novo também quando é o mesmo:
+    // a resposta da gravação anterior deste domingo a apagou da tela
+    Object.assign(vivo, campos);
     let resultado = 'ok';
     try {
       // o servidor devolve o registro inteiro, já com o que outro aparelho gravou
       let registro = null;
-      if (vivo.id) {
-        registro = await apiFetch(API_SAC + '?id=' + encodeURIComponent(vivo.id), 'PUT', campos);
-      } else {
-        const r = await apiFetch(API_SAC, 'POST', { data: dk, ...campos });
-        if (r) {
-          // o servidor pode ter juntado com um domingo que já existia lá
-          const { _descartados, ...resto } = r;
-          registro = resto;
-          if (Array.isArray(_descartados) && _descartados.length) {
-            toast(`Outro aparelho já tinha escolhido o orador do ${_descartados.join('º e do ')}º discurso deste domingo — veja como ficou.`);
-            resultado = 'descartado';
-          }
+      const r = vivo.id
+        ? await apiFetch(API_SAC + '?id=' + encodeURIComponent(vivo.id), 'PUT', { ...campos, ...marcas })
+        : await apiFetch(API_SAC, 'POST', { data: dk, ...campos, ...marcas });
+      if (r) {
+        // o POST pode ter juntado com um domingo que já existia lá; e, nos
+        // dois, a vaga que outro aparelho mudou fica como estava
+        const { _descartados, ...resto } = r;
+        registro = resto;
+        if (Array.isArray(_descartados) && _descartados.length) {
+          toast(`O ${_descartados.join('º e o ')}º discurso deste domingo já tinha mudado em outro aparelho — veja como ficou.`);
+          resultado = 'descartado';
         }
       }
       if (registro && registro.id != null) Object.assign(vivo, registro);
@@ -486,8 +494,13 @@ export function gravarCamposDomingo(dk, campos) {
     } catch (e) {
       // sem sinal: fica na tela e na fila, e sai ao sincronizar
       if (!vivo.id) vivo.id = idProvisorioDo(e);
-      if (!DADOS.sacramentais.includes(vivo)) DADOS.sacramentais.push(vivo);
-      DADOS.sacramentais = DADOS.sacramentais.filter(s => s === vivo || !(s && s.data === dk && !s.id));
+      // uma carga no meio pode ter trocado a lista: o registro com o mesmo id na
+      // lista nova recebe a escolha, sem voltar a cópia antiga (domingo duplicado)
+      const mesmo = DADOS.sacramentais.find(s => s && s !== vivo && String(s.id) === String(vivo.id));
+      if (mesmo) Object.assign(mesmo, campos);
+      const fica = mesmo || vivo;
+      if (!DADOS.sacramentais.includes(fica)) DADOS.sacramentais.push(fica);
+      DADOS.sacramentais = DADOS.sacramentais.filter(s => s === fica || !(s && s.data === dk && (!s.id || s === vivo)));
       avisarPendente('programação');
       resultado = 'pendente';
     }

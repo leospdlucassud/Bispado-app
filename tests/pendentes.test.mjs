@@ -89,3 +89,13 @@ test('ajuste do rodízio (oradores) é reaplicado', () => {
   aplicarPendentes(d, [{ url: '/api/oradores?id=20', method: 'PUT', ts: 1, body: { grupo: 'jas' } }], sacOrad);
   assert.equal(d.oradores[0].grupo, 'jas');
 });
+
+test('na fila, a trava da vaga vale como no servidor', () => {
+  const d = comSac();
+  // tela velha: tocou "Não pode" para "Gil", mas a vaga já é da Ana
+  aplicarPendentes(d, [{ url: '/api/sacramentais?id=10', method: 'PUT', ts: 1,
+    body: { orador1Status: 'recusou', orador1Chave: 'gil teste', _vaga1: 'gil teste', primeiroHino: '5' } }], sacOrad);
+  assert.equal(d.sacramentais[0].orador1Status, 'aceito');
+  assert.equal(d.sacramentais[0].primeiroHino, '5');
+  assert.ok(!('_vaga1' in d.sacramentais[0]));
+});

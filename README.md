@@ -60,9 +60,16 @@ acompanhamentos, eventos e oradores) são funções de 3 linhas que delegam a
 já existe **junta** no registro dela em vez de criar outro, e responde 200 com
 o mesmo id. No domingo, `fundirDomingo` (de `discursos-regras.js`) não troca uma
 vaga que outro aparelho já preencheu com outra pessoa — devolve
-`_descartados: [n]`, e a fila conta isso como "recusada". A fila offline
+`_descartados: [n]`, e a fila conta isso como "salva em parte". A fila offline
 (`pendentes.js`) junta do mesmo jeito, com a mesma função. O PUT nunca troca
 `id`, `criadoEm` nem o campo único.
+
+**Trava da vaga** (`crudHandler(chave, { travar })`, `travarVagas`): toda
+escrita do app que age sobre quem está numa vaga de orador (convite, resposta,
+tempo e tema, tirar, trocar, a ata) leva `_vaga{n}` com a chave estrita de quem
+o aparelho via ali. No POST e no PUT, se a vaga mudou em outro aparelho, nada
+daquela vaga é gravado e a resposta traz `_descartados`; a marca nunca é
+gravada. A fila aplica a mesma trava.
 
 **`/api/convite`** é o único caminho da tela que o membro abre pelo link
 (`/convite.html?id=<id>`; os links antigos, `/?confirmar=<id>`, são redirecionados
