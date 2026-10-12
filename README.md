@@ -89,6 +89,9 @@ clássico do `<head>`, manda os links antigos do convite para a página nova).
 
 | Arquivo | Responsabilidade |
 | --- | --- |
+| `demo.js` | Modo demonstração (`?demo`): o PRIMEIRO import do `main.js` e do `convite.js` — separa o localStorage e o IndexedDB e desvia o `/api/` antes de qualquer módulo ler ou buscar dados; faixa no topo |
+| `demo-dados.js` | A ala fictícia, gerada a partir de hoje, sem sorteio (sem DOM, testado) |
+| `demo-servidor.js` | O `/api/*` da demonstração dentro do navegador, com as mesmas regras do servidor (sem DOM, testado) |
 | `dados-membros.js` | Começa vazio (o arquivo é público); o quadro vem do PDF do LCR e fica no servidor |
 | `config.js` | Constantes, estado global (`DADOS`), nome da ala, a tabela única de cargos (`CARGOS_INFO`) e as cores de status |
 | `pendentes.js` | Reaplica a fila offline sobre o que veio do servidor (sem DOM, testado) |
@@ -137,6 +140,15 @@ com `data-act` e cada módulo liga os seus numa função `ligar<Área>()`.
 
 ## Pontos de atenção
 
+- **Modo demonstração (`?demo`).** Para apresentar o app sem expor a ala. Vale
+  por aba (sessionStorage); os dados fictícios valem pelo dia e ficam num
+  compartimento próprio do localStorage/IndexedDB (prefixo `demo:`). Três
+  regras para não furar o isolamento:
+  - `demo.js` tem de continuar sendo o **primeiro import** do `main.js` e do
+    `convite.js` (notas.js, usuario.js e tema.js leem o localStorage ao carregar);
+  - um endpoint novo em `netlify/functions/` precisa ganhar a sua versão em
+    `demo-servidor.js` (senão responde 404 na demonstração — nunca vai à rede);
+  - mudou o formato do que `gerar()` devolve, suba `VERSAO_DEMO` em `demo.js`.
 - **Sigilo não é segurança.** `podeVer()` esconde itens sigilosos de quem não
   está identificado como Bispo, mas não há senha e os dados ficam no mesmo
   banco. Serve para não expor um assunto delicado na tela errada. Para o que

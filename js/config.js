@@ -1,6 +1,8 @@
 // =============================================
 // CONFIGURAÇÃO
 // =============================================
+import { EM_DEMO } from './demo.js';
+
 export const API_AGENDA    = '/api/agenda';
 export const API_REUNIOES  = '/api/reunioes';
 export const API_DESIG     = '/api/designacoes';
@@ -56,7 +58,7 @@ export let DADOS = { agenda:[], reunioes:[], designacoes:[], eventos_extras:[], 
 // (o que esta publicado) para o app instalado se atualizar sozinho.
 // Nao editar a mao: `node scripts/versao.mjs patch|minor|major` atualiza este,
 // o version.json, o CACHE do sw.js e o package.json juntos.
-export const VERSAO = '5.21.1';
+export const VERSAO = '5.22.0';
 
 // =============================================
 // NOME DA ALA
@@ -74,7 +76,8 @@ export function comAla(txt) {
 // Preenche todo elemento marcado com data-ala
 export function aplicarNomeAla() {
   document.querySelectorAll('[data-ala]').forEach(el => { el.textContent = ALA; });
-  document.title = `Bispado ${ALA} — Painel`;
+  // na demonstração, a aba projetada também avisa
+  document.title = `${EM_DEMO ? 'Demonstração — ' : ''}Bispado ${ALA} — Painel`;
   // o rodape vem da constante: assim o que aparece na tela e o que o app usa
   // para se comparar com o servidor nunca ficam diferentes
   document.querySelectorAll('[data-versao]').forEach(el => { el.textContent = 'v' + VERSAO; });

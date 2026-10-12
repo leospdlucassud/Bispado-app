@@ -46,7 +46,7 @@ const navegador = [
   'cancelAnimationFrame', 'alert', 'confirm', 'prompt', 'Event', 'CustomEvent', 'KeyboardEvent',
   'HTMLElement', 'Node', 'NodeFilter', 'MutationObserver', 'ResizeObserver', 'IntersectionObserver',
   'FileReader', 'Image', 'DOMParser', 'CSS', 'screen', 'scrollTo', 'open', 'print', 'self',
-  'IDBKeyRange', 'BroadcastChannel', 'visualViewport', 'innerWidth', 'innerHeight', 'addEventListener',
+  'IDBKeyRange', 'IDBFactory', 'Storage', 'BroadcastChannel', 'visualViewport', 'innerWidth', 'innerHeight', 'addEventListener',
   'removeEventListener', 'dispatchEvent', 'devicePixelRatio', 'isSecureContext',
   // bibliotecas carregadas por <script> (pdf.js e jsPDF, sob demanda)
   'pdfjsLib', 'jspdf',

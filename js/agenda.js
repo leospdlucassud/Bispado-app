@@ -8,6 +8,7 @@ import { reativarAbaAtual } from './app.js';
 import { ALA, API_AGENDA, CARGOS_INFO, COR_STATUS, DADOS, corDoCargo, nomeDoResponsavel } from './config.js';
 import { primeiroNome, tipoNoConvite } from './convite-regras.js';
 import { MEMBROS } from './dados-membros.js';
+import { comDemo } from './demo.js';
 import { confirmar, pedirTexto } from './dialogo.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { podeVer, toast } from './usuario.js';
@@ -352,7 +353,8 @@ export { digitosTelefone };
 export function linkConfirmacao(id) {
   // página própria e leve (convite.html). Os links antigos, ?confirmar=<id>,
   // continuam valendo: js/redirecionar-convite.js manda para cá.
-  return location.origin + '/convite.html?id=' + encodeURIComponent(id);
+  // na demonstração, o link leva o modo junto (a tela do membro abre os dados fictícios)
+  return comDemo(location.origin + '/convite.html?id=' + encodeURIComponent(id));
 }
 
 // Texto do convite — o mesmo no WhatsApp, no e-mail e no link copiado.

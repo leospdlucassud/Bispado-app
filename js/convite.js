@@ -4,6 +4,8 @@
 // biblioteca de PDF, sem service worker. Antes, o link abria o app inteiro.
 // Lê e grava só por /api/convite (ver netlify/functions/convite.js).
 // =============================================
+// primeiro: o link de um convite da demonstração (?demo) abre os dados fictícios
+import './demo.js';
 import { ALA, API_CONVITE } from './config.js';
 import { conviteJaRespondido, encerrada } from './convite-regras.js';
 import { esc, formatarData } from './utils.js';

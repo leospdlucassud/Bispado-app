@@ -3,6 +3,7 @@
 // =============================================
 import { ALA } from './config.js';
 import { MEMBROS, setMembros } from './dados-membros.js';
+import { EM_DEMO } from './demo.js';
 import { API_MEMBROS, MEMBROS_SAIDOS, MOVIMENTACOES, movimentacoesCarregadas, renderMembros, setMembrosSaidos, setRosterAtualizado } from './membros.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
@@ -181,6 +182,8 @@ export async function importarPdfMembros(input) {
   const arquivo = input.files && input.files[0];
   input.value = '';
   if (!arquivo) return;
+  // o PDF do LCR tem os nomes de verdade: não entram na demonstração
+  if (EM_DEMO) { toast('Na demonstração, a importação do LCR fica desligada — o quadro de membros é fictício'); return; }
 
   abrirModal('modal-import');
   document.getElementById('modal-import-content').innerHTML =

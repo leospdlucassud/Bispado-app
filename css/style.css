@@ -782,3 +782,22 @@
   .rod-grupo { display:inline-flex; align-items:center; font-size:11px; font-weight:700; padding:1px 7px; border-radius:10px; border:1px solid currentColor; }
   .rod-quadro-vazio { text-align:left; padding:14px; margin-bottom:12px; }
   #rod-lista > .btn-secondary { width:100%; }
+
+/* =============================================
+   MODO DEMONSTRAÇÃO (?demo) — a faixa fica no topo de todas as telas: numa
+   apresentação projetada, ninguém pode sair achando que aqueles nomes são da ala
+   ============================================= */
+.demo-faixa {
+  display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px 14px;
+  padding:8px 16px; background:var(--bg3); color:var(--text1);
+  border-bottom:2px solid var(--gold); font-size:13px; line-height:1.4; text-align:center;
+  /* não é sticky: a barra de navegação (.barra-nav) já fica presa no topo */
+}
+.demo-faixa strong { color:var(--gold); }
+.demo-faixa__acoes { display:inline-flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+.demo-faixa__btn {
+  background:transparent; color:var(--text1); border:1px solid var(--gold); border-radius:8px;
+  padding:5px 10px; font:inherit; font-size:12px; cursor:pointer;
+}
+.demo-faixa__btn:hover, .demo-faixa__btn:focus-visible { background:var(--bg4); }
+.demo-faixa__erro { flex-basis:100%; color:var(--st-pendente); }
