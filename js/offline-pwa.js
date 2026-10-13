@@ -2,6 +2,7 @@
 import { atualizarUltimaSinc, carregarDados, esperarGravacoes, haGravacoes, rotuloSync, setSyncStatus } from './api.js';
 import { MODO_CONVITE, VERSAO } from './config.js';
 import { idProvisorio } from './pendentes.js';
+import { cabecalhoSessao, papelDaSessao, sair } from './sessao.js';
 import { haModalAberto, quandoSemModal } from './ui.js';
 import { toast } from './usuario.js';
 
@@ -27,13 +28,16 @@ export function abrirDB() {
 // lados falarem do mesmo item. Estritamente crescente: dois itens no mesmo
 // milissegundo teriam o mesmo id.
 let ultimoTs = 0;
+export const esperaSessao = item => !!item?.papel && !papelDaSessao();
 export async function salvarNaFila(url, method, body) {
   const ts = ultimoTs = Math.max(Date.now(), ultimoTs + 1);
   try {
     const db = await abrirDB();
     await new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_Q, 'readwrite');
-      tx.objectStore(STORE_Q).add({ url, method, body, ts });
+      // `papel`: feita com a sessão de Bispo/ADM — só sai com uma sessão aberta
+      // (sem ela, o servidor recusaria a alteração num sigiloso, e a fila a perdia)
+      tx.objectStore(STORE_Q).add({ url, method, body, ts, papel: papelDaSessao() || '' });
       tx.oncomplete = resolve;
       tx.onerror = () => reject(tx.error);
     });
@@ -213,7 +217,8 @@ async function enviarFila() {
   const antigos = fila.filter(i => !i.url);
   for (const i of antigos) await removerDaFila(i.id);
 
-  const pendentes = fila.filter(i => i.url).sort((a, b) => a.ts - b.ts);
+  // as feitas pelo Bispo/ADM esperam, na fila, alguém entrar de novo com a senha
+  const pendentes = fila.filter(i => i.url && !esperaSessao(i)).sort((a, b) => a.ts - b.ts);
   if (!pendentes.length) return;
 
   setSyncStatus('syncing');
@@ -224,9 +229,11 @@ async function enviarFila() {
     try {
       const res = await fetch(comIdReal(item.url), {
         method: item.method,
-        headers: { 'Content-Type': 'application/json' },
+        // a sessão de AGORA: alteração num sigiloso só passa com Bispo/ADM
+        headers: { 'Content-Type': 'application/json', ...cabecalhoSessao() },
         body: item.body != null ? JSON.stringify(item.body) : undefined,
       });
+      if (res.headers.get('X-Sessao') === 'invalida') sair('recusada');
       if (res.ok) {
         if (item.method === 'POST' || item.method === 'PUT') {
           const resp = await res.clone().json().catch(() => null);

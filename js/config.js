@@ -10,6 +10,8 @@ export const API_EVENTOS   = '/api/eventos_extras';
 export const API_SAC       = '/api/sacramentais';
 // ajustes do rodízio de discursos por pessoa (organização, pausa…) — rodizio.js
 export const API_ORADORES  = '/api/oradores';
+// entrar como Bispo ou ADM (a senha é conferida no servidor) — sessao.js
+export const API_SESSAO    = '/api/sessao';
 // Horário da reunião sacramental, "HH:MM". Preenchido, entra na mensagem do
 // convite para discursar ("domingo, 18 de outubro, às 9h"); vazio, fica de fora.
 export const HORARIO_SACRAMENTAL = '';
@@ -58,7 +60,7 @@ export let DADOS = { agenda:[], reunioes:[], designacoes:[], eventos_extras:[], 
 // (o que esta publicado) para o app instalado se atualizar sozinho.
 // Nao editar a mao: `node scripts/versao.mjs patch|minor|major` atualiza este,
 // o version.json, o CACHE do sw.js e o package.json juntos.
-export const VERSAO = '5.23.0';
+export const VERSAO = '5.24.0';
 
 // =============================================
 // NOME DA ALA

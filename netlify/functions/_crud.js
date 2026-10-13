@@ -1,6 +1,7 @@
 import { getStore } from "@netlify/blobs";
 import { ALA_ID } from "./_ala.js";
-import { aplicarPut, inserirOuMesclar, limparCorpo } from "../../js/crud-regras.js";
+import { aplicarPut, escondidoPorSigilo, inserirOuMesclar, limparCorpo, semSigilosos } from "../../js/crud-regras.js";
+import { sessaoDa } from "./_sessao.js";
 
 // Um store por ala (ver _ala.js).
 const STORE = "bispado-" + ALA_ID;
@@ -10,7 +11,7 @@ export const H = {
   "Content-Type": "application/json",
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
 // Lê a coleção junto com o ETag, usado depois para gravar sem atropelar
@@ -55,9 +56,16 @@ export async function alterar(store, key, mutar, tentativas = 4) {
 // `travar`: no POST e no PUT, tira do corpo o que dependia de um estado que já
 // mudou (a vaga de orador que outro aparelho trocou); a resposta diz o quê em
 // `_descartados`.
-export function crudHandler(key, { unicoPor = "", fundir, travar } = {}) {
+// `sigilo`: a coleção tem itens sigilosos (agenda, acompanhamentos) — só saem,
+// e só são alterados ou excluídos, com a sessão de Bispo ou ADM.
+export function crudHandler(key, { unicoPor = "", fundir, travar, sigilo = false } = {}) {
   return async (req) => {
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: H });
+    const sessao = sigilo ? sessaoDa(req) : { papel: null, invalida: false };
+    const veSigilo = !!sessao.papel;
+    // token que não vale mais (vencido, senha trocada): o app esquece a sessão
+    const cab = sessao.invalida ? { ...H, "X-Sessao": "invalida" } : H;
+    const naoAchou = () => new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: cab });
 
     let store;
     try { store = abrirStore(); }
@@ -68,7 +76,7 @@ export function crudHandler(key, { unicoPor = "", fundir, travar } = {}) {
     try {
       if (req.method === "GET") {
         const { data } = await lerColecao(store, key);
-        return new Response(JSON.stringify(data), { headers: H });
+        return new Response(JSON.stringify(sigilo ? semSigilosos(data, veSigilo) : data), { headers: cab });
       }
       if (req.method === "POST") {
         const body = await req.json();
@@ -87,7 +95,7 @@ export function crudHandler(key, { unicoPor = "", fundir, travar } = {}) {
         const item = { ...limparCorpo(body), id: Date.now().toString(), criadoEm: new Date().toISOString() };
         return await alterar(store, key, data => ({
           data: [...data, item],
-          resposta: () => new Response(JSON.stringify(item), { status: 201, headers: H }),
+          resposta: () => new Response(JSON.stringify(item), { status: 201, headers: cab }),
         }));
       }
       if (req.method === "PUT" && id) {
@@ -95,24 +103,26 @@ export function crudHandler(key, { unicoPor = "", fundir, travar } = {}) {
         const body = limparCorpo(await req.json(), unicoPor ? [unicoPor] : []);
         return await alterar(store, key, data => {
           const idx = data.findIndex(i => i.id === id);
-          if (idx === -1) {
-            return { erro: new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: H }) };
-          }
+          // sigiloso, para quem não entrou como Bispo: como se não existisse
+          if (idx === -1 || escondidoPorSigilo(data[idx], veSigilo)) return { erro: naoAchou() };
           const { item: atualizado, descartados } = aplicarPut(data[idx], body, { agora: new Date().toISOString(), travar });
           const novo = [...data];
           novo[idx] = atualizado;
           const saida = descartados.length ? { ...atualizado, _descartados: descartados } : atualizado;
           return {
             data: novo,
-            resposta: () => new Response(JSON.stringify(saida), { headers: H }),
+            resposta: () => new Response(JSON.stringify(saida), { headers: cab }),
           };
         });
       }
       if (req.method === "DELETE" && id) {
-        return await alterar(store, key, data => ({
-          data: data.filter(i => i.id !== id),
-          resposta: () => new Response(JSON.stringify({ ok: true }), { headers: H }),
-        }));
+        return await alterar(store, key, data => {
+          if (escondidoPorSigilo(data.find(i => i.id === id), veSigilo)) return { erro: naoAchou() };
+          return {
+            data: data.filter(i => i.id !== id),
+            resposta: () => new Response(JSON.stringify({ ok: true }), { headers: cab }),
+          };
+        });
       }
       return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers: H });
     } catch (e) {

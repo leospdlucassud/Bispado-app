@@ -17,6 +17,13 @@ export function limparCorpo(body, extra = []) {
 
 export const fundirSimples = (existente, corpo) => ({ registro: { ...existente, ...corpo }, descartados: [] });
 
+// Sigilo (agenda e acompanhamentos): o item sigiloso só sai do servidor para
+// quem entrou com a senha de Bispo ou ADM (netlify/functions/_sessao.js). Os
+// outros cargos nem o recebem — e não alteram nem excluem o que não veem.
+export const semSigilosos = (lista, veSigilo) =>
+  (veSigilo ? lista : (Array.isArray(lista) ? lista : []).filter(i => !(i && i.sigiloso)));
+export const escondidoPorSigilo = (registro, veSigilo) => !!(registro && registro.sigiloso && !veSigilo);
+
 // `travar(existente, corpo)` tira do corpo o que dependia de um estado que já
 // mudou no servidor (ver travarVagas, em discursos-regras.js) e diz o quê
 export const semTrava = (existente, corpo) => ({ corpo, descartados: [] });

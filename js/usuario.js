@@ -1,24 +1,38 @@
 // =============================================
 // QUEM ESTÁ USANDO O PAINEL
-// Sem senha — vale a integridade de quem usa. Serve para atribuir registros
-// e para esconder assuntos sigilosos de quem não é o bispo.
+// Os cargos de conselheiro e secretário se escolhem sem senha — vale a
+// integridade de quem usa, e serve para atribuir registros. O Bispo e o ADM
+// entram com SENHA, conferida no servidor (sessao.js): só eles recebem do
+// servidor os assuntos sigilosos, e só eles os veem.
 // =============================================
 import { renderAcompanhamentos } from './acompanhamento.js';
 import { renderAgenda } from './agenda.js';
+import { carregarDados } from './api.js';
+import { doSearch } from './busca.js';
 import { abrirEdicaoChamados, nomeDoCargo } from './chamados.js';
-import { CARGOS, CARGOS_INFO } from './config.js';
+import { CARGOS, CARGOS_INFO, DADOS } from './config.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { renderInicio } from './inicio.js';
 import { renderAbaSacramental, sacCarregado } from './sacramental.js';
+import { aoTerminarSessao, entrar, papelDaSessao, sair } from './sessao.js';
 import { esc } from './utils.js';
 
 export const CARGO_KEY = 'cargo_atual';
-export const ICONE_CARGO = Object.fromEntries(CARGOS_INFO.map(c => [c.nome, c.icone]));
-export let USUARIO = localStorage.getItem(CARGO_KEY) || '';
+// O ADM não é um chamado: é o acesso de administração, com a visão do bispo
+export const CARGO_ADM = 'ADM';
+const COM_SENHA = { 'Bispo': 'bispo', [CARGO_ADM]: 'adm' };
+const ROTULO_SENHA = { bispo: 'Bispo', adm: 'ADM' };
+export const ICONE_CARGO = { ...Object.fromEntries(CARGOS_INFO.map(c => [c.nome, c.icone])), [CARGO_ADM]: '🛡️' };
 
-export const ehBispo = () => USUARIO === 'Bispo';
+// Bispo ou ADM guardado sem sessão válida (a de 30 dias venceu, ou é a
+// primeira abertura depois da senha existir): volta a perguntar quem é
+const guardado = localStorage.getItem(CARGO_KEY) || '';
+const pedeSenhaDeNovo = !!COM_SENHA[guardado] && !papelDaSessao();
+export let USUARIO = pedeSenhaDeNovo ? '' : guardado;
 
-// Um item sigiloso só aparece para o bispo
+export const ehBispo = () => !!COM_SENHA[USUARIO] && !!papelDaSessao();
+
+// Um item sigiloso só aparece para o bispo (e para o ADM)
 export const podeVer = item => !item.sigiloso || ehBispo();
 
 export function renderQuemBadge() {
@@ -31,18 +45,28 @@ export function renderQuemBadge() {
     : '👤 Identificar-se';
 }
 
+let avisoDaEscolha = pedeSenhaDeNovo
+  ? 'A sessão de Bispo/ADM neste aparelho terminou (ou ainda não foi aberta): entre com a senha.' : '';
+
 export function abrirEscolhaCargo() {
   const cx = document.getElementById('quem-opcoes');
-  cx.innerHTML = CARGOS.map(c => `
-    <button type="button" class="quem-opt" data-cargo="${c}">
+  const logado = papelDaSessao();
+  const opcao = c => `
+    <button type="button" class="quem-opt" data-cargo="${esc(c)}">
       <span class="qi">${ICONE_CARGO[c] || '👤'}</span>
-      <span style="font-size:13.5px;font-weight:600">${c}${nomeDoCargo(c) ? `<span style="font-weight:400;color:var(--text2)"> · ${esc(nomeDoCargo(c))}</span>` : ''}</span>
-      ${c === 'Bispo' ? '<span style="margin-left:auto;font-size:10px;--c:#e05555">vê sigilosos</span>' : ''}
-    </button>`).join('');
+      <span style="font-size:13.5px;font-weight:600">${esc(c)}${nomeDoCargo(c) ? `<span style="font-weight:400;color:var(--text2)"> · ${esc(nomeDoCargo(c))}</span>` : ''}</span>
+      ${COM_SENHA[c] ? `<span style="margin-left:auto;font-size:10px;--c:#e05555">${logado === COM_SENHA[c] ? '✓ conectado' : '🔒 senha'} · vê sigilosos</span>` : ''}
+    </button>`;
+  cx.innerHTML = (avisoDaEscolha ? `<div class="quem-aviso" role="status">${esc(avisoDaEscolha)}</div>` : '')
+    + CARGOS.map(opcao).join('') + opcao(CARGO_ADM);
+  avisoDaEscolha = '';
+  if (logado) {
+    cx.insertAdjacentHTML('beforeend', `
+      <button type="button" id="quem-sair" class="quem-link">🔓 Sair da conta de ${ROTULO_SENHA[logado]} neste aparelho</button>`);
+  }
   // Chamados sao temporarios: da para corrigir os nomes sem mexer no codigo.
   cx.insertAdjacentHTML('beforeend', `
-    <button id="quem-editar"
-      style="display:block;width:100%;margin-top:10px;background:none;border:none;--c:#5b7a99;font-size:12px;text-decoration:underline;cursor:pointer;font-family:inherit">✏️ Editar os nomes dos chamados</button>`);
+    <button id="quem-editar" class="quem-link">✏️ Editar os nomes dos chamados</button>`);
   // Sem cargo escolhido a janela é obrigatória (não fecha por Esc nem Voltar);
   // com cargo, quem tocou no crachá só para conferir pode sair pelo ✕.
   const fechar = document.getElementById('quem-fechar');
@@ -50,10 +74,63 @@ export function abrirEscolhaCargo() {
   abrirModal('quem-modal', { obrigatorio: !USUARIO, semConfirmacao: true });
 }
 
+// A senha, dentro da mesma janela — a escolha volta pelo "‹ Escolher outro cargo"
+function pedirSenha(cargo) {
+  const papel = COM_SENHA[cargo];
+  const cx = document.getElementById('quem-opcoes');
+  cx.innerHTML = `
+    <form id="quem-senha" class="quem-senha" data-cargo="${esc(cargo)}">
+      <label for="quem-senha-campo" class="quem-senha-titulo">${ICONE_CARGO[cargo]} Senha do ${ROTULO_SENHA[papel]}</label>
+      <input type="password" id="quem-senha-campo" class="form-input" autocomplete="current-password" required>
+      <div class="quem-senha-erro" id="quem-senha-erro" role="alert"></div>
+      <button type="submit" class="btn-primary" id="quem-entrar">Entrar</button>
+      <button type="button" id="quem-voltar" class="quem-link">‹ Escolher outro cargo</button>
+    </form>`;
+  document.getElementById('quem-senha-campo')?.focus();
+}
+
+const MENSAGEM_ERRO = {
+  senha: () => 'Senha incorreta.',
+  'nao-configurado': () => 'A senha ainda não foi cadastrada no servidor. Quem cuida do app precisa criar SENHA_BISPO, SENHA_ADM e SEGREDO_SESSAO nas variáveis do Netlify.',
+  'muitas-tentativas': m => `Muitas tentativas erradas. Tente de novo em ${m || 15} min.`,
+  indisponivel: () => 'O servidor não conseguiu conferir a senha agora. Tente de novo em instantes.',
+  rede: () => 'Sem conexão — entrar como Bispo ou ADM precisa de internet.',
+};
+
+async function enviarSenha(form) {
+  const cargo = form.dataset.cargo;
+  const campo = document.getElementById('quem-senha-campo');
+  const erro = document.getElementById('quem-senha-erro');
+  const botao = document.getElementById('quem-entrar');
+  if (!campo?.value) return;
+  botao.disabled = true;
+  erro.textContent = '';
+  const r = await entrar(COM_SENHA[cargo], campo.value);
+  botao.disabled = false;
+  if (!r.ok) {
+    erro.textContent = (MENSAGEM_ERRO[r.erro] || MENSAGEM_ERRO.rede)(r.minutos);
+    campo.select();
+    return;
+  }
+  campo.value = '';
+  definirCargo(cargo);
+  toast(`Entrou como ${ROTULO_SENHA[r.papel]}`);
+  carregarDados();   // agora o servidor entrega também os sigilosos
+}
+
 export function definirCargo(cargo) {
+  const saindoDoBispo = !COM_SENHA[cargo] && !!papelDaSessao();
   USUARIO = cargo;
   localStorage.setItem(CARGO_KEY, cargo);
+  // trocar de Bispo/ADM para outro cargo encerra a sessão: o aparelho deixa de
+  // receber os sigilosos (o ouvinte de aoTerminarSessao os tira da memória;
+  // com o cargo novo já valendo, ele não reabre esta janela)
+  if (saindoDoBispo) sair('saiu');
   fecharModal('quem-modal');
+  redesenharConformeSigilo();
+}
+
+function redesenharConformeSigilo() {
   renderQuemBadge();
   // o que está na tela muda conforme o sigilo
   renderAgenda();
@@ -63,7 +140,28 @@ export function definirCargo(cargo) {
   renderInicio();
   // o convite de discurso é assinado pelo cargo de quem está usando
   if (sacCarregado) renderAbaSacramental();
+  // a busca geral aberta mostrava, depois de Sair, as sigilosas encontradas antes
+  const termo = document.getElementById('search-input')?.value || '';
+  if (termo.trim()) doSearch(termo);
 }
+
+// Fim da sessão (Sair, troca de cargo, token recusado pelo servidor): os
+// sigilosos que vieram com ela saem da memória e da tela na hora
+aoTerminarSessao(motivo => {
+  DADOS.agenda = (DADOS.agenda || []).filter(e => !e.sigiloso);
+  DADOS.acompanhamentos = (DADOS.acompanhamentos || []).filter(a => !a.sigiloso);
+  if (COM_SENHA[USUARIO]) {
+    USUARIO = '';
+    localStorage.removeItem(CARGO_KEY);
+    avisoDaEscolha = motivo === 'recusada'
+      ? 'A sessão de Bispo/ADM terminou (venceu ou a senha mudou). Entre de novo.'
+      : '';
+    redesenharConformeSigilo();
+    abrirEscolhaCargo();
+  } else {
+    redesenharConformeSigilo();
+  }
+});
 
 export function initUsuario() {
   renderQuemBadge();
@@ -87,7 +185,8 @@ export function toast(msg) {
 
 function ligarUsuario() {
   // as opções são recriadas a cada abrirEscolhaCargo()
-  document.getElementById('quem-opcoes')?.addEventListener('click', e => {
+  const cx = document.getElementById('quem-opcoes');
+  cx?.addEventListener('click', e => {
     if (e.target.closest('#quem-editar')) {
       // Depois de editar (ou cancelar), volta para a escolha do cargo com os
       // nomes novos — na primeira vez, sem cargo, cancelar deixava o app sem
@@ -96,8 +195,21 @@ function ligarUsuario() {
       abrirEdicaoChamados().finally(() => abrirEscolhaCargo());
       return;
     }
+    if (e.target.closest('#quem-voltar')) { abrirEscolhaCargo(); return; }
+    if (e.target.closest('#quem-sair')) { sair('saiu'); toast('Saiu da conta neste aparelho'); return; }
     const opt = e.target.closest('.quem-opt');
-    if (opt) definirCargo(opt.dataset.cargo);
+    if (!opt) return;
+    const cargo = opt.dataset.cargo;
+    const papel = COM_SENHA[cargo];
+    // Bispo/ADM: com a sessão deste papel já aberta, entra direto; senão, a senha
+    if (papel && papelDaSessao() !== papel) pedirSenha(cargo);
+    else definirCargo(cargo);
+  });
+  cx?.addEventListener('submit', e => {
+    const form = e.target.closest('#quem-senha');
+    if (!form) return;
+    e.preventDefault();
+    enviarSenha(form);
   });
 }
 ligarUsuario();

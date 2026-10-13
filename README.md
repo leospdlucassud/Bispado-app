@@ -25,6 +25,29 @@ export const ALA_ID = "palmas-4";
 
 Trocar só o `ALA` faria a ala nova ler e gravar nos dados da anterior.
 
+### Senhas do Bispo e do ADM
+
+Entrar como **Bispo** ou **ADM** pede senha, conferida no servidor
+(`netlify/functions/sessao.js`). As senhas **não ficam no código** — o
+repositório é público —: ficam nas variáveis de ambiente do site no Netlify
+(*Site configuration → Environment variables → Add a variable*):
+
+| Variável | O que é |
+| --- | --- |
+| `SENHA_BISPO` | a senha do Bispo |
+| `SENHA_ADM` | a senha do ADM (acesso de administração, com a visão do bispo) |
+| `SEGREDO_SESSAO` | um texto aleatório e longo (40+ caracteres) que assina as sessões — ninguém precisa decorá-lo |
+
+Depois de criar ou mudar uma variável, faça um novo deploy (*Deploys → Trigger
+deploy*) para a função ler o valor novo. Sem as três, ninguém entra como Bispo
+ou ADM e **os itens sigilosos não são entregues a ninguém** (falha fechada).
+
+- A sessão vale 30 dias no aparelho (ou até tocar em *Sair*). Trocar a senha
+  derruba as sessões abertas com a antiga; trocar o `SEGREDO_SESSAO` derruba todas.
+- 5 senhas erradas seguidas bloqueiam aquele endereço por 15 min; 30 no total
+  numa hora bloqueiam todos por até 1 hora.
+- Para gerar um `SEGREDO_SESSAO`: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
+
 ## Estrutura
 
 ```
@@ -151,10 +174,12 @@ com `data-act` e cada módulo liga os seus numa função `ligar<Área>()`.
   - um endpoint novo em `netlify/functions/` precisa ganhar a sua versão em
     `demo-servidor.js` (senão responde 404 na demonstração — nunca vai à rede);
   - mudou o formato do que `gerar()` devolve, suba `VERSAO_DEMO` em `demo.js`.
-- **Sigilo não é segurança.** `podeVer()` esconde itens sigilosos de quem não
-  está identificado como Bispo, mas não há senha e os dados ficam no mesmo
-  banco. Serve para não expor um assunto delicado na tela errada. Para o que
-  não pode sair do aparelho do bispo, use as Notas privadas.
+- **Sigilo.** Na agenda e nos acompanhamentos, o servidor só entrega,
+  altera ou exclui um item sigiloso com a sessão de Bispo ou ADM
+  (`crudHandler(…, { sigilo: true })`, token em `Authorization: Bearer`). O
+  resto da API continua aberto, e o `/api/convite` mostra ao membro o primeiro
+  nome e a data da própria entrevista pelo id. Para o que não pode sair do
+  aparelho do bispo, use as Notas privadas. `podeVer()` continua filtrando a tela.
 - **Ao criar uma tela que liste entrevistas ou acompanhamentos**, aplique o
   filtro `podeVer` também no contador e na busca, não só na lista.
 - **Ao alterar qualquer arquivo**, rode `node scripts/versao.mjs patch` (ou

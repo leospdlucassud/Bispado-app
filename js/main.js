@@ -24,6 +24,7 @@ import './discursos-regras.js';
 import './ui.js';
 import './dialogo.js';
 import './chamados.js';
+import './sessao.js';
 import './usuario.js';
 import './api.js';
 import './offline-pwa.js';

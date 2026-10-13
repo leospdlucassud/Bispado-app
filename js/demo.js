@@ -27,7 +27,7 @@ import { dataLocal } from './utils.js';
 
 // Sobe quando demo-dados.js muda de forma: a carga guardada deixa de valer e é
 // gerada de novo, em vez de abrir dados no formato antigo
-export const VERSAO_DEMO = 2;
+export const VERSAO_DEMO = 3;
 
 const CHAVE_ABA = 'bispado_demo';       // sessionStorage: a demonstração vale por aba
 const PREFIXO = 'demo:';                // compartimento do localStorage e do IndexedDB
@@ -107,6 +107,8 @@ function semear() {
   // abre como o bispo, que vê tudo (inclusive o sigiloso); a troca de cargo é
   // parte do que se demonstra
   localStorage.setItem('cargo_atual', 'Bispo');
+  // ...já conectado (o login do Bispo e do ADM também se demonstra: senha "demo")
+  localStorage.setItem('sessao_bispado', JSON.stringify({ papel: 'bispo', token: 'demo.bispo', exp: Date.now() + 30 * 24 * 60 * 60 * 1000 }));
   localStorage.setItem(MARCA, marcaDeHoje());
 }
 
@@ -192,3 +194,7 @@ if (EM_DEMO) {
 // apresentação não, e a resposta fica lá — sem servidor não há como cruzar
 // aparelhos (e um servidor quebraria o isolamento).
 export const comDemo = url => (EM_DEMO ? url + (url.includes('?') ? '&' : '?') + 'demo' : url);
+
+// O nome com que uma chave do localStorage aparece no evento `storage` (que
+// traz a chave crua, sem o desvio): na demonstração, com o prefixo
+export const chaveNoArmazenamento = chave => (EM_DEMO ? PREFIXO + chave : chave);

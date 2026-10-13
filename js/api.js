@@ -7,10 +7,11 @@ import { renderCalendario } from './calendario.js';
 import { carregarChamados } from './chamados.js';
 import { API_AGENDA, API_DESIG, API_EVENTOS, API_ORADORES, API_REUNIOES, API_SAC, DADOS } from './config.js';
 import { EM_DEMO } from './demo.js';
+import { cabecalhoSessao, sair } from './sessao.js';
 import { renderDesignacoes } from './designacoes.js';
 import { inicioAposCarga } from './inicio.js';
 import { carregarMovimentacoes } from './membros.js';
-import { ajustarCriacaoNaFila, comIdReal, enviarFilaPendente, esperarEnvio, isOnline, lerFila, limparCacheApp, salvarNaFila } from './offline-pwa.js';
+import { ajustarCriacaoNaFila, comIdReal, enviarFilaPendente, esperaSessao, esperarEnvio, isOnline, lerFila, limparCacheApp, salvarNaFila } from './offline-pwa.js';
 import { aplicarPendentes } from './pendentes.js';
 import { renderReunioes } from './reunioes.js';
 import { setOradoresCarregados } from './rodizio.js';
@@ -143,7 +144,8 @@ async function enviar(url, method, body) {
     if (ajuste === 'removido') return null;            // só existia neste aparelho
     if (ajuste === 'mesclado') throw new Error('pendente');
   }
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  // o token da sessão de Bispo/ADM: é o que faz o servidor entregar os sigilosos
+  const opts = { method, headers: { 'Content-Type': 'application/json', ...cabecalhoSessao() } };
   if (body) opts.body = JSON.stringify(body);
   if (!temServidor()) {
     const erro = new Error('offline');
@@ -152,15 +154,19 @@ async function enviar(url, method, body) {
   // Com alterações esperando na fila, a nova não passa na frente delas: uma
   // edição chegaria antes da criação que ela edita, ou seria desfeita por uma
   // alteração mais antiga que saísse depois.
-  if (escrita && (await lerFila()).some(i => i.url)) {
+  // (as que esperam a sessão de Bispo/ADM não seguram as dos outros cargos)
+  const naFrente = async () => (await lerFila()).some(i => i.url && !esperaSessao(i));
+  if (escrita && await naFrente()) {
     await enviarFilaPendente();
-    if ((await lerFila()).some(i => i.url)) throw await enfileirar(url, method, body, new Error('pendente'));
+    if (await naFrente()) throw await enfileirar(url, method, body, new Error('pendente'));
   }
   // Prazo: sem ele, uma rede que não responde deixava o "Sincronizando…" e a
   // atualização do app esperando para sempre. A gravação que estoura vai para a fila.
   if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) opts.signal = AbortSignal.timeout(15000);
   try {
     const res = await fetch(url, opts);
+    // token que não vale mais (venceu, a senha mudou): o app esquece a sessão
+    if (res.headers.get('X-Sessao') === 'invalida') sair('recusada');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return res.status === 204 ? null : await res.json();
   } catch(e) {
