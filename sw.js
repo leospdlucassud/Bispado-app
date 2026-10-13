@@ -1,4 +1,4 @@
-const CACHE = 'bispado-app-v5.22.0';
+const CACHE = 'bispado-app-v5.23.0';
 const ASSETS = [
   '/',
   '/index.html',
@@ -32,6 +32,8 @@ const ASSETS = [
   '/js/demo-servidor.js',
   '/js/designacoes.js',
   '/js/dialogo.js',
+  '/js/impressao.js',
+  '/js/impressao-regras.js',
   '/js/inicio.js',
   '/js/main.js',
   '/js/manual.js',

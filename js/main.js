@@ -41,6 +41,8 @@ import './membros-import.js';
 import './notas.js';
 import './manual.js';
 import './pdf.js';
+import './impressao-regras.js';
+import './impressao.js';
 import './busca.js';
 import './inicio.js';
 import './app.js';

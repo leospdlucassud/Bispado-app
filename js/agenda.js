@@ -8,7 +8,7 @@ import { reativarAbaAtual } from './app.js';
 import { ALA, API_AGENDA, CARGOS_INFO, COR_STATUS, DADOS, corDoCargo, nomeDoResponsavel } from './config.js';
 import { primeiroNome, tipoNoConvite } from './convite-regras.js';
 import { MEMBROS } from './dados-membros.js';
-import { comDemo } from './demo.js';
+import { EM_DEMO, comDemo } from './demo.js';
 import { confirmar, pedirTexto } from './dialogo.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { podeVer, toast } from './usuario.js';
@@ -120,7 +120,8 @@ export function renderAgenda() {
 
   const maisAbertos = new Set([...el.querySelectorAll('details.mais-acoes[open]')].map(d => d.dataset.id));
   el.innerHTML = lista.map(e => `
-    <div class="entrevista-card" style="border-color:${COR_STATUS[e.status] || 'var(--border)'}">
+    <div class="entrevista-card"${e.sigiloso ? ' data-sigiloso' : ''} style="border-color:${COR_STATUS[e.status] || 'var(--border)'}">
+      ${e.sigiloso ? `<div class="so-papel sigilo-papel">🔒 Entrevista sigilosa · 👤 ${esc(comNome(nomeDoResponsavel(e.responsavel)))}${e.data ? ` · 📅 ${formatarData(e.data)}${e.hora ? ` às ${e.hora}` : ''}` : ''} · ${rotuloStatus(e.status)}</div>` : ''}
       <div class="ent-header">
         <span class="ent-prioridade">${prioEmoji[e.prioridade]||'🟢'}</span>
         <span class="ent-nome">${esc(e.membro)}</span>
@@ -215,7 +216,9 @@ export function abrirModalConvite(id) {
     <p style="color:var(--text3);font-size:11px;margin-top:12px;line-height:1.5">
       O telefone e o e-mail digitados ficam salvos nesta entrevista. Qualquer uma
       das três opções marca o convite como enviado.
-    </p>`;
+    </p>${EM_DEMO ? `
+    <p class="ficha-dica" style="margin-top:8px">🎭 Na demonstração, para a resposta chegar ao painel,
+      copie o link e abra numa aba nova deste navegador. Em outro aparelho, ela fica só lá.</p>` : ''}`;
 
   atualizarLinksConvite(e);
   abrirModal('modal-agenda');

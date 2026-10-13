@@ -86,9 +86,17 @@ export function renderAcompanhamentos() {
 
   el.innerHTML = lista.map(a => {
     const cor = a.situacao === 'concluido' ? '#34d399' : a.sigiloso ? '#e05555' : '#fbbf24';
-    const ultimos = [...a.registros].sort((x,y)=>(y.data||'').localeCompare(x.data||'')).slice(0,3);
+    const todos = [...a.registros].sort((x,y)=>(y.data||'').localeCompare(x.data||''));
+    const ultimos = todos.slice(0,3);
+    const registro = (reg, extra = '') => `
+        <div class="acomp-registro${extra}">
+          <strong style="color:var(--text2)">${reg.data ? formatarData(reg.data) : ''}${reg.autor ? ' · ' + esc(reg.autor) : ''}</strong><br>${esc(reg.texto)}
+        </div>`;
+    // papel (impressao.js): o sigiloso sai só com a situação; os demais, com o histórico inteiro
+    const sitTxt = a.situacao === 'concluido' ? 'concluído' : 'em aberto';
     return `
-    <div class="acomp-card" style="border-left-color:${cor};${a.situacao==='concluido'?'opacity:.7':''}">
+    <div class="acomp-card"${a.sigiloso ? ' data-sigiloso' : ''} style="border-left-color:${cor};${a.situacao==='concluido'?'opacity:.7':''}">
+      ${a.sigiloso ? `<div class="so-papel sigilo-papel">🔒 Acompanhamento sigiloso${a.responsavel ? ` · 👤 ${esc(a.responsavel)}` : ''}${a.data ? ` · 📅 ${formatarData(a.data)}` : ''} · ${sitTxt}</div>` : ''}
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
         <div style="min-width:0">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
@@ -108,11 +116,9 @@ export function renderAcompanhamentos() {
           ${a.origem === 'avulso' ? `<button class="btn-danger" data-act="excluir" data-id="${a.id}">🗑</button>` : ''}
         </div>
       </div>
-      ${ultimos.length ? ultimos.map(reg => `
-        <div class="acomp-registro">
-          <strong style="color:var(--text2)">${reg.data ? formatarData(reg.data) : ''}${reg.autor ? ' · ' + esc(reg.autor) : ''}</strong><br>${esc(reg.texto)}
-        </div>`).join('') : '<div style="font-size:11px;color:var(--text3);margin-top:4px">Sem registros ainda</div>'}
-      ${a.registros.length > 3 ? `<div style="font-size:10px;color:var(--text3);margin-top:4px">…e mais ${a.registros.length-3} registro(s)</div>` : ''}
+      ${ultimos.length ? ultimos.map(reg => registro(reg)).join('') : '<div style="font-size:11px;color:var(--text3);margin-top:4px">Sem registros ainda</div>'}
+      ${todos.slice(3).map(reg => registro(reg, ' so-papel')).join('')}
+      ${a.registros.length > 3 ? `<div class="so-tela" style="font-size:10px;color:var(--text3);margin-top:4px">…e mais ${a.registros.length-3} registro(s)</div>` : ''}
     </div>`;
   }).join('');
 }

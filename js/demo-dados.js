@@ -16,7 +16,7 @@
 // Mudou o formato do que gerar() devolve? Suba VERSAO_DEMO em js/demo.js.
 // =============================================
 
-import { chavePessoa, nomeNatural, partesData, proximoDomingo, somarDias } from './discursos-regras.js';
+import { chavePessoa, ehDomingo, nomeNatural, partesData, proximoDomingo, somarDias } from './discursos-regras.js';
 
 const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const dois = n => String(n).padStart(2, '0');
@@ -79,7 +79,10 @@ function nascimentoDe(hoje, idade, aniv) {
   const h = partesData(hoje);
   // o aniversário deste ano (no calendário) ainda não chegou: nasceu um ano antes
   const passou = p.m < h.m || (p.m === h.m && p.d <= h.d);
-  return `${dois(p.d)} ${MES[p.m - 1]} ${h.a - idade - (passou ? 0 : 1)}`;
+  const ano = h.a - idade - (passou ? 0 : 1);
+  const bissexto = ano % 4 === 0 && (ano % 100 !== 0 || ano % 400 === 0);
+  const dia = p.m === 2 && p.d === 29 && !bissexto ? 28 : p.d;   // 29/02 só em ano bissexto
+  return `${dois(dia)} ${MES[p.m - 1]} ${ano}`;
 }
 
 // "Sobrenome, Prenome" → "Prenome Sobrenome", como o app grava na vaga
@@ -116,7 +119,7 @@ export function gerar(hoje) {
       { id: 'mov_demo_1', tipo: 'entrada', membroId: roster.find(m => m.name === lcr('Tiago Holanda Ribeiro')).id,
         nome: lcr('Tiago Holanda Ribeiro'), motivo: 'Batismo e Confirmação', data: d(-63), obs: 'Batizado pelos missionários de tempo integral', registradoPor: 'Secretário' },
       { id: 'mov_demo_2', tipo: 'entrada', membroId: roster.find(m => m.name === lcr('André Rezende Lima')).id,
-        nome: lcr('André Rezende Lima'), motivo: 'Transferência Recebida (Mudança para a Ala)', data: d(-45), obs: 'Vieram de outra estaca, com a esposa', registradoPor: 'Secretário' },
+        nome: lcr('André Rezende Lima'), motivo: 'Transferência Recebida (Mudança para a Ala)', data: d(-45), obs: 'Veio de outra estaca com a esposa', registradoPor: 'Secretário' },
       { id: 'mov_demo_3', tipo: 'entrada', membroId: roster.find(m => m.name === lcr('Bianca Rezende Lima')).id,
         nome: lcr('Bianca Rezende Lima'), motivo: 'Transferência Recebida (Mudança para a Ala)', data: d(-45), obs: '', registradoPor: 'Secretário' },
       ...saidos.map((id, i) => ({ id: 'mov_demo_s' + i, tipo: 'saida', membroId: id, nome: roster.find(m => m.id === id).name,
@@ -143,7 +146,7 @@ export function gerar(hoje) {
     ent('Tiago Holanda Ribeiro', 'Novo Membro (Pós-Batismo)', 'c2',
       { prioridade: 'alta', acompanhar: true, obs: 'Combinar com os missionários', situacaoAcomp: 'aberto',
         registros: [
-          { data: d(-50), autor: '2º Conselheiro', texto: 'Primeira visita com os missionários. Recebeu o chamado de professor familiar júnior.' },
+          { data: d(-50), autor: '2º Conselheiro', texto: 'Primeira visita com os missionários. Recebeu irmãos ministradores.' },
           { data: d(-21), autor: '2º Conselheiro', texto: 'Participou da noite familiar da ala. Quer ir ao templo fazer batismos.' },
         ] }),
     ent('Joaquim Sampaio Vidal', 'Preparação para Missão', 'bispo',
@@ -167,13 +170,14 @@ export function gerar(hoje) {
     ent('Camila Esteves Moura', 'Apoio de Chamado', 'c2',
       { data: d(-6), hora: '19:00', status: 'nao-realizada', motivo: 'Viajou a trabalho; remarcar depois do feriado.' }),
     ent('Gabriel Batista Lopes', 'Retorno de Missão', 'bispo',
-      { data: d(-30), hora: '20:00', status: 'realizada', realizadaEm: em(-30, '23:00'), obs_conclusao: 'Relato na sacramental combinado.' }),
+      // antes dos 10 domingos de atas: o relato dele na sacramental vem depois
+      { data: d(-80), hora: '20:00', status: 'realizada', realizadaEm: em(-80, '23:00'), obs_conclusao: 'Relato na sacramental combinado.' }),
     ent('Bianca Rezende Lima', 'Bem-Estar e Autossuficiência', 'bispo',
       { sigiloso: true, prioridade: 'alta', acompanhar: true, situacaoAcomp: 'aberto', registros: [
-        { data: d(-9), autor: 'Bispo', texto: 'Conversa inicial. Encaminhado para o curso de autossuficiência.' },
+        { data: d(-9), autor: 'Bispo', texto: 'Conversa inicial. Encaminhada para o curso de autossuficiência.' },
       ] }),
     ent('Lívia Albuquerque Ramos', 'Entrevista Anual (Jovem de 12–15 Anos)', 'c2',
-      { data: d(9), hora: '15:00', status: 'agendada', convidadoEm: em(-1), confirmacao: 'confirmado', confirmadoEm: em(0, '12:05') }),
+      { data: d(9), hora: '15:00', status: 'agendada', convidadoEm: em(-2), confirmacao: 'confirmado', confirmadoEm: em(-1, '22:05') }),
     ent('Isabela Vasconcelos Brito', 'Recomendação para Ordenanças Próprias (Investidura)', 'bispo',
       { data: d(12), hora: '19:00', status: 'agendada', convidadoEm: em(-6),
         reagendamentos: [{ dataAnterior: d(-2), horaAnterior: '19:00', reagendadoEm: em(-5) }] }),
@@ -224,6 +228,8 @@ export function gerar(hoje) {
   ].map(x => ({ ...x, responsavel: x.responsaveis[0] }));
 
   // ---------- calendário (os eventos da ala) ----------
+  // nenhum no domingo: o domingo é da sacramental, que tem o seu card
+  const semDomingo = dk => (ehDomingo(dk) ? somarDias(dk, -1) : dk);
   const eventos_extras = [
     { data: d(3), txt: 'Noite familiar da ala — 19h30', cor: '#34d399' },
     { data: d(8), txt: 'Atividade dos jovens — gincana', cor: '#f472b6' },
@@ -231,7 +237,10 @@ export function gerar(hoje) {
     { data: d(19), txt: 'Viagem ao templo', cor: '#50d0c0' },
     { data: d(26), txt: 'Conselho da ala', cor: '#c9a84c' },
     { data: d(-4), txt: 'Mutirão de limpeza da capela', cor: '#34d399' },
-  ];
+    { data: d(12), txt: 'Devocional da Primária', cor: '#34d399' },
+    { data: d(18), txt: 'Limite do relatório trimestral', cor: '#c9a84c' },
+    { data: d(22), txt: 'Reunião de liderança da estaca', cor: '#a78bfa' },
+  ].map(e => ({ ...e, data: semDomingo(e.data) }));
 
   // ---------- reunião sacramental ----------
   const S0 = proximoDomingo(H);
@@ -271,11 +280,16 @@ export function gerar(hoje) {
       primeiroHino: String(2 + k * 11), hinoSacramental: String(169 + (k % 6)), hinoFinal: String(85 + k * 3),
       oracaoAbertura: 'Irmã Vera Lacerda', oracaoEncerramento: 'Irmão Sérgio Lacerda',
       anuncios: 'Noite familiar da ala; inscrições para a viagem ao templo.' };
-    if (ehPrimeiro(dk)) { sacramentais.push({ ...base, tipo: tipoDoPrimeiro(dk), observacoes: 'Testemunhos da congregação' }); continue; }
+    if (ehPrimeiro(dk)) {
+      // conferência geral não tem reunião na ala: nem ata, nem hinos, nem frequência
+      const tipo = tipoDoPrimeiro(dk);
+      sacramentais.push(tipo === 'jejum' ? { ...base, tipo, observacoes: 'Testemunhos da congregação' } : { data: dk, tipo });
+      continue;
+    }
     const r = PASSADOS[p++ % PASSADOS.length];
     sacramentais.push({ ...base, tipo: 'normal', hinoIntermediario: String(140 + k),
       ...aceito(1, r[0], r[1]), ...aceito(2, r[2], r[3]),
-      ...(r[4] ? aceito(3, r[4], r[5]) : vaga(3, 'Presidente Vidal, do sumo conselho', { tema3: 'A união', orador3Fora: true, orador3Status: '' })),
+      ...(r[4] ? aceito(3, r[4], r[5]) : vaga(3, 'Irmão Vidal, do sumo conselho', { tema3: 'A união', orador3Fora: true, orador3Status: '' })),
       apoios: k === 3 ? 'Apoio: irmã Camila Moura como professora da Primária.' : '' });
   }
 
@@ -293,7 +307,7 @@ export function gerar(hoje) {
     // orador de fora no 3º e um 2º com 20 minutos
     () => ({ ...vaga(1, 'Mateus Xavier Monteiro', { orador1Status: 'planejado' }),
       ...vaga(2, 'Isabela Vasconcelos Brito', { orador2Status: 'planejado', orador2Min: 20, tema2: 'O templo' }),
-      ...vaga(3, 'Irmão Lima, da presidência da estaca', { orador3Fora: true, orador3Status: '' }) }),
+      ...vaga(3, 'Presidente Lima, da presidência da estaca', { orador3Fora: true, orador3Status: '' }) }),
     // só um orador planejado: as vagas abertas mostram as sugestões
     () => ({ ...vaga(3, 'Paulo Vasconcelos Brito', { orador3Status: 'planejado' }) }),
     // "não haverá este discurso" no 2º

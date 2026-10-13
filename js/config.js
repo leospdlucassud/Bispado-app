@@ -58,7 +58,7 @@ export let DADOS = { agenda:[], reunioes:[], designacoes:[], eventos_extras:[], 
 // (o que esta publicado) para o app instalado se atualizar sozinho.
 // Nao editar a mao: `node scripts/versao.mjs patch|minor|major` atualiza este,
 // o version.json, o CACHE do sw.js e o package.json juntos.
-export const VERSAO = '5.22.0';
+export const VERSAO = '5.23.0';
 
 // =============================================
 // NOME DA ALA

@@ -4,6 +4,7 @@
 import { apiFetch, atualizarUltimaSinc, avisarPendente, idProvisorioDo, setSyncStatus } from './api.js';
 import { reativarAbaAtual } from './app.js';
 import { API_EVENTOS, DADOS, comAla } from './config.js';
+import { EM_DEMO } from './demo.js';
 import { confirmar } from './dialogo.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
@@ -16,7 +17,7 @@ export const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
 // Eventos do calendário da estaca 2026. O marcador {ALA} é trocado pelo nome
 // informado no cabeçalho em tempo de renderização (ver comAla).
-export const EVENTOS_FIXOS = [
+const CALENDARIO_ESTACA = [
   // JANEIRO
   {data:'2026-01-01',txt:'Confraternização Universal',cor:'#60a5fa',tipo:'feriado'},
   {data:'2026-01-11',txt:'Encontro On-Line Primária 17h',cor:'#34d399',tipo:'ala'},
@@ -115,6 +116,14 @@ export const EVENTOS_FIXOS = [
   {data:'2026-12-25',txt:'Natal',cor:'#60a5fa',tipo:'feriado'},
   {data:'2026-12-31',txt:'Véspera de Ano Novo',cor:'#60a5fa',tipo:'feriado'},
 ];
+// Na demonstração (?demo), o calendário de uma estaca de verdade contradizia
+// a programação fictícia ("Conferência da Estaca" num domingo com oradores): lá
+// só aparecem os eventos fictícios (demo-dados.js)
+export const EVENTOS_FIXOS = EM_DEMO ? [] : CALENDARIO_ESTACA;
+
+// Papel (impressao.js): na tela, o dia mostra 2 eventos e "+N" (tocar abre o
+// dia); no papel não há como tocar — saem todos
+let todosNoDia = false;
 
 export function renderCalendario() {
   const grid = document.getElementById('cal-grid');
@@ -142,8 +151,8 @@ export function renderCalendario() {
     const eHoje = hoje.getDate()===d && hoje.getMonth()===calMes && hoje.getFullYear()===calAno;
     html += `<div class="cal-dia${eHoje?' hoje':''}${evsDia.length?' tem-evento':''}" data-dia="${dataStr}">
       <div class="cal-num" style="${eHoje?'--c:#c9a84c;font-weight:800':''}">${d}</div>
-      ${evsDia.slice(0,2).map(e=>`<div class="cal-evento-dot" style="--c:${corSegura(e.cor)}">${esc(comAla(e.txt))}</div>`).join('')}
-      ${evsDia.length>2?`<div style="font-size:9px;color:var(--text2)">+${evsDia.length-2}</div>`:''}
+      ${(todosNoDia ? evsDia : evsDia.slice(0,2)).map(e=>`<div class="cal-evento-dot" style="--c:${corSegura(e.cor)}">${esc(comAla(e.txt))}</div>`).join('')}
+      ${!todosNoDia && evsDia.length>2?`<div style="font-size:9px;color:var(--text2)">+${evsDia.length-2}</div>`:''}
     </div>`;
   }
 
@@ -250,6 +259,17 @@ function ligarCalendario() {
     if (!btn) return;
     if (btn.dataset.act === 'fechar') fecharModal('modal-evento');
     else if (btn.dataset.act === 'salvar') salvarEvento();
+  });
+
+  addEventListener('beforeprint', () => {
+    if (!document.getElementById('panel-calendario')?.classList.contains('active')) return;
+    todosNoDia = true;
+    renderCalendario();
+  });
+  addEventListener('afterprint', () => {
+    if (!todosNoDia) return;
+    todosNoDia = false;
+    renderCalendario();
   });
 }
 ligarCalendario();

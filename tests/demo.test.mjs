@@ -143,3 +143,40 @@ test('convite: a tela do membro vê só o primeiro nome e responde pela regra do
   const feita = agenda.findIndex(e => e.status === 'realizada');
   assert.equal((await pedir(srv, 'PUT', '/api/convite?id=a' + feita, { resposta: 'confirmado' })).status, 409);
 });
+
+// ---------- achados da revisão ----------
+import { partesDoNascimento } from '../js/utils.js';
+
+test('domingo de conferência geral sem ata (não há reunião na ala)', () => {
+  for (const d of DATAS) {
+    for (const s of gerar(d).colecoes.sacramentais.filter(x => x.tipo === 'conf-geral')) {
+      assert.deepEqual(Object.keys(s).sort(), ['data', 'tipo'], s.data);
+    }
+  }
+});
+
+test('eventos do calendário fictício nunca no domingo', () => {
+  for (const d of DATAS) for (const e of gerar(d).colecoes.eventos_extras) assert.ok(!ehDomingo(e.data), e.data + ' ' + e.txt);
+});
+
+test('nascimento sempre uma data que existe (nada de 29/02 em ano comum)', () => {
+  for (let i = 0; i < 366 * 3; i += 1) {
+    const d = new Date(2027, 0, 1 + i);
+    const dk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    for (const m of gerar(dk).membros.roster) {
+      const p = partesDoNascimento(m.nascimento);
+      assert.ok(p, m.nascimento);
+      const t = new Date(p.a, p.m - 1, p.d);
+      assert.equal(t.getDate(), p.d, `${dk}: ${m.nascimento}`);
+    }
+  }
+});
+
+test('convite: resposta sempre no passado e depois do envio', () => {
+  for (const d of DATAS) {
+    for (const e of gerar(d).colecoes.agenda.filter(x => x.confirmadoEm)) {
+      assert.ok(e.confirmadoEm.slice(0, 10) < d, `${d} ${e.membro}: ${e.confirmadoEm}`);
+      assert.ok(!e.convidadoEm || e.convidadoEm < e.confirmadoEm, e.membro);
+    }
+  }
+});

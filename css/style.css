@@ -801,3 +801,67 @@
 }
 .demo-faixa__btn:hover, .demo-faixa__btn:focus-visible { background:var(--bg4); }
 .demo-faixa__erro { flex-basis:100%; color:var(--st-pendente); }
+
+/* =============================================
+   IMPRIMIR / PDF (impressao.js) — o papel é a própria aba, limpa
+   ============================================= */
+.impressao-barra { display:flex; justify-content:flex-end; margin:-4px 0 6px; }
+.btn-imprimir { font-size:12px; padding:5px 10px; }
+#impressao-topo, .so-papel { display:none; }
+.texto-impresso { display:none; }
+
+@media print {
+  @page { size:A4; margin:12mm; }
+  /* papel sai sempre claro: o impressao.js põe o tema claro durante a
+     impressão; isto é a reserva para quando o navegador não avisa a página */
+  :root, :root[data-theme] {
+    --bg1:#fff; --bg2:#fff; --bg3:#f2f2f2; --bg4:#e6e6e6;
+    --text1:#111; --text-corpo:#1f2937; --text2:#374151; --text3:#4b5563;
+    --gold:#7a5c0f; --border:#cfcfcf; --sac:#7d6210;
+    --st-pendente:#b91c1c; --st-agendada:#1d4ed8; --st-realizada:#047857; --st-nao-realizada:#475569;
+  }
+  html, body { background:#fff !important; color:#111 !important; }
+  * { box-shadow:none !important; text-shadow:none !important; }
+
+  /* fora do papel: navegação, faixa da demonstração, busca, modais e tudo que é ação */
+  header, .barra-nav, .search-wrap, #search-results, .fab, .demo-faixa, .modal-overlay, #quem-modal, #app-toast, .aviso-instalar,
+  .impressao-barra, .filtros, .cal-nav, .sync-pendentes, .sync-btn,
+  .btn-secondary, .btn-primary, .btn-danger, .btn-sm, .modal-close,
+  details.mais-acoes, .ent-actions, .vaga-acoes, .rod-linha, .inicio-atalhos, #rod-migrar,
+  input, select, textarea, .so-tela { display:none !important; }
+  /* à parte: um :has() na lista acima anularia a regra inteira num navegador sem :has */
+  #panel-inicio .nova-card:has(.inicio-atalhos) { display:none !important; }
+  .panel:not(.active) { display:none !important; }
+  /* com a busca geral aberta, a aba fica escondida na tela: no papel, volta */
+  #main-content { display:block !important; }
+
+  /* o topo da folha: o que é, de quando, e o aviso da demonstração */
+  #impressao-topo { display:block !important; margin:0 0 10px; padding-bottom:8px; border-bottom:2px solid #7a5c0f; }
+  .impressao-topo__demo { font-weight:800; color:#b91c1c; letter-spacing:.04em; margin:0 0 4px; }
+  .impressao-topo__titulo { font-size:18px; font-weight:800; color:#111; margin:0; }
+  .impressao-topo__detalhe { font-size:12px; color:#374151; margin:2px 0 0; }
+  .impressao-topo__rodape { font-size:10px; color:#4b5563; margin:4px 0 0; }
+
+  /* o que só existe no papel; e o sigiloso só com a linha sem nome nem assunto */
+  .so-papel { display:block !important; }
+  [data-sigiloso] > :not(.sigilo-papel) { display:none !important; }
+  .sigilo-papel { font-weight:600; }
+  .texto-impresso { display:block !important; white-space:pre-wrap; }
+
+  /* cartões inteiros na mesma página; borda no lugar do fundo */
+  .entrevista-card, .acomp-card, .desig-card, .reuniao-card, .nota-card, .nova-card, .plano-domingo,
+  .vaga, .membros-stat, .inicio-item, .cal-dia, #lista-sacramentais > .card {
+    break-inside:avoid; background:#fff !important; border:1px solid #cfcfcf;
+  }
+  /* no Início, a barra colorida é o status da entrevista */
+  .inicio-item { cursor:default; border-left:3px solid var(--ic, #94a3b8); }
+  /* a cor do status e do cargo é informação: o navegador não pode tirá-la */
+  .status-badge, .selo-vaga, [class*="selo-"], .entrevista-card, .acomp-card, .cal-dia, .item-check,
+  .inicio-item, .cal-legenda-dot, .ponto-status {
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  /* no papel o evento sai com o nome inteiro (na tela, 2 linhas e reticências) */
+  .cal-evento-dot { display:block; -webkit-line-clamp:unset; overflow:visible; }
+  .content, .panel { padding:0 !important; margin:0 !important; max-width:none !important; }
+  a { color:inherit; text-decoration:none; }
+}

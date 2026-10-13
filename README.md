@@ -120,6 +120,8 @@ clássico do `<head>`, manda os links antigos do convite para a página nova).
 | `notas.js` | Notas privadas (aparelho) e compartilhadas (nuvem) |
 | `manual.js` | Manual Geral, links oficiais e roteiros de entrevista |
 | `pdf.js` | Geração das atas em PDF (o jsPDF só é baixado no primeiro uso) |
+| `impressao.js` | Botão "🖨 Imprimir / PDF" em cada aba com dados: a impressão do navegador ("Salvar como PDF"), com o topo da folha (o que é, filtro, mês) e o tema claro; o `@media print` do `style.css` limpa o papel |
+| `impressao-regras.js` | O detalhe do topo da folha, sem DOM: com item sigiloso na lista, o termo da busca não vai para o papel (testado) |
 | `busca.js` | Busca global |
 | `inicio.js` | Tela de boas-vindas (aba Início, a primeira ao abrir): saudação, resumo, pendências e atalhos |
 | `app.js` | Botão flutuante e inicialização |

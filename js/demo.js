@@ -27,7 +27,7 @@ import { dataLocal } from './utils.js';
 
 // Sobe quando demo-dados.js muda de forma: a carga guardada deixa de valer e é
 // gerada de novo, em vez de abrir dados no formato antigo
-export const VERSAO_DEMO = 1;
+export const VERSAO_DEMO = 2;
 
 const CHAVE_ABA = 'bispado_demo';       // sessionStorage: a demonstração vale por aba
 const PREFIXO = 'demo:';                // compartimento do localStorage e do IndexedDB
@@ -96,6 +96,11 @@ function semear() {
   for (const c of chavesDaDemo()) {
     if (!PREFERENCIAS.some(p => c === PREFIXO + p)) original.removeItem.call(window.localStorage, c);
   }
+  // e a fila de alterações sem sinal da demonstração (IndexedDB "demo:bispado-offline",
+  // pelo desvio acima): sem isto, o que ficou nela voltava por cima da carga nova.
+  // Com o banco aberto nesta página, a exclusão espera o reload fechá-lo — e a
+  // abertura da página nova espera a exclusão (o IndexedDB atende em ordem).
+  try { indexedDB.deleteDatabase('bispado-offline'); } catch (e) { /* sem IndexedDB: não há fila */ }
   for (const [nome, linhas] of colecoes) gravar(nome, linhas);
   gravar('membros', carga.membros);
   localStorage.setItem('notas_privadas', JSON.stringify(carga.notasPrivadas));
@@ -181,6 +186,9 @@ if (EM_DEMO) {
 }
 
 // O link do convite que a demonstração manda leva o modo junto: a tela do
-// membro (convite.html) abre os mesmos dados fictícios, até em outro aparelho
-// — a carga é a mesma para o mesmo dia.
+// membro (convite.html) abre os dados fictícios. No MESMO navegador são os
+// mesmos dados, e a resposta chega ao painel. Em outro aparelho, ele gera a
+// sua própria cópia do dia: as entrevistas da carga aparecem, uma criada na
+// apresentação não, e a resposta fica lá — sem servidor não há como cruzar
+// aparelhos (e um servidor quebraria o isolamento).
 export const comDemo = url => (EM_DEMO ? url + (url.includes('?') ? '&' : '?') + 'demo' : url);

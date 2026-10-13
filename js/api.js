@@ -6,6 +6,7 @@ import { renderAgenda } from './agenda.js';
 import { renderCalendario } from './calendario.js';
 import { carregarChamados } from './chamados.js';
 import { API_AGENDA, API_DESIG, API_EVENTOS, API_ORADORES, API_REUNIOES, API_SAC, DADOS } from './config.js';
+import { EM_DEMO } from './demo.js';
 import { renderDesignacoes } from './designacoes.js';
 import { inicioAposCarga } from './inicio.js';
 import { carregarMovimentacoes } from './membros.js';
@@ -118,6 +119,11 @@ async function enfileirar(url, method, body, erro) {
   return erro;
 }
 
+// Na demonstração o servidor está no próprio navegador (demo.js): ela funciona
+// mesmo sem internet — a capela sem Wi-Fi —, em vez de abrir com as abas vazias.
+// O isOnline continua o de verdade para o resto (o service worker, a atualização).
+const temServidor = () => isOnline || EM_DEMO;
+
 export function apiFetch(url, method = 'GET', body = null) {
   if (method === 'GET') return enviar(url, method, body);
   const p = enviar(url, method, body);   // registrada já no início, de forma síncrona
@@ -139,7 +145,7 @@ async function enviar(url, method, body) {
   }
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
-  if (!isOnline) {
+  if (!temServidor()) {
     const erro = new Error('offline');
     throw escrita ? await enfileirar(url, method, body, erro) : erro;
   }
@@ -255,7 +261,7 @@ export async function carregarDados() {
   setSyncStatus('syncing');
   try {
     // o que ficou na fila de uma sessão anterior vai antes de buscar
-    if (isOnline) await enviarFilaPendente();
+    if (temServidor()) await enviarFilaPendente();
     if (await carregarTudo()) { atualizarUltimaSinc(); setSyncStatus('ok'); }
     else setSyncStatus('erro');
   } catch(e) {
@@ -272,7 +278,7 @@ export async function carregarDados() {
 export const INTERVALO_ATUALIZACAO = 30000;
 
 export async function atualizarEmSegundoPlano() {
-  if (document.visibilityState !== 'visible' || !isOnline) return;
+  if (document.visibilityState !== 'visible' || !temServidor()) return;
   // não troca os dados debaixo de um formulário aberto — nem de uma gravação em
   // voo: a lista nova viria sem ela, e a tela "desfaria" a escolha por um instante
   if (haModalAberto() || haGravacoes()) return;
