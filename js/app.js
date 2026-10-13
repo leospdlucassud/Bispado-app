@@ -25,7 +25,8 @@ export let fabTab = '';
 export function onTabChange(tab) {
   fabTab = tab;
   const fab = document.getElementById('main-fab');
-  const comBotao = ['inicio', 'agenda', 'reuniao', 'designacoes', 'calendario', 'sacramental', 'acompanhamento'];
+  // o Início não tem "+": a entrevista nova se marca na Agenda
+  const comBotao = ['agenda', 'reuniao', 'designacoes', 'calendario', 'sacramental', 'acompanhamento'];
   if (fab) fab.classList.toggle('visible', comBotao.includes(tab));
 }
 
@@ -34,11 +35,7 @@ export function reativarAbaAtual() {
 }
 
 document.getElementById('main-fab')?.addEventListener('click', () => {
-  // No Início o + marca uma entrevista, como quando o app abria na Agenda. Troca
-  // de aba ANTES de abrir o modal: o salvar volta para a aba atual
-  // (reativarAbaAtual), e assim a entrevista nova aparece na Agenda.
-  if (fabTab === 'inicio') { switchTab('agenda'); abrirModalAgenda(''); }
-  else if (fabTab === 'agenda') abrirModalAgenda('');
+  if (fabTab === 'agenda') abrirModalAgenda('');
   else if (fabTab === 'reuniao') abrirModalReuniao('');
   else if (fabTab === 'designacoes') abrirModalDesig('');
   else if (fabTab === 'calendario') abrirModalEvento();
