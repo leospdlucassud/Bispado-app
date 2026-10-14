@@ -18,9 +18,12 @@ import { aoTerminarSessao, entrar, papelDaSessao, sair } from './sessao.js';
 import { esc } from './utils.js';
 
 export const CARGO_KEY = 'cargo_atual';
-// O ADM não é um chamado: é o acesso de administração, com a visão do bispo
+// O ADM não é um chamado: é o acesso de administração, com a visão do bispo.
+// Não aparece na lista: quem é ADM escolhe "Bispo" e digita a senha do ADM —
+// o servidor responde com o papel 'adm' (netlify/functions/_sessao.js).
 export const CARGO_ADM = 'ADM';
 const COM_SENHA = { 'Bispo': 'bispo', [CARGO_ADM]: 'adm' };
+const CARGO_DO_PAPEL = { bispo: 'Bispo', adm: CARGO_ADM };
 const ROTULO_SENHA = { bispo: 'Bispo', adm: 'ADM' };
 export const ICONE_CARGO = { ...Object.fromEntries(CARGOS_INFO.map(c => [c.nome, c.icone])), [CARGO_ADM]: '🛡️' };
 
@@ -46,7 +49,7 @@ export function renderQuemBadge() {
 }
 
 let avisoDaEscolha = pedeSenhaDeNovo
-  ? 'A sessão de Bispo/ADM neste aparelho terminou (ou ainda não foi aberta): entre com a senha.' : '';
+  ? 'A sessão de Bispo neste aparelho terminou (ou ainda não foi aberta): entre com a senha.' : '';
 
 export function abrirEscolhaCargo() {
   const cx = document.getElementById('quem-opcoes');
@@ -57,8 +60,9 @@ export function abrirEscolhaCargo() {
       <span style="font-size:13.5px;font-weight:600">${esc(c)}${nomeDoCargo(c) ? `<span style="font-weight:400;color:var(--text2)"> · ${esc(nomeDoCargo(c))}</span>` : ''}</span>
       ${COM_SENHA[c] ? `<span style="margin-left:auto;font-size:10px;--c:#e05555">${logado === COM_SENHA[c] ? '✓ conectado' : '🔒 senha'} · vê sigilosos</span>` : ''}
     </button>`;
+  // o ADM só aparece para quem já entrou como ADM neste aparelho
   cx.innerHTML = (avisoDaEscolha ? `<div class="quem-aviso" role="status">${esc(avisoDaEscolha)}</div>` : '')
-    + CARGOS.map(opcao).join('') + opcao(CARGO_ADM);
+    + CARGOS.map(opcao).join('') + (logado === 'adm' ? opcao(CARGO_ADM) : '');
   avisoDaEscolha = '';
   if (logado) {
     cx.insertAdjacentHTML('beforeend', `
@@ -91,10 +95,10 @@ function pedirSenha(cargo) {
 
 const MENSAGEM_ERRO = {
   senha: () => 'Senha incorreta.',
-  'nao-configurado': () => 'A senha ainda não foi cadastrada no servidor. Quem cuida do app precisa criar SENHA_BISPO, SENHA_ADM e SEGREDO_SESSAO nas variáveis do Netlify.',
+  'nao-configurado': () => 'A senha ainda não foi cadastrada no servidor. Quem cuida do app precisa criá-la nas variáveis do Netlify (ver o README).',
   'muitas-tentativas': m => `Muitas tentativas erradas. Tente de novo em ${m || 15} min.`,
   indisponivel: () => 'O servidor não conseguiu conferir a senha agora. Tente de novo em instantes.',
-  rede: () => 'Sem conexão — entrar como Bispo ou ADM precisa de internet.',
+  rede: () => 'Sem conexão — entrar como Bispo precisa de internet.',
 };
 
 async function enviarSenha(form) {
@@ -113,7 +117,8 @@ async function enviarSenha(form) {
     return;
   }
   campo.value = '';
-  definirCargo(cargo);
+  // a senha do ADM digitada no "Bispo" entra como ADM
+  definirCargo(CARGO_DO_PAPEL[r.papel] || cargo);
   toast(`Entrou como ${ROTULO_SENHA[r.papel]}`);
   carregarDados();   // agora o servidor entrega também os sigilosos
 }
@@ -154,7 +159,7 @@ aoTerminarSessao(motivo => {
     USUARIO = '';
     localStorage.removeItem(CARGO_KEY);
     avisoDaEscolha = motivo === 'recusada'
-      ? 'A sessão de Bispo/ADM terminou (venceu ou a senha mudou). Entre de novo.'
+      ? 'A sessão de Bispo terminou (venceu ou a senha mudou). Entre de novo.'
       : '';
     redesenharConformeSigilo();
     abrirEscolhaCargo();

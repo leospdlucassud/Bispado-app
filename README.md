@@ -27,7 +27,7 @@ Trocar só o `ALA` faria a ala nova ler e gravar nos dados da anterior.
 
 ### Senhas do Bispo e do ADM
 
-Entrar como **Bispo** ou **ADM** pede senha, conferida no servidor
+Entrar como **Bispo** pede senha, conferida no servidor
 (`netlify/functions/sessao.js`). As senhas **não ficam no código** — o
 repositório é público —: ficam nas variáveis de ambiente do site no Netlify
 (*Site configuration → Environment variables → Add a variable*):
@@ -35,12 +35,15 @@ repositório é público —: ficam nas variáveis de ambiente do site no Netlif
 | Variável | O que é |
 | --- | --- |
 | `SENHA_BISPO` | a senha do Bispo |
-| `SENHA_ADM` | a senha do ADM (acesso de administração, com a visão do bispo) |
+| `SENHA_ADM` | a senha do ADM (acesso de administração, com a visão do bispo — opcional) |
 | `SEGREDO_SESSAO` | um texto aleatório e longo (40+ caracteres) que assina as sessões — ninguém precisa decorá-lo |
 
 Depois de criar ou mudar uma variável, faça um novo deploy (*Deploys → Trigger
-deploy*) para a função ler o valor novo. Sem as três, ninguém entra como Bispo
+deploy*) para a função ler o valor novo. Sem elas, ninguém entra como Bispo
 ou ADM e **os itens sigilosos não são entregues a ninguém** (falha fechada).
+
+O **ADM não aparece** no “Quem está usando?”: quem é ADM escolhe **Bispo** e
+digita a senha do ADM — o servidor reconhece e abre a sessão de ADM (crachá 🛡️ ADM).
 
 - A sessão vale 30 dias no aparelho (ou até tocar em *Sair*). Trocar a senha
   derruba as sessões abertas com a antiga; trocar o `SEGREDO_SESSAO` derruba todas.

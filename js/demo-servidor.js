@@ -25,8 +25,9 @@ const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
 const naoAchou = (msg = 'Not found') => json({ error: msg }, 404);
 
-// O login da demonstração (netlify/functions/sessao.js): a senha do Bispo e a
-// do ADM são "demo" — está escrito no Como Usar —, e o token é fixo
+// O login da demonstração (netlify/functions/sessao.js): a senha do Bispo é
+// "demo" — está escrito no Como Usar —, e o token é fixo. O ADM, que não
+// aparece na tela, não se demonstra (o pedido de 'bispo' entra como Bispo).
 export const SENHA_DEMO = 'demo';
 const PAPEIS = ['bispo', 'adm'];
 const DIAS_30 = 30 * 24 * 60 * 60 * 1000;

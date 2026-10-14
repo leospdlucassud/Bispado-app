@@ -33,6 +33,18 @@ export function senhaConfere(digitada, certa) {
   return timingSafeEqual(sha(digitada), sha(certa));
 }
 
+// O ADM não aparece na tela: quem é ADM escolhe "Bispo" e digita a senha do
+// ADM. Por isso o pedido de "bispo" aceita as duas senhas (a do Bispo primeiro).
+const ENTRADAS = { bispo: ["bispo", "adm"], adm: ["adm"] };
+export const podeEntrar = (pedido, env) => (ENTRADAS[pedido] || []).some(p => configurado(p, env));
+
+// O papel da senha digitada, ou null. Confere todas (sem atalho) — o tempo da
+// resposta não diz qual senha existe.
+export function papelQueConfere(pedido, digitada, env) {
+  const certos = (ENTRADAS[pedido] || []).filter(p => configurado(p, env) && senhaConfere(digitada, senhaDe(p, env)));
+  return certos[0] || null;
+}
+
 export function assinar(papel, env, agora = Date.now()) {
   const dados = b64(JSON.stringify({ papel, exp: agora + DURACAO_MS, pv: impressao(papel, env) }));
   const mac = b64(createHmac("sha256", env.SEGREDO_SESSAO).update(dados).digest());

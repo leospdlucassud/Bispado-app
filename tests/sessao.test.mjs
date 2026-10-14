@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  DURACAO_MS, LIMITE, assinar, bloqueado, comFalha, configurado, semFalhasDo, senhaConfere, sessaoDa, verificar,
+  DURACAO_MS, LIMITE, assinar, bloqueado, comFalha, configurado, papelQueConfere, podeEntrar, semFalhasDo, senhaConfere, sessaoDa, verificar,
 } from '../netlify/functions/_sessao.js';
 import { escondidoPorSigilo, semSigilosos } from '../js/crud-regras.js';
 import { criarServidor } from '../js/demo-servidor.js';
@@ -102,4 +102,21 @@ test('o acerto devolve a tentativa contada ao total e limpa o endereço', () => 
   e = semFalhasDo(e, '1.1.1.1');
   assert.equal(e.total.n, 1);
   assert.ok(!e.ips['1.1.1.1']);
+});
+
+test('o ADM não aparece na tela: entra pelo "Bispo" com a senha do ADM', () => {
+  assert.equal(papelQueConfere('bispo', 'senha-de-teste-bispo', ENV), 'bispo');
+  assert.equal(papelQueConfere('bispo', 'senha-de-teste-adm', ENV), 'adm');
+  assert.equal(papelQueConfere('bispo', 'errada', ENV), null);
+  assert.equal(papelQueConfere('adm', 'senha-de-teste-bispo', ENV), null, 'o pedido de ADM não aceita a senha do Bispo');
+  assert.equal(papelQueConfere('adm', 'senha-de-teste-adm', ENV), 'adm');
+  assert.equal(papelQueConfere('secretario', 'senha-de-teste-adm', ENV), null);
+  // as duas iguais: vale o Bispo
+  assert.equal(papelQueConfere('bispo', 'x', { ...ENV, SENHA_BISPO: 'x', SENHA_ADM: 'x' }), 'bispo');
+  // só uma das senhas cadastrada: o pedido de 'bispo' ainda funciona
+  const soAdm = { ...ENV, SENHA_BISPO: '' };
+  assert.ok(podeEntrar('bispo', soAdm));
+  assert.equal(papelQueConfere('bispo', 'senha-de-teste-adm', soAdm), 'adm');
+  assert.equal(papelQueConfere('bispo', '', soAdm), null);
+  assert.ok(!podeEntrar('bispo', { SENHA_BISPO: 'x', SENHA_ADM: 'y' }), 'sem segredo, ninguém');
 });

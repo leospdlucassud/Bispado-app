@@ -1,9 +1,11 @@
 import { getStore } from "@netlify/blobs";
 import { ALA_ID } from "./_ala.js";
 import { H } from "./_crud.js";
-import { assinar, bloqueado, comFalha, configurado, PAPEIS, senhaConfere, senhaDe, semFalhasDo, sessaoDa } from "./_sessao.js";
+import { assinar, bloqueado, comFalha, PAPEIS, papelQueConfere, podeEntrar, semFalhasDo, sessaoDa } from "./_sessao.js";
 
 // POST { papel: 'bispo' | 'adm', senha } → { papel, token, exp }
+// (o pedido de 'bispo' com a senha do ADM devolve papel 'adm': o ADM não
+// aparece na tela — ver papelQueConfere)
 // GET  (com Authorization: Bearer <token>) → { papel } ou 401
 // As senhas vêm das variáveis de ambiente do Netlify (ver _sessao.js).
 
@@ -44,7 +46,7 @@ export default async (req, context) => {
   try { body = await req.json(); } catch { return json({ error: "Corpo inválido" }, 400); }
   const papel = body?.papel;
   if (!PAPEIS.includes(papel)) return json({ error: "papel" }, 400);
-  if (!configurado(papel, env)) return json({ error: "nao-configurado" }, 503);
+  if (!podeEntrar(papel, env)) return json({ error: "nao-configurado" }, 503);
 
   const ip = context?.ip || "desconhecido";
   // A tentativa é CONTADA antes de a senha ser conferida: quem passa do limite
@@ -57,10 +59,11 @@ export default async (req, context) => {
       const minutos = bloqueado(estado, ip);
       return minutos ? { resultado: { minutos } } : { novo: comFalha(estado, ip), resultado: { ok: true } };
     });
-    if (reserva?.ok && senhaConfere(body?.senha, senhaDe(papel, env))) {
+    const certo = reserva?.ok ? papelQueConfere(papel, body?.senha, env) : null;
+    if (certo) {
       await alterarFreio(store, estado => ({ novo: semFalhasDo(estado, ip), resultado: true }));
-      const { token, exp } = assinar(papel, env);
-      return json({ papel, token, exp });
+      const { token, exp } = assinar(certo, env);
+      return json({ papel: certo, token, exp });
     }
   } catch {
     return json({ error: "indisponivel" }, 503);
