@@ -355,16 +355,52 @@
   .vazia { text-align:center;padding:40px 20px;color:var(--text3);font-size:14px; }
 
   /* === REUNIÃO === */
-  .reuniao-card { background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:10px;border-left:4px solid #a78bfa; }
-  .reuniao-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:10px; }
-  .reuniao-data { font-size:13px;font-weight:700;color:#a78bfa; }
+  .reuniao-card { background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:10px;border-left:4px solid #a78bfa;overflow-wrap:anywhere; }
+  /* Cabeçalho que quebra: no celular (≈360 px) data, tipo, "em aberto" e os 3
+     botões não cabem numa linha — antes empurravam o card para fora da tela.
+     Os botões descem juntos e ficam à direita. */
+  .reuniao-header { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px; }
+  .reuniao-titulo { display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;min-width:0; }
+  .reuniao-acoes { display:flex;gap:6px;margin-left:auto; }
+  .reuniao-acoes .btn-secondary { font-size:11px;padding:4px 10px; }
+  .reuniao-data { font-size:13px;font-weight:700;color:#a78bfa;white-space:nowrap; }
   .reuniao-tipo { font-size:11px;color:var(--text2);background:rgba(167,139,250,.1);padding:2px 8px;border-radius:10px; }
-  .reuniao-pauta { font-size:13px;color:var(--text-corpo);margin:8px 0;line-height:1.6; }
-  .reuniao-itens { margin-top:10px; }
-  .reuniao-item { display:flex;align-items:flex-start;gap:8px;padding:6px 0;font-size:12px;color:var(--text-corpo);border-bottom:1px solid rgba(255,255,255,.04); }
+  .reuniao-abertos { font-size:11px;white-space:nowrap; }
+  /* seções do card na ordem do formulário: um rótulo pequeno em cima de cada uma */
+  .reuniao-secao { margin-top:14px; }
+  .reuniao-rotulo { font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px; }
+  .reuniao-linha { margin-top:10px;font-size:13px;line-height:1.5;color:var(--text-corpo); }
+  .reuniao-linha .reuniao-rotulo { display:inline;margin:0 4px 0 0; }
+  .reuniao-card > .reuniao-header + .reuniao-linha { margin-top:14px; }
+  /* a pauta em parágrafos, como foi digitada (paragrafos(), em reunioes-regras.js) */
+  .reuniao-pauta { font-size:13.5px;color:var(--text-corpo);line-height:1.65; }
+  .reuniao-pauta p { margin:0; }
+  .reuniao-pauta p + p { margin-top:10px; }
+  .reuniao-presenca { list-style:none;display:flex;flex-wrap:wrap;gap:6px; }
+  .reuniao-presenca li { font-size:12px;line-height:1.4;padding:4px 10px;border-radius:14px; }
+  .pres-sim { color:var(--text1);background:rgba(167,139,250,.14);border:1px solid rgba(167,139,250,.4); }
+  .pres-sim > span[aria-hidden] { color:#a78bfa;font-weight:700; }
+  .pres-nao { color:var(--text3);border:1px dashed var(--border); }
+  .pres-ausente { font-size:10.5px;font-style:italic; }
+  .reuniao-item { display:flex;align-items:flex-start;gap:10px;padding:6px 0;font-size:13px;line-height:1.5;color:var(--text-corpo);border-bottom:1px solid rgba(255,255,255,.04); }
   .reuniao-item:last-child { border-bottom:none; }
-  .item-check { width:16px;height:16px;border-radius:4px;border:2px solid #2a4060;flex-shrink:0;cursor:pointer;transition:all .2s;margin-top:1px; }
+  .reuniao-item.feito > span { text-decoration:line-through;color:var(--text3); }
+  /* <button role="checkbox">: com o teclado também marca (antes era uma <div>) */
+  .item-check { width:18px;height:18px;padding:0;border-radius:4px;border:2px solid var(--text3);background:transparent;flex-shrink:0;cursor:pointer;transition:all .2s;margin-top:1px;display:inline-flex;align-items:center;justify-content:center;font:inherit; }
   .item-check.checked { background:#a78bfa;border-color:#a78bfa; }
+  .item-check.checked::after { content:'✓';color:#0d1b2a;font-size:12px;font-weight:700;line-height:1; }
+  .item-check:focus-visible { outline:2px solid #a78bfa;outline-offset:2px; }
+  @media (pointer: coarse) { .item-check { width:22px;height:22px; } }
+  /* lista de presença do formulário: um quadradinho por chamado, alvo de dedo */
+  .re-presenca { border:none;padding:0;margin:0 0 14px;min-width:0; }
+  .re-presenca legend { padding:0;font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:600; }
+  .re-presenca-lista { display:grid;grid-template-columns:repeat(auto-fill, minmax(min(240px, 100%), 1fr));gap:6px; }
+  .re-presenca-op { display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;background:var(--bg1);border:1px solid var(--border);border-radius:10px;font-size:14px;color:var(--text1);cursor:pointer; }
+  .re-presenca-op input { width:20px;height:20px;flex-shrink:0;margin:0;accent-color:#a78bfa;cursor:pointer; }
+  .re-presenca-op:has(input:checked) { border-color:#a78bfa;background:rgba(167,139,250,.1); }
+  .re-presenca-op:has(input:focus-visible) { outline:2px solid #a78bfa;outline-offset:1px; }
+  /* texto só para o leitor de tela ("presente"): o ✓ sozinho não diz nada a ele */
+  .so-leitor { position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;margin:-1px;padding:0;border:0; }
 
   /* === DESIGNAÇÕES === */
   .desig-card { background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:10px;border-left:4px solid #f472b6; }
@@ -574,6 +610,17 @@
   [data-theme="light"] .membro-badge.falecimento { color:#9f3a3a; }
   [data-theme="light"] .reuniao-data { color:#5b21b6; }
   [data-theme="light"] .reuniao-tipo { color:var(--text2); }
+  /* lilás do card escurecido no creme (o #a78bfa ficava em 2,4:1) */
+  [data-theme="light"] .pres-sim { background:rgba(109,40,217,.07); border-color:rgba(109,40,217,.35); }
+  [data-theme="light"] .pres-sim > span[aria-hidden] { color:#6d28d9; }
+  [data-theme="light"] .reuniao-item { border-bottom-color:rgba(0,0,0,.07); }
+  [data-theme="light"] .item-check.checked { background:#6d28d9; border-color:#6d28d9; }
+  [data-theme="light"] .item-check.checked::after { color:#fff; }
+  [data-theme="light"] .item-check:focus-visible { outline-color:#6d28d9; }
+  [data-theme="light"] .re-presenca-op { background:var(--bg3); }
+  [data-theme="light"] .re-presenca-op input { accent-color:#6d28d9; }
+  [data-theme="light"] .re-presenca-op:has(input:checked) { border-color:#6d28d9; background:rgba(109,40,217,.08); }
+  [data-theme="light"] .re-presenca-op:has(input:focus-visible) { outline-color:#6d28d9; }
   [data-theme="light"] .cal-evento-dot { color:var(--gold); }
   [data-theme="light"] .sync-btn.syncing { color:#1d4ed8; border-color:#1d4ed8; }
   [data-theme="light"] .sync-btn.ok { color:#047857; border-color:#047857; }
@@ -801,70 +848,6 @@
 }
 .demo-faixa__btn:hover, .demo-faixa__btn:focus-visible { background:var(--bg4); }
 .demo-faixa__erro { flex-basis:100%; color:var(--st-pendente); }
-
-/* =============================================
-   IMPRIMIR / PDF (impressao.js) — o papel é a própria aba, limpa
-   ============================================= */
-.impressao-barra { display:flex; justify-content:flex-end; margin:-4px 0 6px; }
-.btn-imprimir { font-size:12px; padding:5px 10px; }
-#impressao-topo, .so-papel { display:none; }
-.texto-impresso { display:none; }
-
-@media print {
-  @page { size:A4; margin:12mm; }
-  /* papel sai sempre claro: o impressao.js põe o tema claro durante a
-     impressão; isto é a reserva para quando o navegador não avisa a página */
-  :root, :root[data-theme] {
-    --bg1:#fff; --bg2:#fff; --bg3:#f2f2f2; --bg4:#e6e6e6;
-    --text1:#111; --text-corpo:#1f2937; --text2:#374151; --text3:#4b5563;
-    --gold:#7a5c0f; --border:#cfcfcf; --sac:#7d6210;
-    --st-pendente:#b91c1c; --st-agendada:#1d4ed8; --st-realizada:#047857; --st-nao-realizada:#475569;
-  }
-  html, body { background:#fff !important; color:#111 !important; }
-  * { box-shadow:none !important; text-shadow:none !important; }
-
-  /* fora do papel: navegação, faixa da demonstração, busca, modais e tudo que é ação */
-  header, .barra-nav, .search-wrap, #search-results, .fab, .demo-faixa, .modal-overlay, #quem-modal, #app-toast, .aviso-instalar,
-  .impressao-barra, .filtros, .cal-nav, .sync-pendentes, .sync-btn,
-  .btn-secondary, .btn-primary, .btn-danger, .btn-sm, .modal-close,
-  details.mais-acoes, .ent-actions, .vaga-acoes, .rod-linha, .inicio-atalhos, #rod-migrar,
-  input, select, textarea, .so-tela { display:none !important; }
-  /* à parte: um :has() na lista acima anularia a regra inteira num navegador sem :has */
-  #panel-inicio .nova-card:has(.inicio-atalhos) { display:none !important; }
-  .panel:not(.active) { display:none !important; }
-  /* com a busca geral aberta, a aba fica escondida na tela: no papel, volta */
-  #main-content { display:block !important; }
-
-  /* o topo da folha: o que é, de quando, e o aviso da demonstração */
-  #impressao-topo { display:block !important; margin:0 0 10px; padding-bottom:8px; border-bottom:2px solid #7a5c0f; }
-  .impressao-topo__demo { font-weight:800; color:#b91c1c; letter-spacing:.04em; margin:0 0 4px; }
-  .impressao-topo__titulo { font-size:18px; font-weight:800; color:#111; margin:0; }
-  .impressao-topo__detalhe { font-size:12px; color:#374151; margin:2px 0 0; }
-  .impressao-topo__rodape { font-size:10px; color:#4b5563; margin:4px 0 0; }
-
-  /* o que só existe no papel; e o sigiloso só com a linha sem nome nem assunto */
-  .so-papel { display:block !important; }
-  [data-sigiloso] > :not(.sigilo-papel) { display:none !important; }
-  .sigilo-papel { font-weight:600; }
-  .texto-impresso { display:block !important; white-space:pre-wrap; }
-
-  /* cartões inteiros na mesma página; borda no lugar do fundo */
-  .entrevista-card, .acomp-card, .desig-card, .reuniao-card, .nota-card, .nova-card, .plano-domingo,
-  .vaga, .membros-stat, .inicio-item, .cal-dia, #lista-sacramentais > .card {
-    break-inside:avoid; background:#fff !important; border:1px solid #cfcfcf;
-  }
-  /* no Início, a barra colorida é o status da entrevista */
-  .inicio-item { cursor:default; border-left:3px solid var(--ic, #94a3b8); }
-  /* a cor do status e do cargo é informação: o navegador não pode tirá-la */
-  .status-badge, .selo-vaga, [class*="selo-"], .entrevista-card, .acomp-card, .cal-dia, .item-check,
-  .inicio-item, .cal-legenda-dot, .ponto-status {
-    -webkit-print-color-adjust:exact; print-color-adjust:exact;
-  }
-  /* no papel o evento sai com o nome inteiro (na tela, 2 linhas e reticências) */
-  .cal-evento-dot { display:block; -webkit-line-clamp:unset; overflow:visible; }
-  .content, .panel { padding:0 !important; margin:0 !important; max-width:none !important; }
-  a { color:inherit; text-decoration:none; }
-}
 
 /* =============================================
    ENTRAR COMO BISPO / ADM (usuario.js) — a senha dentro da janela "Quem está usando?"

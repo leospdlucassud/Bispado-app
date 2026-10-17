@@ -120,8 +120,7 @@ export function renderAgenda() {
 
   const maisAbertos = new Set([...el.querySelectorAll('details.mais-acoes[open]')].map(d => d.dataset.id));
   el.innerHTML = lista.map(e => `
-    <div class="entrevista-card"${e.sigiloso ? ' data-sigiloso' : ''} style="border-color:${COR_STATUS[e.status] || 'var(--border)'}">
-      ${e.sigiloso ? `<div class="so-papel sigilo-papel">🔒 Entrevista sigilosa · 👤 ${esc(comNome(nomeDoResponsavel(e.responsavel)))}${e.data ? ` · 📅 ${formatarData(e.data)}${e.hora ? ` às ${e.hora}` : ''}` : ''} · ${rotuloStatus(e.status)}</div>` : ''}
+    <div class="entrevista-card" style="border-color:${COR_STATUS[e.status] || 'var(--border)'}">
       <div class="ent-header">
         <span class="ent-prioridade">${prioEmoji[e.prioridade]||'🟢'}</span>
         <span class="ent-nome">${esc(e.membro)}</span>

@@ -5,6 +5,7 @@
 import { ALA, DADOS } from './config.js';
 import { estadoDaVaga, minutosDaVaga, nomeNatural, tipoDe } from './discursos-regras.js';
 import { tipoReuniao } from './reunioes.js';
+import { nomeArquivoAta, paragrafos, presentes, rotuloPresenca, textoParaPdf } from './reunioes-regras.js';
 import { ATA_ORDEM, campoAta, formatDateSac, getSacPorData } from './sacramental.js';
 import { toast } from './usuario.js';
 import { carregarScript, dataLocal, formatarData } from './utils.js';
@@ -126,6 +127,16 @@ export async function imprimirAtaSacramental(dataKey) {
   doc.save('ata-sacramental-' + dataKey + '.pdf');
 }
 
+// Ata de reunião (aba Reuniões), na MESMA ordem do formulário e do card:
+// presença do bispado, participantes, oração inicial, pauta, itens de ação e
+// oração de encerramento. Ata antiga, sem os campos novos, sai só com o que tem.
+// Antes a pauta saía num text() só (passava do pé da página, sem quebrar) e o
+// "[✔]" dos itens não existe nas fontes padrão do jsPDF (WinAnsi): saía lixo.
+// Agora cada linha confere se cabe antes de ser escrita, e os quadradinhos são
+// desenhados. Nada de emoji aqui: as fontes padrão também não os têm — e todo
+// texto DIGITADO (pauta, itens, orações, participantes, nomes, tipo) passa
+// pelo textoParaPdf antes do splitTextToSize: um ✅ ou um 🙏 estragava a linha
+// inteira, não só o símbolo.
 export async function imprimirAtaPDF(id) {
   if (!await geradorPronto()) return;
   const r = DADOS.reunioes.find(x => x.id === id);
@@ -133,10 +144,16 @@ export async function imprimirAtaPDF(id) {
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const W = 210, margin = 20;
-  let y = 20;
+  const W = 210, H = 297, margem = 20, larguraUtil = W - margem * 2;
+  const LIMITE = H - 22;     // nenhuma linha passa daqui: o rodapé fica em H - 12
+  const TOPO = 22;           // primeira linha das páginas seguintes
+  const LH = 5;              // altura da linha em 10 pt
+  const LADO = 3.4;          // lado do quadradinho
+  const rotuloTipo = tipoReuniao(r.tipo).r;   // tipo desconhecido: a própria chave gravada
+  const tipo = textoParaPdf(rotuloTipo) || 'Reunião';
+  const quando = tipo + ' — ' + formatarData(r.data);
 
-  // Header
+  // Cabeçalho (1ª página)
   doc.setFillColor(13, 27, 42);
   doc.rect(0, 0, W, 35, 'F');
   doc.setTextColor(201, 168, 76);
@@ -147,51 +164,145 @@ export async function imprimirAtaPDF(id) {
   doc.text('Ata de Reunião — ' + ALA, W/2, 18, {align:'center'});
   doc.setFontSize(10);
   doc.setFont(undefined, 'normal');
-  doc.text(tipoReuniao(r.tipo).r + ' — ' + formatarData(r.data), W/2, 26, {align:'center'});
-  y = 42;
+  doc.text(quando, W/2, 26, {align:'center'});
 
-  doc.setTextColor(30, 30, 30);
+  let y = 46;
+  let primeiroBloco = true;
+  const corpo = () => { doc.setFontSize(10); doc.setFont(undefined, 'normal'); doc.setTextColor(30, 30, 30); };
+  corpo();
 
-  // Participantes
-  if (r.participantes?.length) {
+  // Quebra ANTES de escrever: o que não couber até o LIMITE começa na página seguinte
+  const cabe = altura => {
+    if (y + altura <= LIMITE) return;
+    doc.addPage();
+    y = TOPO;
+  };
+  // espaço entre um bloco e outro (não no primeiro, colado no cabeçalho)
+  const novoBloco = mm => { if (!primeiroBloco) y += mm; primeiroBloco = false; };
+  // linhas já quebradas na largura: a 1ª reserva `juntas` linhas (um item curto
+  // não fica partido entre duas páginas); as outras conferem uma a uma, e assim
+  // uma pauta longa continua na página seguinte
+  const linhas = (lista, x, juntas = 1) => {
+    cabe(Math.min(lista.length, juntas) * LH);
+    lista.forEach((l, i) => { if (i) cabe(LH); doc.text(l, x, y); y += LH; });
+  };
+
+  // `primeiro` = o que o 1º bloco da seção reserva: o título só fica nesta
+  // página se esse bloco couber junto, senão os dois vão para a seguinte e o
+  // título não fica sozinho no pé da página. Antes reservava uma linha só, e o
+  // assunto de 2 linhas ou o item de 3 pulava de página sem o título.
+  const titulo = (txt, primeiro = LH) => {
+    novoBloco(5);
+    cabe(7 + primeiro);
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
-    doc.text('Participantes:', margin, y); y += 6;
+    doc.setTextColor(13, 27, 42);
+    doc.text(txt, margem, y);
+    doc.setDrawColor(201, 168, 76);
+    doc.setLineWidth(0.3);
+    doc.line(margem, y + 1.8, W - margem, y + 1.8);
+    y += 7;
+    corpo();
+  };
+
+  // "Rótulo: valor" (participantes, orações), o valor quebrando ao lado do rótulo
+  const linhaRotulada = (rotulo, valor) => {
+    novoBloco(3);
+    corpo();
+    doc.setFont(undefined, 'bold');
+    const larguraRot = doc.getTextWidth(rotulo + ': ');
     doc.setFont(undefined, 'normal');
-    doc.setFontSize(10);
-    doc.text(r.participantes.join(', '), margin, y, {maxWidth: W - margin*2}); y += 10;
+    const partes = doc.splitTextToSize(valor, larguraUtil - larguraRot);
+    cabe(Math.min(partes.length, 3) * LH);
+    doc.setFont(undefined, 'bold');
+    doc.text(rotulo + ':', margem, y);
+    doc.setFont(undefined, 'normal');
+    linhas(partes, margem + larguraRot);
+  };
+
+  // Quadradinho desenhado (doc.rect) e o visto em dois traços (doc.line): a
+  // base do quadrado acompanha a linha de base do texto
+  const caixa = (x, base, marcada) => {
+    const topo = base - 2.9;
+    doc.setDrawColor(70, 70, 70);
+    doc.setLineWidth(0.3);
+    doc.rect(x, topo, LADO, LADO);
+    if (marcada) {
+      doc.setLineWidth(0.55);
+      doc.line(x + 0.7, topo + 1.8, x + 1.4, topo + 2.6);
+      doc.line(x + 1.4, topo + 2.6, x + 2.8, topo + 0.8);
+    }
+  };
+  // O item vem já quebrado na largura (partesItem), para o título da seção saber
+  // quanto o 1º item reserva (alturaItem) antes de ser escrito
+  const RECUO = LADO + 2.6;
+  const partesItem = texto => doc.splitTextToSize(textoParaPdf(texto), larguraUtil - RECUO - 1);
+  const alturaItem = partes => Math.min(partes.length, 3) * LH + 1;
+  const itemMarcado = (partes, marcada, apagado = false) => {
+    const x = margem + 1;
+    cabe(alturaItem(partes));
+    caixa(x, y, marcada);
+    if (apagado) doc.setTextColor(115, 115, 115);
+    linhas(partes, x + RECUO, 3);
+    y += 1;
+    doc.setTextColor(30, 30, 30);
+  };
+
+  // 1. Presença: todos os chamados, o quadradinho diz quem estava. Ninguém
+  //    marcado (ou ata antiga): a seção não sai, como no card.
+  const chamados = presentes(r.presenca).length
+    ? r.presenca.filter(p => p && p.cargo).map(p => ({ partes: partesItem(rotuloPresenca(p)), sim: p.presente === true }))
+    : [];
+  if (chamados.length) {
+    titulo('Presença do bispado', alturaItem(chamados[0].partes));
+    chamados.forEach(c => itemMarcado(c.partes, c.sim, !c.sim));
   }
 
-  // Pauta
-  if (r.pauta) {
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'bold');
-    doc.text('Pauta / Anotações:', margin, y); y += 6;
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(10);
-    const lines = doc.splitTextToSize(r.pauta, W - margin*2);
-    doc.text(lines, margin, y); y += lines.length * 5 + 6;
-  }
+  // 2. Participantes  3. Oração inicial
+  const participantes = (Array.isArray(r.participantes) ? r.participantes : []).map(textoParaPdf).filter(Boolean);
+  if (participantes.length) linhaRotulada('Participantes', participantes.join(', '));
+  const oracaoIni = typeof r.oracaoInicial === 'string' ? textoParaPdf(r.oracaoInicial).trim() : '';
+  if (oracaoIni) linhaRotulada('Oração inicial', oracaoIni);
 
-  // Itens de ação
-  if (r.itens?.length) {
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'bold');
-    doc.text('Itens de Ação:', margin, y); y += 6;
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(10);
-    r.itens.forEach((it, i) => {
-      if (y > 270) { doc.addPage(); y = 20; }
-      const check = it.feito ? '[✔]' : '[  ]';
-      doc.text(check + ' ' + it.texto, margin + 2, y);
-      y += 6;
+  // 4. Pauta: um parágrafo por assunto, como foi digitada; a quebra simples
+  //    dentro do assunto (lista um por linha) também fica. A linha que era só
+  //    emoji fica vazia no textoParaPdf e sai — não vira linha em branco.
+  const assuntos = paragrafos(r.pauta)
+    .map(p => p.split('\n').map(textoParaPdf).filter(Boolean).flatMap(l => doc.splitTextToSize(l, larguraUtil)))
+    .filter(a => a.length);
+  if (assuntos.length) {
+    titulo('Pauta / Anotações', Math.min(assuntos[0].length, 2) * LH);
+    assuntos.forEach((a, i) => {
+      if (i) y += 2.5;
+      linhas(a, margem, 2);
     });
   }
 
-  // Footer
-  doc.setFontSize(8);
-  doc.setTextColor(120, 120, 120);
-  doc.text('Gerado pelo Painel do Bispado · ' + ALA + ' — ' + new Date().toLocaleDateString('pt-BR'), W/2, 290, {align:'center'});
+  // 5. Itens de ação
+  const itens = (Array.isArray(r.itens) ? r.itens : []).map(it => ({ partes: partesItem(it?.texto), feito: !!it?.feito }));
+  if (itens.length) {
+    titulo('Itens de ação', alturaItem(itens[0].partes));
+    itens.forEach(it => itemMarcado(it.partes, it.feito));
+  }
 
-  doc.save('ata-' + (r.data || 'reuniao') + '.pdf');
+  // 6. Oração de encerramento
+  const oracaoEnc = typeof r.oracaoEncerramento === 'string' ? textoParaPdf(r.oracaoEncerramento).trim() : '';
+  if (oracaoEnc) linhaRotulada('Oração de encerramento', oracaoEnc);
+
+  // Rodapé em TODAS as páginas (antes só na última); da 2ª em diante, a linha
+  // do topo diz de que ata é a folha solta
+  const total = doc.getNumberOfPages();
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  for (let p = 1; p <= total; p++) {
+    doc.setPage(p);
+    doc.setFontSize(8);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(120, 120, 120);
+    if (p > 1) doc.text('Ata de Reunião — ' + quando, W/2, 12, {align:'center'});
+    const pagina = total > 1 ? ` · página ${p} de ${total}` : '';
+    doc.text('Gerado pelo Painel do Bispado · ' + ALA + ' — ' + hoje + pagina, W/2, H - 12, {align:'center'});
+  }
+
+  // ata-<tipo>-<data>.pdf: duas reuniões do mesmo dia não saem com o mesmo nome
+  doc.save(nomeArquivoAta(rotuloTipo, r.data));
 }

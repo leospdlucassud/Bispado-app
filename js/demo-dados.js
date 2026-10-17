@@ -187,13 +187,23 @@ export function gerar(hoje) {
   ];
 
   // ---------- reuniões ----------
+  // Presença nas atas (reunioes-regras.js): a fotografia dos nomes do bispado
+  // fictício lá de cima, na ordem dos chamados. `faltou`: quem não estava.
+  // As atas sem presença nem orações ficam como estão: são o formato antigo,
+  // que o card e o PDF também precisam mostrar bem.
+  const presenca = (faltou = []) => Object.entries(bispado[0].nomes)
+    .map(([cargo, nome]) => ({ cargo, nome, presente: !faltou.includes(cargo) }));
   const reunioes = [
     { data: d(-21), tipo: 'correlacao', participantes: ['1º Conselheiro', 'Líder da obra missionária', 'Missionários'],
       pauta: 'Pessoas sendo ensinadas e próximos batismos.', itens: [
         { texto: 'Convidar os conversos para a noite familiar da ala', feito: true },
         { texto: 'Definir quem acompanha o irmão Tiago nas primeiras semanas', feito: true }] },
-    { data: d(-14), tipo: 'conselho', participantes: ['Bispado', 'Presidentes das organizações'],
-      pauta: 'Calendário do trimestre e famílias que precisam de apoio.', itens: [
+    { data: d(-14), tipo: 'conselho', presenca: presenca(['Secretário']),
+      participantes: ['Presidentes das organizações', 'Líder da obra missionária'],
+      oracaoInicial: 'Patrícia Albuquerque Ramos',
+      pauta: 'Calendário do trimestre: noite familiar da ala e viagem ao templo.\n\n'
+        + 'Famílias que precisam de apoio: combinar as visitas com os irmãos ministradores.',
+      oracaoEncerramento: 'Renato Batista', itens: [
         { texto: 'Fechar a data da noite familiar da ala', feito: true },
         { texto: 'Levantar quem precisa de carona para a viagem ao templo', feito: false },
         { texto: 'Lista de aniversariantes para o mural', feito: false }] },
@@ -201,16 +211,23 @@ export function gerar(hoje) {
       pauta: 'Atividade de gincana e participação nas entrevistas.', itens: [
         { texto: 'Reservar o salão cultural', feito: true },
         { texto: 'Convidar os rapazes menos ativos', feito: false }] },
-    { data: d(-7), tipo: 'bispado', participantes: ['Bispo', '1º Conselheiro', '2º Conselheiro', 'Secretário', 'Secretário Executivo'],
-      pauta: 'Chamados em aberto, entrevistas da semana e oradores dos próximos domingos.', itens: [
+    { data: d(-7), tipo: 'bispado', presenca: presenca(['2º Conselheiro']), participantes: [],
+      oracaoInicial: 'Otávio Guimarães',
+      // assuntos separados por linha em branco; o último é uma lista, um por linha
+      pauta: 'Chamados em aberto: professor da Escola Dominical e conselheira das Moças. '
+        + 'Conversar com os candidatos antes de domingo.\n\n'
+        + 'Entrevistas da semana: recomendações para o templo a vencer e os jovens de 16–17 anos.\n\n'
+        + 'Oradores dos próximos domingos:\nconferir o rodízio\nconvidar quem ainda não discursou neste ano',
+      oracaoEncerramento: 'Paulo Vasconcelos', itens: [
         { texto: 'Convidar os oradores do domingo que vem', feito: true },
         { texto: 'Preparar a desobrigação da irmã Regina', feito: false },
         { texto: 'Conferir as recomendações a vencer', feito: false }] },
     { data: d(-28), tipo: 'bemestar', participantes: ['Bispo', 'Presidente da Sociedade de Socorro', 'Presidente do quórum de élderes'],
       pauta: 'Necessidades temporais e o curso de autossuficiência.', itens: [
         { texto: 'Abrir turma do curso de autossuficiência', feito: true }] },
-    { data: d(5), tipo: 'bispado', participantes: ['Bispo', '1º Conselheiro', '2º Conselheiro', 'Secretário', 'Secretário Executivo'],
-      pauta: 'Planejamento do mês que vem.', itens: [
+    // ainda não aconteceu: a lista foi salva sem ninguém marcado (o card omite a seção)
+    { data: d(5), tipo: 'bispado', presenca: presenca().map(p => ({ ...p, presente: false })), participantes: [],
+      pauta: 'Planejamento do mês que vem.\n\nPrograma especial de fim de ano: músicas, oradores e a Primária.', itens: [
         { texto: 'Rever o rodízio de discursantes', feito: false },
         { texto: 'Programa especial de fim de ano', feito: false }] },
   ];

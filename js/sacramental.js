@@ -173,8 +173,8 @@ export function renderSacramentais() {
       || ATA_ORDEM.some(c => c.k && g(c.k)) || sac.orador1 || sac.orador2 || sac.orador3);
 
     const statusDot = preenchido
-      ? '<span class="ponto-status" style="width:6px;height:6px;border-radius:50%;background:#34d399;display:inline-block;margin-right:6px" title="Programado"></span>'
-      : '<span class="ponto-status" style="width:6px;height:6px;border-radius:50%;background:#e05555;display:inline-block;margin-right:6px" title="Não programado"></span>';
+      ? '<span style="width:6px;height:6px;border-radius:50%;background:#34d399;display:inline-block;margin-right:6px" title="Programado"></span>'
+      : '<span style="width:6px;height:6px;border-radius:50%;background:#e05555;display:inline-block;margin-right:6px" title="Não programado"></span>';
 
     const freq = (sac.frequencia || sac.visitantes)
       ? `<span style="color:var(--text2);font-size:11px">👥 ${esc(sac.frequencia||'—')}${sac.visitantes ? ` · ${esc(sac.visitantes)} visit.` : ''}</span>`

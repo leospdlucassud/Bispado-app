@@ -124,6 +124,7 @@ clássico do `<head>`, manda os links antigos do convite para a página nova).
 | `convite-regras.js` | Regras do convite sem DOM: o que o membro pode ler (`tipoNoConvite`) e o que a resposta grava |
 | `crud-regras.js` | Upsert por campo único (`inserirOuMesclar`, `limparCorpo`), usado pelo servidor e pela fila (sem DOM, testado) |
 | `discursos-regras.js` | Rodízio de discursos sem DOM: datas por partes, chave do nome, estado da vaga, histórico, sugestões, mensagem do WhatsApp, pendências do Início (testado) |
+| `reunioes-regras.js` | Atas de reunião sem DOM: presença do bispado (o nome de cada chamado fica gravado como era no dia), parágrafos da pauta, texto da busca e nome do PDF `ata-<tipo>-<data>.pdf` (testado) |
 | `utils.js` | Formatação de data, `esc()` (escape de HTML para innerHTML), `ico()` (ícone do sprite) e `carregarScript()` |
 | `ui.js` | Troca de abas e abertura/fechamento de modais |
 | `dialogo.js` | `confirmar()` e `pedirTexto()` — substituem prompt/confirm nativos |
@@ -136,7 +137,7 @@ clássico do `<head>`, manda os links antigos do convite para a página nova).
 | `convite.js` | A tela do membro (`convite.html`): mostra o convite e grava a resposta |
 | `redirecionar-convite.js` | Script clássico: leva `/?confirmar=<id>` para `/convite.html?id=<id>` |
 | `acompanhamento.js` | Aba Acompanhamento |
-| `reunioes.js` | Reuniões administrativas |
+| `reunioes.js` | Reuniões administrativas: formulário (presença do bispado, orações, pauta), card na mesma ordem e itens de ação |
 | `designacoes.js` | Designações do bispado |
 | `calendario.js` | Calendário da ala e da estaca |
 | `sacramental.js` | Aba Sacramental: as 3 vistas, "Atas por mês", formulário da ata (grava só o que mudou) e `gravarCamposDomingo` |
@@ -145,9 +146,7 @@ clássico do `<head>`, manda os links antigos do convite para a página nova).
 | `membros-import.js` | Leitura do PDF de membros do LCR |
 | `notas.js` | Notas privadas (aparelho) e compartilhadas (nuvem) |
 | `manual.js` | Manual Geral, links oficiais e roteiros de entrevista |
-| `pdf.js` | Geração das atas em PDF (o jsPDF só é baixado no primeiro uso) |
-| `impressao.js` | Botão "🖨 Imprimir / PDF" em cada aba com dados: a impressão do navegador ("Salvar como PDF"), com o topo da folha (o que é, filtro, mês) e o tema claro; o `@media print` do `style.css` limpa o papel |
-| `impressao-regras.js` | O detalhe do topo da folha, sem DOM: com item sigiloso na lista, o termo da busca não vai para o papel (testado) |
+| `pdf.js` | Atas em PDF: a sacramental e a de cada reunião (na ordem do card, com quebra de página e rodapé em todas as páginas). O jsPDF só é carregado na primeira ata; o service worker já o guarda na instalação |
 | `busca.js` | Busca global |
 | `inicio.js` | Tela de boas-vindas (aba Início, a primeira ao abrir): saudação, resumo, pendências e atalhos |
 | `app.js` | Botão flutuante e inicialização |

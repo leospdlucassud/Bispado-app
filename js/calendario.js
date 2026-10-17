@@ -121,10 +121,6 @@ const CALENDARIO_ESTACA = [
 // só aparecem os eventos fictícios (demo-dados.js)
 export const EVENTOS_FIXOS = EM_DEMO ? [] : CALENDARIO_ESTACA;
 
-// Papel (impressao.js): na tela, o dia mostra 2 eventos e "+N" (tocar abre o
-// dia); no papel não há como tocar — saem todos
-let todosNoDia = false;
-
 export function renderCalendario() {
   const grid = document.getElementById('cal-grid');
   if (!grid) return;
@@ -151,8 +147,8 @@ export function renderCalendario() {
     const eHoje = hoje.getDate()===d && hoje.getMonth()===calMes && hoje.getFullYear()===calAno;
     html += `<div class="cal-dia${eHoje?' hoje':''}${evsDia.length?' tem-evento':''}" data-dia="${dataStr}">
       <div class="cal-num" style="${eHoje?'--c:#c9a84c;font-weight:800':''}">${d}</div>
-      ${(todosNoDia ? evsDia : evsDia.slice(0,2)).map(e=>`<div class="cal-evento-dot" style="--c:${corSegura(e.cor)}">${esc(comAla(e.txt))}</div>`).join('')}
-      ${!todosNoDia && evsDia.length>2?`<div style="font-size:9px;color:var(--text2)">+${evsDia.length-2}</div>`:''}
+      ${evsDia.slice(0,2).map(e=>`<div class="cal-evento-dot" style="--c:${corSegura(e.cor)}">${esc(comAla(e.txt))}</div>`).join('')}
+      ${evsDia.length>2?`<div style="font-size:9px;color:var(--text2)">+${evsDia.length-2}</div>`:''}
     </div>`;
   }
 
@@ -259,17 +255,6 @@ function ligarCalendario() {
     if (!btn) return;
     if (btn.dataset.act === 'fechar') fecharModal('modal-evento');
     else if (btn.dataset.act === 'salvar') salvarEvento();
-  });
-
-  addEventListener('beforeprint', () => {
-    if (!document.getElementById('panel-calendario')?.classList.contains('active')) return;
-    todosNoDia = true;
-    renderCalendario();
-  });
-  addEventListener('afterprint', () => {
-    if (!todosNoDia) return;
-    todosNoDia = false;
-    renderCalendario();
   });
 }
 ligarCalendario();

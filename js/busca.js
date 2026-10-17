@@ -5,6 +5,7 @@ import { switchTab } from './app.js';
 import { DADOS, nomeDoResponsavel } from './config.js';
 import { NOTAS_COMPARTILHADAS, NOTAS_PRIVADAS } from './notas.js';
 import { tipoReuniao } from './reunioes.js';
+import { textoDeBusca } from './reunioes-regras.js';
 import { nomeNatural } from './discursos-regras.js';
 import { formatDateSac, irParaDomingo } from './sacramental.js';
 import { podeVer } from './usuario.js';
@@ -62,10 +63,8 @@ export function doSearch(val){
   });
 
   // === 4. Busca dinâmica: Reuniões/Atas ===
-  const reuniaoMatches = (DADOS.reunioes||[]).filter(r => {
-    const txt = [r.pauta, r.tipo, (r.participantes||[]).join(' '), (r.itens||[]).map(i=>i.texto).join(' ')].join(' ').toLowerCase();
-    return txt.includes(q);
-  });
+  // o mesmo texto da busca da aba: pauta, tipo, participantes, presentes, orações e itens
+  const reuniaoMatches = (DADOS.reunioes||[]).filter(r => textoDeBusca(r, tipoReuniao(r.tipo).r).includes(q));
 
   // === 5. Busca dinâmica: Notas ===
   const allNotas = [...(NOTAS_PRIVADAS||[]).map(n=>({...n,scope:'privada'})), ...(NOTAS_COMPARTILHADAS||[]).map(n=>({...n,scope:'compartilhada'}))];
@@ -155,7 +154,7 @@ export function doSearch(val){
     return `<div class="search-result-card" style="border-color:#a78bfa">
       <div class="search-result-head"><span style="font-size:16px">📋</span><div style="flex:1">
         <div class="search-result-who" style="--c:#a78bfa">Reunião</div>
-        <div class="search-result-title">${tipoReuniao(r.tipo).r} — ${formatarData(r.data)}</div>
+        <div class="search-result-title">${esc(tipoReuniao(r.tipo).r)} — ${esc(formatarData(r.data))}</div>
       </div><button data-act="ir" data-aba="reuniao" style="background:#a78bfa;color:#0d1b2a;border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">Ver →</button></div>
       <div class="search-result-body"><div class="search-result-snippet">${snippet}</div></div>
     </div>`;

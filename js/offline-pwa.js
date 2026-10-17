@@ -472,7 +472,6 @@ window.addEventListener('load', () => { if (!MODO_CONVITE) verificarVersaoServid
 
 export let dp=null;
 export const banner=document.createElement('div');
-banner.className='aviso-instalar';   // fixo no rodapé: o @media print o tira do papel
 banner.innerHTML=`<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span style="font-size:22px">📱</span><div style="flex:1;min-width:160px"><div style="font-weight:700;font-size:14px">Instalar como App</div><div style="font-size:12px;color:var(--text2);margin-top:2px">Acesse offline, sem precisar do link</div></div><button id="pwa-install" style="background:#c9a84c;color:#0d1b2a;border:none;padding:8px 18px;border-radius:20px;font-weight:700;cursor:pointer;font-size:13px">Instalar</button><button id="pwa-dismiss" style="background:transparent;color:var(--text2);border:none;padding:8px;cursor:pointer;font-size:18px">✕</button></div>`;
 Object.assign(banner.style,{display:'none',position:'fixed',bottom:'0',left:'0',right:'0',background:'var(--bg3)',color:'var(--text1)',borderTop:'2px solid #c9a84c',padding:'14px 18px',zIndex:'9999',boxShadow:'0 -4px 20px rgba(0,0,0,.5)'});
 document.body.appendChild(banner);
@@ -508,7 +507,6 @@ window.addEventListener('appinstalled', () => {
   const isStandalone=window.matchMedia('(display-mode: standalone)').matches;
   if(isIOS&&isSafari&&!isStandalone&&!sessionStorage.getItem('ios-dismissed')){
     const tip=document.createElement('div');
-    tip.className='aviso-instalar';
     tip.innerHTML=`<div style="display:flex;align-items:flex-start;gap:10px"><span style="font-size:20px">📲</span><div style="flex:1"><div style="font-weight:700;font-size:13px;margin-bottom:4px">Instalar no iPhone/iPad</div><div style="font-size:12px;color:var(--text2);line-height:1.6">Toque em <strong style="--c:#c9a84c">Compartilhar</strong> (□↑) → <strong style="--c:#c9a84c">"Adicionar à Tela de Início"</strong></div></div><button id="ios-dismiss" style="background:transparent;color:var(--text2);border:none;padding:4px;cursor:pointer;font-size:16px">✕</button></div>`;
     Object.assign(tip.style,{position:'fixed',bottom:'0',left:'0',right:'0',background:'var(--bg3)',color:'var(--text1)',borderTop:'2px solid #5b9bd5',padding:'14px 18px',zIndex:'9999',boxShadow:'0 -4px 20px rgba(0,0,0,.5)'});
     document.body.appendChild(tip);

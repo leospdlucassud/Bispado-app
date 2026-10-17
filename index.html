@@ -205,7 +205,7 @@
   <div class="membros-stats" id="reuniao-stats"></div>
 
   <div style="margin-bottom:10px">
-    <input type="text" class="form-input" id="busca-reuniao" placeholder="🔍 Buscar por pauta, participante ou item…" style="font-size:13px">
+    <input type="text" class="form-input" id="busca-reuniao" placeholder="🔍 Buscar por pauta, participante, oração ou item…" style="font-size:13px">
   </div>
 
   <div class="filtros" id="filtros-reuniao"></div>
@@ -872,7 +872,13 @@
     <div class="como-usar-titulo" style="--c:#a78bfa">📋 Reuniões</div>
     <div class="como-usar-item">Cobre as reuniões administrativas da ala: Conselho da Ala, Bispado, Conselho de Jovens, Liderança do Sacerdócio, Correlação Missionária, Bem-Estar e outras.</div>
     <div class="como-usar-item">O topo mostra quantas foram registradas, quantas houve no mês e quantos itens de pauta seguem em aberto.</div>
-    <div class="como-usar-item">Os filtros por tipo só exibem as categorias já usadas, com a contagem de cada uma. A busca varre pauta, participantes e itens.</div>
+    <div class="como-usar-item">Os filtros por tipo só exibem as categorias já usadas, com a contagem de cada uma. A busca varre pauta, participantes, presentes, orações e itens.</div>
+    <div class="como-usar-item">O formulário é o mesmo para registrar e para editar, nesta ordem: data e tipo, <strong>presença do bispado</strong>, participantes, <strong>oração inicial</strong>, pauta, itens de ação e <strong>oração de encerramento</strong>.</div>
+    <div class="como-usar-item">Na <strong>presença do bispado</strong>, marque quem estava. Cada chamado aparece com o nome salvo em <strong>Editar os nomes dos chamados</strong>, na janela <strong>“Quem está usando?”</strong> (toque no crachá do topo): por exemplo, “Secretário Executivo” seguido do nome de quem ocupa o chamado. Em <strong>Participantes</strong> ficam os demais (presidentes das organizações, missionários…).</div>
+    <div class="como-usar-item">A ata guarda o nome de quem ocupava o chamado <strong>naquele dia</strong>: se o chamado mudar de pessoa, as atas antigas continuam com o nome de antes, mesmo ao editá-las.</div>
+    <div class="como-usar-item">Na pauta, deixe uma <strong>linha em branco</strong> entre um assunto e outro: o card e o PDF mostram cada assunto num parágrafo separado. A quebra de linha simples (uma lista, um item por linha) também é mantida.</div>
+    <div class="como-usar-item">O card mostra tudo na mesma ordem do formulário. Quem faltou aparece apagado, com “ausente”. Se ninguém foi marcado, a presença não aparece — como nas atas registradas antes desses campos, que continuam iguais.</div>
+    <div class="como-usar-item">O botão <strong>📄 PDF</strong> baixa a ata na mesma ordem, com a presença e os itens em quadradinhos marcados. Pauta longa continua na página seguinte, com o rodapé em todas as páginas. O arquivo leva o tipo e a data, por exemplo <strong>ata-reuniao-do-bispado-2026-10-15.pdf</strong>.</div>
     <div class="como-usar-item">Itens de pauta podem ser marcados como concluídos durante ou após a reunião.</div>
     <div class="como-usar-item">Itens pendentes da reunião podem virar designações automaticamente.</div>
   </div>
@@ -960,11 +966,9 @@
   </div>
 
   <div class="como-usar-section">
-    <div class="como-usar-titulo" style="--c:#c9a84c">🖨 Imprimir / PDF</div>
-    <div class="como-usar-item">Toda aba com dados tem o botão <strong>🖨 Imprimir / PDF</strong> no topo. Ele abre a impressão do navegador; para ter o arquivo, escolha <strong>Salvar como PDF</strong> como destino (no iPhone: Compartilhar → Imprimir).</div>
-    <div class="como-usar-item">Sai no papel o que está na tela, com o filtro, o mês ou a vista escolhidos — e o topo da folha diz o que é e quando foi impresso. Sem botões nem menus, e sempre nas cores claras, mesmo no tema escuro.</div>
-    <div class="como-usar-item">O Acompanhamento sai com o histórico inteiro de registros. Entrevistas e acompanhamentos <strong>sigilosos</strong> saem só como “🔒 sigiloso”, com a data e a situação, sem nome nem assunto: papel circula.</div>
-    <div class="como-usar-item">A ata de cada domingo continua tendo o seu PDF próprio, no card do domingo (Sacramental › Atas por mês).</div>
+    <div class="como-usar-titulo" style="--c:#c9a84c">📄 PDF das atas</div>
+    <div class="como-usar-item">A <strong>ata da reunião sacramental</strong> (Sacramental › Atas por mês, no card do domingo) e a <strong>ata de cada reunião</strong> (aba Reuniões, botão <strong>📄 PDF</strong> no card) baixam um PDF pronto para imprimir ou enviar.</div>
+    <div class="como-usar-item">Funciona também sem internet, desde que o app já tenha sido aberto uma vez com sinal neste aparelho.</div>
   </div>
 
   <div class="como-usar-section">

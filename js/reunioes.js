@@ -3,9 +3,13 @@
 // =============================================
 // Tipos de reunião administrados pelo bispado — fonte única para filtros e formulário
 import { apiFetch, atualizarUltimaSinc, avisarPendente, idProvisorioDo, setSyncStatus } from './api.js';
-import { API_REUNIOES, DADOS } from './config.js';
+import { nomeDoCargo } from './chamados.js';
+import { API_REUNIOES, CARGOS, DADOS } from './config.js';
 import { confirmar } from './dialogo.js';
 import { imprimirAtaPDF } from './pdf.js';
+import {
+  montarPresenca, paragrafos, presencaParaFormulario, presentes, rotuloPresenca, textoDeBusca,
+} from './reunioes-regras.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
 import { dataLocal, esc, formatarData } from './utils.js';
@@ -62,7 +66,7 @@ export function renderReunioes() {
 
   let lista = todas
     .filter(r => !filReuniao || r.tipo === filReuniao)
-    .filter(r => !busca || [r.pauta, tipoReuniao(r.tipo).r, (r.participantes||[]).join(' '), (r.itens||[]).map(i=>i.texto).join(' ')].join(' ').toLowerCase().includes(busca))
+    .filter(r => !busca || textoDeBusca(r, tipoReuniao(r.tipo).r).includes(busca))
     .sort((a,b) => (b.data||'').localeCompare(a.data||''));
 
   if (!lista.length) {
@@ -72,42 +76,73 @@ export function renderReunioes() {
     return;
   }
 
-  el.innerHTML = lista.map(r=>{
-    const t = tipoReuniao(r.tipo);
-    const abertos = (r.itens||[]).filter(i => !i.feito).length;
-    return `
+  el.innerHTML = lista.map(cardReuniao).join('');
+}
+
+const textoDe = v => (typeof v === 'string' ? v.trim() : '');
+// rótulo e valor na mesma linha (participantes, orações): curtos, quebram juntos
+const linhaCard = (rotulo, html) => `<div class="reuniao-linha"><span class="reuniao-rotulo">${rotulo}</span> ${html}</div>`;
+const secaoCard = (rotulo, html) => `<div class="reuniao-secao"><div class="reuniao-rotulo">${rotulo}</div>${html}</div>`;
+
+// Todos os chamados, na ordem gravada (a de CARGOS): quem faltou também consta,
+// apagado e com "ausente" escrito — a cor sozinha o leitor de tela não lê.
+// Ninguém marcado, ou ata antiga sem o campo: a seção não aparece (presentes()).
+function presencaCard(presenca) {
+  if (!presentes(presenca).length) return '';
+  return secaoCard('Presença do bispado', `<ul class="reuniao-presenca">${presenca.filter(p => p && p.cargo).map(p => p.presente === true
+    ? `<li class="pres-sim"><span aria-hidden="true">✓</span> ${esc(rotuloPresenca(p))}<span class="so-leitor">, presente</span></li>`
+    : `<li class="pres-nao">${esc(rotuloPresenca(p))} <span class="pres-ausente">ausente</span></li>`).join('')}</ul>`);
+}
+
+// Card na MESMA ordem do formulário e do PDF: presença, participantes, oração
+// inicial, pauta, itens de ação, oração de encerramento. Ata antiga, sem os
+// campos novos, mostra só o que tem — nada a migrar.
+function cardReuniao(r) {
+  const t = tipoReuniao(r.tipo);
+  const id = esc(r.id);
+  const itens = Array.isArray(r.itens) ? r.itens : [];
+  const abertos = itens.filter(i => !i.feito).length;
+  const partes = (Array.isArray(r.participantes) ? r.participantes : []).filter(Boolean);
+  const oracaoIni = textoDe(r.oracaoInicial);
+  const oracaoEnc = textoDe(r.oracaoEncerramento);
+  // um <p> por assunto (linha em branco entre eles); dentro do assunto, a
+  // quebra simples vira <br>. Cada linha passa pelo esc() antes de juntar.
+  const pauta = paragrafos(r.pauta).map(p => `<p>${p.split('\n').map(esc).join('<br>')}</p>`).join('');
+  return `
     <div class="reuniao-card" style="border-left:3px solid ${t.c}">
       <div class="reuniao-header">
-        <div>
-          <span class="reuniao-data">📅 ${formatarData(r.data)}</span>
-          <span class="reuniao-tipo" style="margin-left:8px;--c:${t.c}">${t.r}</span>
-          ${abertos ? `<span style="margin-left:8px;font-size:11px;--c:#e8b040">• ${abertos} em aberto</span>` : ''}
+        <div class="reuniao-titulo">
+          <span class="reuniao-data">📅 ${esc(formatarData(r.data))}</span>
+          <span class="reuniao-tipo" style="--c:${t.c}">${esc(t.r)}</span>
+          ${abertos ? `<span class="reuniao-abertos" style="--c:#e8b040">• ${abertos} em aberto</span>` : ''}
         </div>
-        <div style="display:flex;gap:6px">
-          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" data-act="pdf" data-id="${r.id}">📄 PDF</button>
-          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" data-act="editar" data-id="${r.id}">✏️</button>
-          <button class="btn-danger" data-act="excluir" data-id="${r.id}">🗑</button>
+        <div class="reuniao-acoes">
+          <button type="button" class="btn-secondary" data-act="pdf" data-id="${id}" aria-label="Baixar a ata em PDF">📄 PDF</button>
+          <button type="button" class="btn-secondary" data-act="editar" data-id="${id}" aria-label="Editar reunião" title="Editar">✏️</button>
+          <button type="button" class="btn-danger" data-act="excluir" data-id="${id}" aria-label="Excluir reunião" title="Excluir">🗑</button>
         </div>
       </div>
-      ${r.pauta?`<div class="reuniao-pauta">${esc(r.pauta)}</div>`:''}
-      ${r.participantes?.length?`<div style="font-size:11px;color:var(--text2);margin-top:4px">👥 ${esc(r.participantes.join(', '))}</div>`:''}
-      ${r.itens?.length?`
-        <div class="reuniao-itens">
-          ${r.itens.map((it,i)=>`
-            <div class="reuniao-item">
-              <div class="item-check ${it.feito?'checked':''}" data-act="item" data-id="${r.id}" data-idx="${i}"></div>
-              <span style="${it.feito?'text-decoration:line-through;opacity:.5':''}">${esc(it.texto)}</span>
-            </div>
-          `).join('')}
-        </div>
-      `:''}
+      ${presencaCard(r.presenca)}
+      ${partes.length ? linhaCard('Participantes', esc(partes.join(', '))) : ''}
+      ${oracaoIni ? linhaCard('Oração inicial', esc(oracaoIni)) : ''}
+      ${pauta ? secaoCard('Pauta / Anotações', `<div class="reuniao-pauta">${pauta}</div>`) : ''}
+      ${itens.length ? secaoCard('Itens de ação', `<div class="reuniao-itens">${itens.map((it, i) => `
+          <div class="reuniao-item${it.feito ? ' feito' : ''}">
+            <button type="button" class="item-check${it.feito ? ' checked' : ''}" role="checkbox" aria-checked="${it.feito ? 'true' : 'false'}" aria-label="${esc(it.texto)}" data-act="item" data-id="${id}" data-idx="${i}"></button>
+            <span>${esc(it.texto)}</span>
+          </div>`).join('')}
+        </div>`) : ''}
+      ${oracaoEnc ? linhaCard('Oração de encerramento', esc(oracaoEnc)) : ''}
     </div>`;
-  }).join('');
 }
 
 export async function toggleItem(reuniaoId, itemIdx) {
   const reuniao = DADOS.reunioes.find(r => r.id === reuniaoId);
   if (!reuniao) return;
+  // O redesenho recria o card: sem isto o foco de quem marca pelo teclado ou
+  // pelo leitor de tela caía no <body> (e a troca do aria-checked não era lida),
+  // como já se cuida no rodizio.js. Só volta se o foco estava num item.
+  const comFoco = !!document.activeElement?.matches?.('#lista-reunioes .item-check');
   const itens = [...(reuniao.itens||[])];
   itens[itemIdx] = { ...itens[itemIdx], feito: !itens[itemIdx].feito };
   try {
@@ -119,39 +154,69 @@ export async function toggleItem(reuniaoId, itemIdx) {
     avisarPendente('marcação do item');
   }
   renderReunioes();
+  // durante a espera do servidor a pessoa pode ter ido para outro lugar: só
+  // devolve o foco se ele caiu no <body> com o redesenho, para não roubá-lo
+  const solto = !document.activeElement || document.activeElement === document.body;
+  if (comFoco && solto) {
+    document.querySelector(`#lista-reunioes .item-check[data-id="${CSS.escape(String(reuniaoId))}"][data-idx="${itemIdx}"]`)?.focus();
+  }
 }
 
 export function abrirModalReuniao(id) {
   const r = id ? DADOS.reunioes.find(x=>x.id===id) : null;
   const itensVal = r?.itens?.map(i=>i.texto).join('\n') || '';
   const partsVal = r?.participantes?.join(', ') || '';
+  // Um quadradinho por chamado, "Chamado Nome", com os nomes de "Editar os
+  // nomes dos chamados" (janela "Quem está usando?"). Ao editar ata de reunião
+  // que já passou, vale o nome que ela gravou: mostra quem ocupava o chamado
+  // naquele dia. Até o dia da reunião, o nome atual (presencaParaFormulario).
+  const presenca = presencaParaFormulario(CARGOS, nomeDoCargo, r?.presenca, { data: r?.data, hoje: dataLocal() });
+  // Mesmo formulário para Nova e Editar, na ordem do card e do PDF
   document.getElementById('modal-reuniao-content').innerHTML = `
-    <h3>${r?'✏️ Editar':'➕ Nova'} Reunião <button class="modal-close" data-act="fechar">✕</button></h3>
+    <h3>${r?'✏️ Editar':'➕ Nova'} Reunião <button class="modal-close" data-act="fechar" aria-label="Fechar">✕</button></h3>
     <div class="form-row">
       <div class="form-group">
-        <label>Data</label>
-        <input type="date" class="form-input" id="re-data" value="${r?.data||dataLocal()}">
+        <label for="re-data">Data</label>
+        <input type="date" class="form-input" id="re-data" value="${esc(r?.data||dataLocal())}">
       </div>
       <div class="form-group">
-        <label>Tipo</label>
+        <label for="re-tipo">Tipo</label>
         <select class="form-select" id="re-tipo">
           ${TIPOS_REUNIAO.map(t=>`<option value="${t.k}" ${r?.tipo===t.k?'selected':''}>${t.r}</option>`).join('')}
         </select>
       </div>
     </div>
+    <fieldset class="re-presenca">
+      <legend>Presença do bispado</legend>
+      <div class="re-presenca-lista">
+        ${presenca.map(p => `
+          <label class="re-presenca-op">
+            <input type="checkbox" data-cargo="${esc(p.cargo)}" ${p.presente ? 'checked' : ''}>
+            <span>${esc(rotuloPresenca(p))}</span>
+          </label>`).join('')}
+      </div>
+    </fieldset>
     <div class="form-group">
-      <label>Participantes (separados por vírgula)</label>
-      <input type="text" class="form-input" id="re-partic" value="${esc(partsVal)}" placeholder="Bispo, 1º Conselheiro, 2º Conselheiro…">
+      <label for="re-partic">Participantes (separados por vírgula)</label>
+      <input type="text" class="form-input" id="re-partic" value="${esc(partsVal)}" placeholder="Outros participantes: presidentes das organizações, missionários…">
     </div>
     <div class="form-group">
-      <label>Pauta / Anotações</label>
-      <textarea class="form-textarea" id="re-pauta" placeholder="Registre os assuntos discutidos…">${esc(r?.pauta||'')}</textarea>
+      <label for="re-oracao-ini">Oração inicial</label>
+      <input type="text" class="form-input" id="re-oracao-ini" value="${esc(r?.oracaoInicial||'')}" placeholder="Quem fez a oração inicial" autocomplete="off">
     </div>
     <div class="form-group">
-      <label>Itens de ação (um por linha)</label>
+      <label for="re-pauta">Pauta / Anotações</label>
+      <textarea class="form-textarea" id="re-pauta" placeholder="Registre os assuntos discutidos…&#10;&#10;Uma linha em branco separa um assunto do outro.">${esc(r?.pauta||'')}</textarea>
+    </div>
+    <div class="form-group">
+      <label for="re-itens">Itens de ação (um por linha)</label>
       <textarea class="form-textarea" id="re-itens" placeholder="Verificar relatório trimestral&#10;Marcar entrevistas de jovens…">${esc(itensVal)}</textarea>
     </div>
-    <button class="btn-primary" data-act="salvar" data-id="${id||''}">💾 Salvar</button>
+    <div class="form-group">
+      <label for="re-oracao-enc">Oração de encerramento</label>
+      <input type="text" class="form-input" id="re-oracao-enc" value="${esc(r?.oracaoEncerramento||'')}" placeholder="Quem fez a oração de encerramento" autocomplete="off">
+    </div>
+    <button class="btn-primary" data-act="salvar" data-id="${esc(id||'')}">💾 Salvar</button>
   `;
   abrirModal('modal-reuniao');
 }
@@ -159,14 +224,22 @@ export function abrirModalReuniao(id) {
 export async function salvarReuniao(id) {
   const data = document.getElementById('re-data').value;
   if (!data) return toast('Informe a data');
+  const anterior = id ? DADOS.reunioes.find(x=>x.id===id) : null;
   const itensTexto = document.getElementById('re-itens').value.split('\n').map(s=>s.trim()).filter(Boolean);
-  const itensAntigos = id ? (DADOS.reunioes.find(x=>x.id===id)?.itens||[]) : [];
+  const itensAntigos = anterior?.itens || [];
+  const marcados = [...document.querySelectorAll('#modal-reuniao-content input[data-cargo]:checked')].map(c => c.dataset.cargo);
   const payload = {
     data,
     tipo: document.getElementById('re-tipo').value,
+    // todos os chamados, marcados ou não, com o nome gravado como fotografia
+    // (montarPresenca): trocar quem ocupa o chamado depois da reunião não
+    // reescreve a ata; antes dela, a ata acompanha o nome atual
+    presenca: montarPresenca(CARGOS, nomeDoCargo, anterior?.presenca, marcados, { data, hoje: dataLocal() }),
     participantes: document.getElementById('re-partic').value.split(',').map(s=>s.trim()).filter(Boolean),
+    oracaoInicial: document.getElementById('re-oracao-ini').value.trim(),
     pauta: document.getElementById('re-pauta').value,
-    itens: itensTexto.map((texto,i) => ({ texto, feito: itensAntigos[i]?.feito||false }))
+    itens: itensTexto.map((texto,i) => ({ texto, feito: itensAntigos[i]?.feito||false })),
+    oracaoEncerramento: document.getElementById('re-oracao-enc').value.trim(),
   };
   fecharModal('modal-reuniao');
   try {

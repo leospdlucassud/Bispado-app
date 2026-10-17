@@ -27,7 +27,7 @@ import { dataLocal } from './utils.js';
 
 // Sobe quando demo-dados.js muda de forma: a carga guardada deixa de valer e é
 // gerada de novo, em vez de abrir dados no formato antigo
-export const VERSAO_DEMO = 3;
+export const VERSAO_DEMO = 4;
 
 const CHAVE_ABA = 'bispado_demo';       // sessionStorage: a demonstração vale por aba
 const PREFIXO = 'demo:';                // compartimento do localStorage e do IndexedDB

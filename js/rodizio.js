@@ -1275,21 +1275,5 @@ function ligarRodizio() {
     else if (e.target.id === 'orador-tema') atualizarLinkEscolha();
     else if (e.target.id === 'om-tel' || e.target.id === 'om-msg') atualizarLinkOutroMeio();
   });
-
-  // Papel (impressao.js): a vista Rodízio sai inteira, não só os 50 da tela —
-  // o "Mostrar mais" é botão e some na impressão
-  let limiteDaTela = null;
-  addEventListener('beforeprint', () => {
-    if (!document.querySelector('#panel-sacramental.active #sac-vista-rodizio:not([hidden])')) return;
-    limiteDaTela = rodLimite;
-    rodLimite = Infinity;
-    renderRodizio();
-  });
-  addEventListener('afterprint', () => {
-    if (limiteDaTela === null) return;
-    rodLimite = limiteDaTela;
-    limiteDaTela = null;
-    renderRodizio();
-  });
 }
 ligarRodizio();
