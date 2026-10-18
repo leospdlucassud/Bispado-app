@@ -1,11 +1,12 @@
 // =============================================
 // IMPRESSÃO DE ATA EM PDF (jsPDF)
 // =============================================
-// Ata da reunião sacramental em PDF, na mesma ordem do formulário
+// As duas atas em PDF — a da reunião sacramental e a de reunião (aba
+// Reuniões) —, cada uma na mesma ordem do seu formulário
 import { ALA, DADOS } from './config.js';
 import { estadoDaVaga, minutosDaVaga, nomeNatural, tipoDe } from './discursos-regras.js';
 import { tipoReuniao } from './reunioes.js';
-import { nomeArquivoAta, paragrafos, presentes, rotuloPresenca, textoParaPdf } from './reunioes-regras.js';
+import { nomeArquivoAta, paragrafos, presentes, rotuloPresenca, valorParaPdf } from './reunioes-regras.js';
 import { ATA_ORDEM, campoAta, formatDateSac, getSacPorData } from './sacramental.js';
 import { toast } from './usuario.js';
 import { carregarScript, dataLocal, formatarData } from './utils.js';
@@ -27,7 +28,28 @@ async function geradorPronto() {
   return false;
 }
 
-export async function imprimirAtaSacramental(dataKey) {
+// Qualquer erro ao montar a ata vira um aviso na tela (e o detalhe no console).
+// Antes o erro ficava numa promessa que ninguém esperava: o PDF não saía e,
+// para quem tocou no botão, simplesmente nada acontecia. Os botões chamam as
+// funções exportadas, que nunca rejeitam (declaradas com function: pdf.js e
+// sacramental.js importam um do outro).
+async function gerarComAviso(gerar, chave) {
+  try {
+    await gerar(chave);
+  } catch (e) {
+    console.error('PDF da ata não gerado:', e);
+    toast('Não foi possível gerar o PDF desta ata.');
+  }
+}
+
+export function imprimirAtaSacramental(dataKey) { return gerarComAviso(ataSacramental, dataKey); }
+export function imprimirAtaPDF(id) { return gerarComAviso(ataDeReuniao, id); }
+
+// Ata da reunião sacramental. Todo valor gravado passa pelo valorParaPdf: o
+// domingo importado de planilha pode ter o hino como número (um 123 fazia o
+// .trim() estourar e o PDF não saía), e o emoji digitado estragava a linha
+// inteira, como na ata de reunião.
+async function ataSacramental(dataKey) {
   if (!await geradorPronto()) return;
   const sac = getSacPorData(dataKey);
   if (!sac) return toast('Este domingo ainda não foi programado');
@@ -35,6 +57,7 @@ export async function imprimirAtaSacramental(dataKey) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = 210, H = 297, margem = 20, larguraUtil = W - margem * 2;
+  const PE = H - 22, TOPO = 22;   // nenhuma linha passa do PE; a página seguinte começa no TOPO
   const d = new Date(dataKey + 'T12:00:00');
 
   // Cabeçalho
@@ -51,18 +74,19 @@ export async function imprimirAtaSacramental(dataKey) {
   doc.text(formatDateSac(d) + ' de ' + d.getFullYear(), W/2, 26, { align:'center' });
   // jejum, conferência, Primária: a ata diz que tipo de reunião foi
   const tipo = tipoDe(sac);
-  if (sac.tipo && sac.tipo !== 'normal' && tipo.rotulo) {
+  const rotuloTipo = valorParaPdf(tipo.rotulo).trim();
+  if (sac.tipo && sac.tipo !== 'normal' && rotuloTipo) {
     doc.setFontSize(9);
-    doc.text(tipo.rotulo, W/2, 31, { align:'center' });
+    doc.text(rotuloTipo, W/2, 31, { align:'center' });
   }
 
   let y = 44;
   doc.setTextColor(30, 30, 30);
 
   const quebraPagina = (altura) => {
-    if (y + altura <= H - 22) return;
+    if (y + altura <= PE) return;
     doc.addPage();
-    y = 22;
+    y = TOPO;
   };
 
   // Frequência
@@ -70,32 +94,50 @@ export async function imprimirAtaSacramental(dataKey) {
   doc.rect(margem, y - 6, larguraUtil, 11, 'F');
   doc.setFontSize(10);
   doc.setFont(undefined, 'bold');
-  doc.text('Frequência geral: ' + (sac.frequencia || '____'), margem + 3, y + 1);
-  doc.text('Visitantes: ' + (sac.visitantes || '____'), margem + larguraUtil / 2 + 3, y + 1);
+  doc.text('Frequência geral: ' + (valorParaPdf(sac.frequencia).trim() || '____'), margem + 3, y + 1);
+  doc.text('Visitantes: ' + (valorParaPdf(sac.visitantes).trim() || '____'), margem + larguraUtil / 2 + 3, y + 1);
   y += 14;
 
+  // "Rótulo: valor". O bloco que cabe numa página vai inteiro para a seguinte
+  // quando não cabe aqui (como sempre foi); o maior que uma página inteira (um
+  // anúncio enorme) começa aqui e continua na seguinte — antes passava do pé
+  // da folha e o fim sumia do PDF.
   const linha = (rotulo, valor) => {
-    const texto = (valor || '').trim();
+    const texto = valorParaPdf(valor).trim();
     doc.setFontSize(10);
     doc.setFont(undefined, 'bold');
     const larguraRot = doc.getTextWidth(rotulo + ': ');
     doc.setFont(undefined, 'normal');
-    const linhas = doc.splitTextToSize(texto || '—', larguraUtil - larguraRot);
-    quebraPagina(linhas.length * 5 + 3);
+    let linhas = doc.splitTextToSize(texto || '—', larguraUtil - larguraRot);
+    const altura = linhas.length * 5 + 3;
+    quebraPagina(altura <= PE - TOPO ? altura : 3 * 5);
     doc.setFont(undefined, 'bold');
     doc.text(rotulo + ':', margem, y);
     doc.setFont(undefined, 'normal');
-    doc.text(linhas, margem + larguraRot, y);
-    y += linhas.length * 5 + 3;
+    for (;;) {
+      const cabem = Math.max(1, Math.floor((PE - y) / 5));
+      if (linhas.length * 5 + 3 <= PE - y || linhas.length <= cabem) {
+        doc.text(linhas, margem + larguraRot, y);
+        y += linhas.length * 5 + 3;
+        return;
+      }
+      doc.text(linhas.slice(0, cabem), margem + larguraRot, y);
+      linhas = linhas.slice(cabem);
+      doc.addPage();
+      y = TOPO;
+    }
   };
 
   ATA_ORDEM.forEach(c => {
     if (c.orador) {
+      // jejum, conferência geral ou de estaca, Primária: nenhuma linha de orador,
+      // nem com um nome gravado de antes de o tipo mudar (ele fica guardado)
+      if (!tipo.vagas) return;
       const n = c.orador;
-      const nome = String(sac['orador' + n] || '').trim();
-      const tema = sac['tema' + n] || '';
-      // "não haverá este discurso", ou domingo sem oradores: a linha não sai
-      if (!nome && (sac['orador' + n + 'Status'] === 'dispensada' || !tipo.vagas)) return;
+      const nome = valorParaPdf(sac['orador' + n]).trim();
+      const tema = valorParaPdf(sac['tema' + n]).trim();
+      // "não haverá este discurso": a linha não sai
+      if (!nome && sac['orador' + n + 'Status'] === 'dispensada') return;
       // quem respondeu "não poderá" e não foi trocado não discursou: a ata não o lista
       if (!nome || estadoDaVaga({ ...sac, data: dataKey }, n, dataLocal()) === 'recusou') linha(n + 'º Orador', '');
       else linha(`${n}º Orador (${minutosDaVaga(sac, n)} min)`, nomeNatural(nome) + (tema ? ' — ' + tema : ''));
@@ -104,12 +146,13 @@ export async function imprimirAtaSacramental(dataKey) {
     }
   });
 
-  if (sac.observacoes) {
+  const observacoes = valorParaPdf(sac.observacoes).trim();
+  if (observacoes) {
     y += 4;
     quebraPagina(14);
     doc.setDrawColor(200, 190, 165);
     doc.line(margem, y - 4, W - margem, y - 4);
-    linha('Observações', sac.observacoes);
+    linha('Observações', observacoes);
   }
 
   // Assinatura
@@ -134,12 +177,13 @@ export async function imprimirAtaSacramental(dataKey) {
 // "[✔]" dos itens não existe nas fontes padrão do jsPDF (WinAnsi): saía lixo.
 // Agora cada linha confere se cabe antes de ser escrita, e os quadradinhos são
 // desenhados. Nada de emoji aqui: as fontes padrão também não os têm — e todo
-// texto DIGITADO (pauta, itens, orações, participantes, nomes, tipo) passa
-// pelo textoParaPdf antes do splitTextToSize: um ✅ ou um 🙏 estragava a linha
-// inteira, não só o símbolo.
-export async function imprimirAtaPDF(id) {
+// texto GRAVADO (pauta, itens, orações, participantes, nomes, tipo, data) passa
+// pelo valorParaPdf antes do splitTextToSize: um ✅ ou um 🙏 estragava a linha
+// inteira, não só o símbolo, e um número ou uma lista onde se esperava texto
+// derrubava a ata inteira.
+async function ataDeReuniao(id) {
   if (!await geradorPronto()) return;
-  const r = DADOS.reunioes.find(x => x.id === id);
+  const r = (DADOS.reunioes || []).find(x => x && x.id === id);
   if (!r) return toast('Reunião não encontrada');
 
   const { jsPDF } = window.jspdf;
@@ -150,8 +194,10 @@ export async function imprimirAtaPDF(id) {
   const LH = 5;              // altura da linha em 10 pt
   const LADO = 3.4;          // lado do quadradinho
   const rotuloTipo = tipoReuniao(r.tipo).r;   // tipo desconhecido: a própria chave gravada
-  const tipo = textoParaPdf(rotuloTipo) || 'Reunião';
-  const quando = tipo + ' — ' + formatarData(r.data);
+  const tipo = valorParaPdf(rotuloTipo).trim() || 'Reunião';
+  // formatarData faz split: uma data gravada como número derrubava a ata
+  const data = valorParaPdf(r.data).trim();
+  const quando = tipo + ' — ' + formatarData(data);
 
   // Cabeçalho (1ª página)
   doc.setFillColor(13, 27, 42);
@@ -236,7 +282,7 @@ export async function imprimirAtaPDF(id) {
   // O item vem já quebrado na largura (partesItem), para o título da seção saber
   // quanto o 1º item reserva (alturaItem) antes de ser escrito
   const RECUO = LADO + 2.6;
-  const partesItem = texto => doc.splitTextToSize(textoParaPdf(texto), larguraUtil - RECUO - 1);
+  const partesItem = texto => doc.splitTextToSize(valorParaPdf(texto), larguraUtil - RECUO - 1);
   const alturaItem = partes => Math.min(partes.length, 3) * LH + 1;
   const itemMarcado = (partes, marcada, apagado = false) => {
     const x = margem + 1;
@@ -251,7 +297,10 @@ export async function imprimirAtaPDF(id) {
   // 1. Presença: todos os chamados, o quadradinho diz quem estava. Ninguém
   //    marcado (ou ata antiga): a seção não sai, como no card.
   const chamados = presentes(r.presenca).length
-    ? r.presenca.filter(p => p && p.cargo).map(p => ({ partes: partesItem(rotuloPresenca(p)), sim: p.presente === true }))
+    ? r.presenca.filter(p => p && p.cargo).map(p => ({
+      partes: partesItem(rotuloPresenca({ cargo: valorParaPdf(p.cargo), nome: valorParaPdf(p.nome) })),
+      sim: p.presente === true,
+    }))
     : [];
   if (chamados.length) {
     titulo('Presença do bispado', alturaItem(chamados[0].partes));
@@ -259,16 +308,19 @@ export async function imprimirAtaPDF(id) {
   }
 
   // 2. Participantes  3. Oração inicial
-  const participantes = (Array.isArray(r.participantes) ? r.participantes : []).map(textoParaPdf).filter(Boolean);
+  const participantes = (Array.isArray(r.participantes) ? r.participantes : []).map(p => valorParaPdf(p)).filter(Boolean);
   if (participantes.length) linhaRotulada('Participantes', participantes.join(', '));
-  const oracaoIni = typeof r.oracaoInicial === 'string' ? textoParaPdf(r.oracaoInicial).trim() : '';
+  const oracaoIni = valorParaPdf(r.oracaoInicial).trim();
   if (oracaoIni) linhaRotulada('Oração inicial', oracaoIni);
 
   // 4. Pauta: um parágrafo por assunto, como foi digitada; a quebra simples
   //    dentro do assunto (lista um por linha) também fica. A linha que era só
-  //    emoji fica vazia no textoParaPdf e sai — não vira linha em branco.
-  const assuntos = paragrafos(r.pauta)
-    .map(p => p.split('\n').map(textoParaPdf).filter(Boolean).flatMap(l => doc.splitTextToSize(l, larguraUtil)))
+  //    emoji fica vazia no valorParaPdf e sai — não vira linha em branco. Por
+  //    isso a pauta em texto é dividida em assuntos ANTES de ser limpa: limpa
+  //    antes, a linha só de emoji virava linha em branco e partia o assunto em dois.
+  const pauta = typeof r.pauta === 'string' ? r.pauta : valorParaPdf(r.pauta);
+  const assuntos = paragrafos(pauta)
+    .map(p => p.split('\n').map(l => valorParaPdf(l)).filter(Boolean).flatMap(l => doc.splitTextToSize(l, larguraUtil)))
     .filter(a => a.length);
   if (assuntos.length) {
     titulo('Pauta / Anotações', Math.min(assuntos[0].length, 2) * LH);
@@ -286,7 +338,7 @@ export async function imprimirAtaPDF(id) {
   }
 
   // 6. Oração de encerramento
-  const oracaoEnc = typeof r.oracaoEncerramento === 'string' ? textoParaPdf(r.oracaoEncerramento).trim() : '';
+  const oracaoEnc = valorParaPdf(r.oracaoEncerramento).trim();
   if (oracaoEnc) linhaRotulada('Oração de encerramento', oracaoEnc);
 
   // Rodapé em TODAS as páginas (antes só na última); da 2ª em diante, a linha
@@ -304,5 +356,5 @@ export async function imprimirAtaPDF(id) {
   }
 
   // ata-<tipo>-<data>.pdf: duas reuniões do mesmo dia não saem com o mesmo nome
-  doc.save(nomeArquivoAta(rotuloTipo, r.data));
+  doc.save(nomeArquivoAta(tipo, data));
 }

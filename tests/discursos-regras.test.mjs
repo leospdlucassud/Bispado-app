@@ -396,3 +396,109 @@ test('programa especial sem oradores não alarma o resumo da semana', () => {
   assert.equal(resumoDomingo(um, '2026-12-20', '2026-12-15'), '✅ 1 confirmado · 2 vagas abertas');
   assert.ok(!pendenciasDiscurso([{ data: '2026-12-20', tipo: 'especial' }], '2026-12-15').some(p => p.dk === '2026-12-20'));
 });
+
+import { TIPOS_DOMINGO, semVagasOcultas, tipoDe, tipoTemOradores } from '../js/discursos-regras.js';
+
+test('só a reunião normal, a conferência de ala e o programa especial têm oradores', () => {
+  const comVagas = Object.keys(TIPOS_DOMINGO).filter(t => TIPOS_DOMINGO[t].vagas).sort();
+  assert.deepEqual(comVagas, ['', 'conf-ala', 'especial', 'normal']);
+  for (const t of ['', 'normal', 'conf-ala', 'especial']) assert.equal(tipoTemOradores(t), true, t);
+  for (const t of ['jejum', 'conf-geral', 'conf-estaca', 'primaria']) assert.equal(tipoTemOradores(t), false, t);
+  // tipo desconhecido (ou sem tipo) vale como "não marcado", que é reunião normal
+  for (const t of ['xyz', undefined, null, 'constructor', '__proto__']) assert.equal(tipoTemOradores(t), true, String(t));
+  // conferência de ala: os oradores costumam ser da estaca — o Início não cobra
+  // a vaga aberta e nada entra no rodízio da ala
+  assert.equal(TIPOS_DOMINGO['conf-ala'].cobra, false);
+  assert.equal(TIPOS_DOMINGO['conf-ala'].conta, false);
+  assert.ok(TIPOS_DOMINGO['conf-ala'].dica);
+  assert.equal(tipoDe({ tipo: 'especial' }).conta, true);
+});
+
+test('conferência de ala: tem as 3 vagas, não cobra no Início e não entra no rodízio', () => {
+  const dk = '2026-10-25';
+  const k = n => chavePessoa(n);
+  assert.equal(resumoDomingo({ tipo: 'conf-ala' }, dk, HOJE), 'Conf. de ala · sem oradores designados');
+  assert.ok(!pendenciasDiscurso([{ data: dk, tipo: 'conf-ala' }], '2026-10-20').some(p => p.dk === dk));
+  assert.equal(somaMinutos({ tipo: 'conf-ala' }), 30);
+  const estaca = { data: dk, tipo: 'conf-ala', orador1: 'Presidente Exemplo, da estaca', orador1Fora: true,
+    orador2: 'Ana Souza', orador2Chave: k('Ana Souza'), orador2Status: 'aceito' };
+  assert.equal(resumoDomingo(estaca, dk, HOJE), '✅ 2 confirmados · 1 vaga aberta');
+  const passado = { ...estaca, data: '2026-09-27' };
+  assert.equal(historicoDiscursos([passado], HOJE).size, 0);
+});
+
+test('tipo sem oradores: o salvar da ata não grava nada das vagas escondidas', () => {
+  const vaga = n => ({ ['orador' + n]: 'Ana Souza', ['tema' + n]: 'A fé', ['orador' + n + 'Min']: 10,
+    ['orador' + n + 'Status']: 'aceito', ['orador' + n + 'Chave']: chavePessoa('Ana Souza'),
+    ['orador' + n + 'ConvidadoEm']: 'x', ['orador' + n + 'RespostaEm']: 'y', ['orador' + n + 'Por']: 'bispo', ['orador' + n + 'Fora']: false });
+  const campos = { tipo: 'jejum', primeiroHino: '2', observacoes: 'Testemunhos', frequencia: '90', ...vaga(1), ...vaga(2), ...vaga(3) };
+  assert.deepEqual(semVagasOcultas(campos, 'jejum'), { tipo: 'jejum', primeiroHino: '2', observacoes: 'Testemunhos', frequencia: '90' });
+  for (const t of ['conf-geral', 'conf-estaca', 'primaria']) assert.deepEqual(Object.keys(semVagasOcultas(campos, t)).sort(), ['frequencia', 'observacoes', 'primeiroHino', 'tipo']);
+  // com oradores, tudo passa — e a entrada nunca é alterada
+  for (const t of ['', 'normal', 'conf-ala', 'especial']) assert.deepEqual(semVagasOcultas(campos, t), campos);
+  assert.equal(campos.orador1, 'Ana Souza');
+  assert.deepEqual(semVagasOcultas(undefined, 'jejum'), {});
+
+  // o caminho do salvar: ata aberta como reunião normal, os nomes apagados no
+  // bloco e o tipo trocado para jejum — os nomes gravados ficam como estavam
+  const retrato = { tipo: '', orador1: 'Ana Souza', tema1: 'A fé', orador1Min: 5, orador1Fora: false, hinoFinal: '85' };
+  const depois = { ...retrato, tipo: 'jejum', orador1: '', tema1: '' };
+  assert.deepEqual(semVagasOcultas(diffCampos(retrato, depois), depois.tipo), { tipo: 'jejum' });
+  // e de volta para reunião normal, sem mexer nos blocos: nada das vagas muda
+  const deVolta = { ...retrato, tipo: 'normal' };
+  assert.deepEqual(semVagasOcultas(diffCampos(retrato, deVolta), deVolta.tipo), { tipo: 'normal' });
+});
+
+import { trechoDaBusca } from '../js/discursos-regras.js';
+
+// conta:false tira da conta o discurso FEITO, não a reserva: sem as planejadas,
+// quem da ala aceitou a conferência de ala aparecia livre (sem o selo "já em
+// 25/10 · 2º", nos Sugeridos) e podia ser convidado para o domingo seguinte
+test('conferência de ala: quem da ala está marcado continua marcado, mas o discurso feito não conta', () => {
+  const ana = 'Exemplo, Ana', k = chavePessoa(ana), hoje = '2026-10-18';
+  const conf = { data: '2026-10-25', tipo: 'conf-ala', orador1: 'Presidente Fictício', orador1Fora: true,
+    orador2: ana, orador2Chave: k, orador2Status: 'aceito' };
+  const h = historicoDiscursos([conf], hoje);
+  assert.deepEqual(h.get(k)?.planejadas, [{ data: '2026-10-25', n: 2, estado: 'aceito' }]);
+  assert.deepEqual(h.get(k).discursos, []);
+  assert.equal(h.has(chavePessoa('Presidente Fictício')), false);   // de fora da ala
+  // nas planejadas, igual a qualquer domingo com oradores
+  assert.deepEqual(historicoDiscursos([{ ...conf, tipo: 'especial' }], hoje).get(k).planejadas, h.get(k).planejadas);
+
+  // a ficha ("Marcado: …") e o seletor leem as planejadas do pool
+  const pessoas = montarPessoas({ historico: h, hojeKey: hoje });
+  assert.deepEqual(pessoas.get(k).planejadas.map(p => [p.data, p.n]), [['2026-10-25', 2]]);
+  assert.equal(pessoas.get(k).vezes, 0);
+  // o seletor monta as ocupadas com as planejadas: os Sugeridos do domingo
+  // seguinte não oferecem a Ana (sem elas, oferecem)
+  const sugeridos = ocupadas => {
+    const { lista, recentes } = sugerirParaVaga({ pessoas, dk: '2026-11-01', n: 1, ocupadas, hojeKey: hoje });
+    return [...lista, ...recentes].some(i => i.pessoa.chave === k);
+  };
+  assert.equal(sugeridos(new Map()), true);
+  assert.equal(sugeridos(new Map([[k, pessoas.get(k).planejadas]])), false);
+
+  // passado o domingo, o discurso da conferência de ala não entra no rodízio
+  assert.equal(historicoDiscursos([conf], '2026-10-26').size, 0);
+  // domingo sem vagas: o nome guardado de antes de o tipo mudar nem discursou
+  // nem está marcado
+  for (const tipo of ['jejum', 'conf-geral', 'conf-estaca', 'primaria']) {
+    assert.equal(historicoDiscursos([{ ...conf, tipo }], hoje).size, 0, tipo);
+    assert.equal(historicoDiscursos([{ ...conf, tipo }], '2026-10-26').size, 0, tipo);
+  }
+});
+
+test('busca: o nome guardado num domingo sem oradores não aparece como orador', () => {
+  const sac = { data: '2026-10-04', tipo: 'jejum', orador1: 'Exemplo, Ana', tema1: 'A fé' };
+  assert.equal(trechoDaBusca(sac), 'Jejum · guardado, não sai na ata: Ana Exemplo — A fé');
+  assert.match(trechoDaBusca({ ...sac, tipo: 'primaria' }), /^Primária · guardado, não sai na ata: Ana Exemplo/);
+  assert.match(trechoDaBusca({ ...sac, tipo: 'conf-estaca' }), /^Conf\. de estaca · guardado/);
+  // com oradores (e tipo desconhecido, que vale como não marcado): como sempre foi
+  for (const tipo of ['', 'normal', 'conf-ala', 'especial', 'xyz', undefined]) {
+    assert.equal(trechoDaBusca({ ...sac, tipo }), 'Ana Exemplo — A fé', String(tipo));
+  }
+  assert.equal(trechoDaBusca({ orador1: 'Exemplo, Ana', orador3: 'Bruno Fictício', tema3: 'Oração' }), 'Ana Exemplo, Bruno Fictício — Oração');
+  // nada gravado nas vagas: trecho vazio, também sem a marca
+  assert.equal(trechoDaBusca({ data: '2026-10-04', tipo: 'jejum' }), '');
+  assert.equal(trechoDaBusca(undefined), '');
+});

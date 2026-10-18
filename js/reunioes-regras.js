@@ -2,7 +2,8 @@
 // REGRAS DAS ATAS DE REUNIÃO — sem DOM
 // O que o card (reunioes.js), o PDF (pdf.js) e a busca (busca.js) dividem: a
 // presença do bispado, os parágrafos da pauta, o texto da busca, o texto que o
-// PDF consegue escrever e o nome do arquivo. Nada de DOM nem de módulo de tela
+// PDF consegue escrever (as duas atas: a de reunião e a sacramental) e o nome
+// do arquivo. Nada de DOM nem de módulo de tela
 // aqui: tests/reunioes.test.mjs importa direto no Node. Quem ocupa cada chamado
 // e o dia de hoje chegam por parâmetro (nomeDoCargo, de chamados.js, e
 // dataLocal, de utils.js), não por import.
@@ -121,6 +122,25 @@ export function textoParaPdf(texto) {
       return sem === l ? l : sem.replace(/ {2,}/g, ' ').trim();
     })
     .join('\n');
+}
+
+// Qualquer valor GRAVADO → texto do PDF. O formulário só grava texto, mas um
+// domingo importado de planilha (ou de uma versão antiga) pode ter o hino como
+// número, uma lista ou um objeto — e bastava um `primeiroHino: 123` para o
+// .trim() estourar no meio da ata: o PDF não saía e, para quem tocou no botão,
+// "nada acontecia". Texto passa pelo textoParaPdf; número e verdadeiro/falso
+// viram texto; lista vira os itens separados por vírgula (lista dentro de
+// lista também), sem os que ficaram vazios; o resto (null, objeto, data) não
+// sai. Item a item: um 🙏 sozinho na lista não deixa ", " sobrando.
+export function valorParaPdf(valor, nivel = 0) {
+  if (typeof valor === 'string') return textoParaPdf(valor);
+  if (typeof valor === 'number') return Number.isFinite(valor) ? String(valor) : '';
+  if (typeof valor === 'boolean' || typeof valor === 'bigint') return String(valor);
+  // o limite de níveis só protege de uma lista que contém a si mesma
+  if (Array.isArray(valor) && nivel < 20) {
+    return valor.map(v => valorParaPdf(v, nivel + 1).trim()).filter(Boolean).join(', ');
+  }
+  return '';
 }
 
 // "Reunião do Bispado" → "reuniao-do-bispado": sem acento (o arquivo vai para

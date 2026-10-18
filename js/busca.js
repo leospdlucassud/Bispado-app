@@ -6,7 +6,7 @@ import { DADOS, nomeDoResponsavel } from './config.js';
 import { NOTAS_COMPARTILHADAS, NOTAS_PRIVADAS } from './notas.js';
 import { tipoReuniao } from './reunioes.js';
 import { textoDeBusca } from './reunioes-regras.js';
-import { nomeNatural } from './discursos-regras.js';
+import { nomeNatural, trechoDaBusca } from './discursos-regras.js';
 import { formatDateSac, irParaDomingo } from './sacramental.js';
 import { podeVer } from './usuario.js';
 import { esc, formatarData, realcar } from './utils.js';
@@ -100,9 +100,9 @@ export function doSearch(val){
   // Resultados de Sacramentais
   html += sacMatches.map(s => {
     const d = new Date(s.data + 'T12:00:00');
-    const quem = [s.orador1, s.orador2, s.orador3].filter(Boolean).map(nomeNatural).join(', ');
-    const temas = [s.tema1, s.tema2, s.tema3].filter(Boolean).join(' · ');
-    const snippet = realcar([quem, temas].filter(Boolean).join(' — ').substring(0,120), val);
+    // jejum, conferência geral ou de estaca, Primária: o nome guardado aparece
+    // marcado como tal, não como quem discursou
+    const snippet = realcar(trechoDaBusca(s).substring(0,120), val);
     return `<div class="search-result-card" style="border-color:#e8d080">
       <div class="search-result-head"><span style="font-size:16px">🕊️</span><div style="flex:1">
         <div class="search-result-who" style="color:var(--sac)">Sacramental</div>

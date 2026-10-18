@@ -214,7 +214,9 @@ function cardDomingo(ctx, dk, cont) {
     }
     const hino = String(campoAta(sac, 'hinoIntermediario') || '').trim();
     const soma = somaMinutos(reg);
-    corpo = (soma > MINUTOS_ALERTA ? `<div class="plano-alerta">⚠️ ${soma} min de discursos — a reunião tem 1 hora (Manual 29.2.1.1)</div>` : '')
+    // conferência de ala: as vagas existem, mas os oradores costumam ser da estaca
+    corpo = (tipo.dica ? `<div class="plano-semvagas">${esc(tipo.dica)}</div>` : '')
+      + (soma > MINUTOS_ALERTA ? `<div class="plano-alerta">⚠️ ${soma} min de discursos — a reunião tem 1 hora (Manual 29.2.1.1)</div>` : '')
       + vagaHtml(ctx, reg, dk, 1) + vagaHtml(ctx, reg, dk, 2)
       + `<div class="vaga-hino">♪ Hino intermediário${hino ? `: ${esc(hino)}` : ''}</div>`
       + vagaHtml(ctx, reg, dk, 3);

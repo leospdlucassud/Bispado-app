@@ -30,21 +30,31 @@ export const NOVOS_MESES = 12;         // "Membros novos" volta ao automático d
 export const PAUSAS_MESES = [3, 6];
 export const CORES_POSICAO = { 1: '#34d399', 2: '#a78bfa', 3: '#e8b040' };
 
-// vagas: se o domingo tem as 3 vagas; cobra: se o Início cobra oradores;
-// conta: se os discursos entram no histórico do rodízio
+// vagas: se o domingo tem as 3 vagas de orador (no plano, na ata, no card e no
+// PDF); cobra: se o Início cobra oradores; conta: se os discursos entram no
+// histórico do rodízio; resumo: o que aparece no lugar das vagas, no domingo
+// sem elas; dica: uma linha junto das vagas.
+// Só têm oradores a reunião normal (e o domingo ainda não marcado, que é
+// normal), a conferência de ala e o programa especial. Na conferência de ala os
+// oradores costumam ser da estaca: o Início não cobra a vaga aberta e quem fala
+// não entra no rodízio da ala.
 export const TIPOS_DOMINGO = {
   '':            { rotulo: 'Não marcado',                                curto: '',                resumo: '',                                               vagas: true,  cobra: true,  conta: true  },
   normal:        { rotulo: 'Reunião normal',                             curto: '',                resumo: '',                                               vagas: true,  cobra: true,  conta: true  },
   jejum:         { rotulo: 'Jejum e testemunhos',                        curto: 'Jejum',           resumo: 'Jejum e testemunhos — sem oradores designados',  vagas: false, cobra: false, conta: false },
   'conf-geral':  { rotulo: 'Conferência geral — sem reunião na ala',     curto: 'Conf. geral',     resumo: 'Conferência geral — sem reunião na ala',         vagas: false, cobra: false, conta: false, semReuniao: true },
   'conf-estaca': { rotulo: 'Conferência de estaca — sem reunião na ala', curto: 'Conf. de estaca', resumo: 'Conferência de estaca — sem reunião na ala',     vagas: false, cobra: false, conta: false, semReuniao: true },
-  'conf-ala':    { rotulo: 'Conferência de ala — oradores da estaca',    curto: 'Conf. de ala',    resumo: 'Conferência de ala — oradores da estaca',        vagas: false, cobra: false, conta: false },
+  'conf-ala':    { rotulo: 'Conferência de ala — oradores da estaca',    curto: 'Conf. de ala',    resumo: '',                                               vagas: true,  cobra: false, conta: false,
+    dica: 'Conferência de ala: os oradores costumam ser da estaca — para eles, use “De fora da ala”. Os discursos deste domingo não entram no rodízio.' },
   primaria:      { rotulo: 'Apresentação da Primária',                   curto: 'Primária',        resumo: 'Apresentação da Primária',                       vagas: false, cobra: false, conta: false },
   especial:      { rotulo: 'Programa especial (Páscoa, Natal, musical)', curto: 'Especial',        resumo: '',                                               vagas: true,  cobra: false, conta: true  },
 };
 export const ORDEM_TIPOS = ['normal', 'jejum', 'conf-geral', 'conf-estaca', 'conf-ala', 'primaria', 'especial'];
 const temTipo = t => Object.prototype.hasOwnProperty.call(TIPOS_DOMINGO, t);
 export const tipoDe = sac => TIPOS_DOMINGO[temTipo(sac?.tipo) ? sac.tipo : ''];
+// O tipo escolhido no formulário (a chave, não o domingo) tem oradores? Tipo
+// desconhecido conta como "não marcado", como no tipoDe.
+export const tipoTemOradores = tipo => tipoDe({ tipo }).vagas;
 
 // As organizações da planilha "Discursantes em Potencial". JAS e Membros novos
 // só por marcação manual: o LCR não traz estado civil nem data de entrada.
@@ -425,6 +435,30 @@ export function diffCampos(antes = {}, depois = {}) {
   return d;
 }
 
+// Domingo sem oradores (jejum, conferência geral ou de estaca, Primária): o
+// formulário da ata esconde as 3 vagas, e nada delas vai para o servidor — nem
+// o que foi mexido antes de trocar o tipo. Assim o nome, o convite e a resposta
+// que já estavam gravados ficam como estavam (e voltam à tela se o tipo voltar
+// a ter oradores), e a troca de orador (convite zerado, aviso) não dispara por
+// um bloco que a pessoa nem está vendo.
+const CAMPOS_DAS_VAGAS = new Set(POSICOES.flatMap(camposDaVaga));
+export function semVagasOcultas(campos, tipo) {
+  if (tipoTemOradores(tipo)) return { ...campos };
+  return Object.fromEntries(Object.entries(campos || {}).filter(([k]) => !CAMPOS_DAS_VAGAS.has(k)));
+}
+
+// O trecho do domingo na busca geral: quem discursa e os temas. No domingo sem
+// oradores, o nome gravado de antes de o tipo mudar continua achável (a ata
+// avisa e deixa tirar), mas o trecho não o apresenta como orador — o card do
+// domingo, a ata e o PDF não o mostram.
+export function trechoDaBusca(sac) {
+  const quem = POSICOES.map(n => sac?.['orador' + n]).filter(Boolean).map(nomeNatural).join(', ');
+  const temas = POSICOES.map(n => sac?.['tema' + n]).filter(Boolean).join(' · ');
+  const trecho = [quem, temas].filter(Boolean).join(' — ');
+  const tipo = tipoDe(sac);
+  return trecho && !tipo.vagas ? `${tipo.curto} · guardado, não sai na ata: ${trecho}` : trecho;
+}
+
 // Upsert por data (servidor e fila offline): um aparelho que não via o domingo
 // nunca sobrescreve a vaga que outro já preencheu com outra pessoa.
 // Também: um POST nunca apaga o que já está preenchido (as escritas novas
@@ -484,13 +518,21 @@ export function travarVagas(existente, corpo) {
 // ---------- rodízio ----------
 // Histórico derivado dos domingos gravados — nada é guardado à parte (o merge
 // raso perderia um array). A ata corrigida é a verdade.
+// Domingo sem vagas (jejum, conferência geral ou de estaca, Primária): o nome
+// gravado de antes de o tipo mudar não discursou nem está marcado — fica de
+// fora. Com vagas e conta:false (conferência de ala): o discurso feito não
+// entra no rodízio, mas quem está marcado para o domingo que ainda vem continua
+// nas planejadas — é delas que saem o selo "já em DD/MM · Nº" do seletor, os
+// Sugeridos e o "Marcado:" da ficha; sem isso, a pessoa podia ser convidada
+// para dois domingos seguidos.
 export function historicoDiscursos(sacramentais, hojeKey) {
   const hist = new Map();
   const lista = Array.isArray(sacramentais) ? sacramentais : [];
   const datas = [...new Set(lista.filter(s => s && ehDomingo(s.data)).map(s => s.data))].sort();
   for (const dk of datas) {
     const sac = registroDoDomingo(lista, dk);
-    if (!tipoDe(sac).conta) continue;
+    const tipo = tipoDe(sac);
+    if (!tipo.vagas || (!tipo.conta && dk < hojeKey)) continue;
     for (const n of POSICOES) {
       const nome = String(sac['orador' + n] ?? '').trim();
       if (!nome || sac['orador' + n + 'Fora'] === true) continue;

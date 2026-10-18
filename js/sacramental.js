@@ -11,8 +11,9 @@ import { MEMBROS } from './dados-membros.js';
 import { confirmar } from './dialogo.js';
 import {
   CORES_POSICAO, MAX_SEMANAS, ORDEM_TIPOS, POSICOES, ROTULO_ESTADO, TEMPOS_OPCOES, TIPOS_DOMINGO,
-  camposAoTrocarOrador, camposDaVaga, chaveEstrita, chavePessoa, diffCampos, ehDomingo, estadoDaVaga, marcaVaga,
-  minutosDaVaga, nomeCurto, nomeNatural, partesData, proximoDomingo, proximosDomingos, registroDoDomingo, tipoDe,
+  camposAoTrocarOrador, camposDaVaga, camposVagaVazia, chaveEstrita, chavePessoa, diffCampos, ehDomingo, estadoDaVaga,
+  marcaVaga, minutosDaVaga, nomeCurto, nomeNatural, partesData, proximoDomingo, proximosDomingos, registroDoDomingo,
+  semVagasOcultas, tipoDe, tipoTemOradores,
 } from './discursos-regras.js';
 import { inicioColecaoCarregada, renderInicio } from './inicio.js';
 import { imprimirAtaSacramental } from './pdf.js';
@@ -184,6 +185,9 @@ export function renderSacramentais() {
       ? `<div><span style="--c:${cor};font-size:11px">${rot}</span><div style="color:var(--text-corpo)">${esc(val)}</div></div>` : '';
 
     const orador = n => {
+      // jejum, conferência geral ou de estaca, Primária: sem linha de orador,
+      // nem com um nome gravado de antes de o tipo mudar
+      if (!tipo.vagas) return '';
       const reg = { ...sac, data: dk };
       const estado = estadoDaVaga(reg, n, hoje);
       if (estado === 'dispensada') {
@@ -267,6 +271,12 @@ export function abrirModalSac(dataKey) {
          </div>`;
   };
 
+  const tipoAtual = Object.prototype.hasOwnProperty.call(TIPOS_DOMINGO, sac.tipo) ? (sac.tipo || '') : '';
+  const comOradores = tipoTemOradores(tipoAtual);
+
+  // Os 3 blocos de orador só aparecem nos tipos com oradores e acompanham o
+  // tipo escolhido no select (mostrarVagasDaAta). Escondidos, continuam com o
+  // que estava gravado e não entram no salvar (semVagasOcultas).
   const blocoOrador = (n) => {
     const cor = CORES_POSICAO[n];
     const reg = { ...sac, data: dataKey };
@@ -274,7 +284,7 @@ export function abrirModalSac(dataKey) {
     const selo = dataKey >= hoje && sac['orador' + n] ? ' ' + seloVaga(estado) : '';
     const min = minutosDaVaga(sac, n);
     return `
-    <div style="background:rgba(255,255,255,.03);border-left:3px solid ${cor};border-radius:8px;padding:10px;margin-bottom:10px">
+    <div data-vaga="${n}"${comOradores ? '' : ' hidden'} style="background:rgba(255,255,255,.03);border-left:3px solid ${cor};border-radius:8px;padding:10px;margin-bottom:10px">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px">
         <span style="--c:${cor};font-size:11px;font-weight:700">🎤 ${n}º ORADOR</span>${selo}
       </div>
@@ -303,7 +313,19 @@ export function abrirModalSac(dataKey) {
     </div>`;
   };
 
-  const tipoAtual = Object.prototype.hasOwnProperty.call(TIPOS_DOMINGO, sac.tipo) ? (sac.tipo || '') : '';
+  // Nome gravado antes de o domingo virar jejum (ou conferência, Primária): ele
+  // fica guardado e escondido, mas a pessoa pode ter sido convidada — o aviso
+  // diz quem é e deixa tirar ao salvar (o plano manda tirar "na Ata").
+  const guardados = POSICOES.filter(n => String(sac['orador' + n] ?? '').trim());
+  const avisoGuardados = !guardados.length ? '' : `
+    <div class="plano-alerta" id="ata-guardados"${comOradores ? ' hidden' : ''}>
+      ⚠️ ${guardados.length === 1 ? 'Ficou 1 orador gravado' : `Ficaram ${guardados.length} oradores gravados`} neste domingo:
+      ${guardados.map(n => `${n}º ${esc(nomeCurto(sac['orador' + n]))}`).join(', ')}.
+      Neste tipo de domingo ${guardados.length === 1 ? 'ele não sai' : 'eles não saem'} na ata nem no PDF, e ${guardados.length === 1 ? 'volta' : 'voltam'} se o tipo voltar a ter oradores.
+      <label style="display:flex;align-items:center;gap:6px;margin-top:6px">
+        <input type="checkbox" id="ata-tirar-oradores"> Tirar ao salvar — avise quem já foi convidado
+      </label>
+    </div>`;
 
   document.getElementById('modal-sacramental-content').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
@@ -319,6 +341,7 @@ export function abrirModalSac(dataKey) {
         <option value="" ${tipoAtual === '' ? 'selected' : ''}>Não marcado (reunião normal)</option>
         ${ORDEM_TIPOS.map(t => `<option value="${t}" ${tipoAtual === t ? 'selected' : ''}>${esc(TIPOS_DOMINGO[t].rotulo)}</option>`).join('')}
       </select>
+      <div class="ficha-dica" id="ata-dica-tipo"${TIPOS_DOMINGO[tipoAtual].dica ? '' : ' hidden'}>${esc(TIPOS_DOMINGO[tipoAtual].dica || '')}</div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:rgba(232,208,128,.08);border:1px solid rgba(232,208,128,.2);border-radius:10px;padding:10px;margin-bottom:14px">
@@ -332,7 +355,7 @@ export function abrirModalSac(dataKey) {
       </div>
     </div>
 
-    ${ATA_ORDEM.map(c => c.orador ? blocoOrador(c.orador) : campo(c)).join('')}
+    ${ATA_ORDEM.map(c => !c.orador ? campo(c) : (c.orador === 1 ? avisoGuardados : '') + blocoOrador(c.orador)).join('')}
 
     <div style="margin-bottom:10px">
       <label style="color:var(--text2);font-size:11px">Observações</label>
@@ -348,6 +371,21 @@ export function abrirModalSac(dataKey) {
   ataAberta = dataKey;
   retratoAta = lerFormularioAta();
   abrirModal('modal-sacramental');
+}
+
+// O tipo trocado no select mostra ou esconde as vagas na hora — sem apagar o
+// que está nelas: voltar para "Reunião normal" antes de salvar mostra tudo de novo
+function mostrarVagasDaAta() {
+  const tipo = document.getElementById('ata-tipo')?.value || '';
+  const vagas = tipoTemOradores(tipo);
+  for (const el of document.querySelectorAll('#modal-sacramental-content [data-vaga]')) el.hidden = !vagas;
+  const aviso = document.getElementById('ata-guardados');
+  if (aviso) aviso.hidden = vagas;
+  const dica = document.getElementById('ata-dica-tipo');
+  if (dica) {
+    dica.textContent = tipoDe({ tipo }).dica || '';
+    dica.hidden = !dica.textContent;
+  }
 }
 
 export function lerFormularioAta() {
@@ -377,7 +415,16 @@ const quemJa = (estado) => estado === 'aceito' ? 'aceitou o' : 'recebeu o convit
 export async function salvarSac(dataKey) {
   if (!ehDomingo(dataKey)) { toast('Esta data não é um domingo'); return; }
   const depois = lerFormularioAta();
-  const diff = diffCampos(retratoAta || {}, depois);
+  // tipo sem oradores: as vagas escondidas não entram no que é gravado
+  const diff = semVagasOcultas(diffCampos(retratoAta || {}, depois), depois.tipo);
+  const hoje = dataLocal();
+  const atual = getSacPorData(dataKey);
+  // "Tirar ao salvar" (aviso dos nomes gravados num domingo sem oradores): só
+  // vale com o tipo sem oradores — com oradores, os blocos estão à vista e é
+  // neles que se tira
+  const tirar = tipoTemOradores(depois.tipo) || !document.getElementById('ata-tirar-oradores')?.checked ? []
+    : POSICOES.filter(n => String(atual?.['orador' + n] ?? '').trim());
+  for (const n of tirar) Object.assign(diff, camposVagaVazia(n));
   if (!Object.keys(diff).length) {
     fecharModal('modal-sacramental');
     toast('Nada foi alterado');
@@ -385,10 +432,15 @@ export async function salvarSac(dataKey) {
   }
   if ('hinoIntermediario' in diff) diff.hinoEspecial = diff.hinoIntermediario; // compatibilidade com registros antigos
 
-  const hoje = dataLocal();
-  const atual = getSacPorData(dataKey);
   const avisos = [];
+  for (const n of tirar) {
+    const est = dataKey >= hoje ? estadoDaVaga(atual, n, hoje) : '';
+    if (est === 'convidado' || est === 'aceito') {
+      avisos.push(`${nomeCurto(atual['orador' + n])} já ${quemJa(est)} ${n}º discurso deste domingo.`);
+    }
+  }
   for (const n of POSICOES) {
+    if (tirar.includes(n)) continue;
     if (!('orador' + n in diff)) continue;
     const antes = retratoAta?.['orador' + n] || '';
     // estrita: "Maria de Souza" → "Maria Souza" pode ser outra irmã — conta como troca
@@ -404,7 +456,9 @@ export async function salvarSac(dataKey) {
       }
     }
   }
-  if (avisos.length && !await confirmar(avisos.join(' ') + ' Trocar mesmo assim? Lembre-se de avisar.', { okLabel: 'Trocar' })) return;
+  // tirar e trocar nunca vêm juntos: com o tipo sem oradores, as vagas não mudam pelo formulário
+  const acao = tirar.length ? 'Tirar' : 'Trocar';
+  if (avisos.length && !await confirmar(`${avisos.join(' ')} ${acao} mesmo assim? Lembre-se de avisar.`, { okLabel: acao })) return;
 
   fecharModal('modal-sacramental');
   // a vaga que outro aparelho mudou enquanto a ata estava aberta não é sobrescrita
@@ -576,6 +630,10 @@ function ligarSacramental() {
       case 'excluir': excluirSac(el.dataset.id); break;
       case 'sugerir': abrirEscolhaOrador(ataAberta, Number(el.dataset.n), { modo: 'ata' }); break;
     }
+  });
+  // o conteúdo do modal é recriado a cada ata aberta: a escuta fica no modal
+  document.getElementById('modal-sacramental')?.addEventListener('change', e => {
+    if (e.target.id === 'ata-tipo') mostrarVagasDaAta();
   });
 }
 ligarSacramental();

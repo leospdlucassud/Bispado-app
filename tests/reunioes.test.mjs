@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { gerar } from '../js/demo-dados.js';
 import {
   montarPresenca, nomeArquivoAta, paragrafos, presencaParaFormulario, presentes, rotuloPresenca, textoDeBusca,
-  textoParaPdf,
+  textoParaPdf, valorParaPdf,
 } from '../js/reunioes-regras.js';
 
 // a mesma lista e a mesma ordem de CARGOS (js/config.js), sem o ADM — config.js
@@ -178,6 +178,42 @@ test('texto do PDF: o que já é WinAnsi passa intacto, e aplicar duas vezes nã
   assert.equal(textoParaPdf(undefined), '');
   assert.equal(textoParaPdf(null), '');
   assert.equal(textoParaPdf(15), '15');
+});
+
+// Um domingo importado de planilha com o hino como número (primeiroHino: 123)
+// fazia o .trim() do PDF estourar: a ata sacramental não saía e nada avisava
+test('valor gravado → texto do PDF: número, lista, objeto e vazio nunca derrubam a ata', () => {
+  assert.equal(valorParaPdf(123), '123');
+  assert.equal(valorParaPdf(0), '0');
+  assert.equal(valorParaPdf(-2.5), '-2.5');
+  assert.equal(valorParaPdf(NaN), '');
+  assert.equal(valorParaPdf(Infinity), '');
+  assert.equal(valorParaPdf(true), 'true');
+  assert.equal(valorParaPdf(false), 'false');
+  for (const v of [null, undefined, {}, { nome: 'Ana Exemplo' }, new Date(2026, 9, 18), () => 'x', Symbol('s')]) {
+    assert.equal(valorParaPdf(v), '', String(typeof v));
+  }
+  assert.equal(valorParaPdf(['Exemplo, Ana', 'Bruno Fictício']), 'Exemplo, Ana, Bruno Fictício');
+  assert.equal(valorParaPdf([123, ' 85 ', '']), '123, 85');
+  // lista dentro de lista, objeto e vazio no meio: só o que é texto, sem vírgula sobrando
+  assert.equal(valorParaPdf(['Ana', ['Bruno', [3, null]], {}, [], '🙏', 'Carla ✅']), 'Ana, Bruno, 3, Carla (ok)');
+  assert.equal(valorParaPdf([[[]]]), '');
+  const ciclo = ['Ana'];
+  ciclo.push(ciclo);
+  assert.equal(valorParaPdf(ciclo).startsWith('Ana, Ana'), true);   // termina, sem estourar a pilha
+});
+
+test('valor gravado → texto do PDF: texto passa pelo textoParaPdf, sem cortar espaços', () => {
+  assert.equal(valorParaPdf('Hino 2 — “Tu, Senhor” 🙏'), 'Hino 2 — “Tu, Senhor”');
+  assert.equal(valorParaPdf('  Ana Exemplo  '), '  Ana Exemplo  ');
+  assert.equal(valorParaPdf('Um\r\nDois'), 'Um\nDois');
+  assert.equal(valorParaPdf('🎉🎉'), '');
+  const longo = 'Aviso da ala ✅ '.repeat(400);
+  assert.match(valorParaPdf(longo), SO_WINANSI);
+  for (const v of ['texto', 42, ['a', ['b']], null, { x: 1 }, '✔️ ok']) {
+    assert.match(valorParaPdf(v), SO_WINANSI);
+    assert.equal(valorParaPdf(valorParaPdf(v)), valorParaPdf(v));
+  }
 });
 
 test('nome do PDF: ata, o tipo sem acento e a data', () => {
