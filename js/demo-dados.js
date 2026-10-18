@@ -16,6 +16,8 @@
 // Mudou o formato do que gerar() devolve? Suba VERSAO_DEMO em js/demo.js.
 // =============================================
 
+import { obsDaDesignacao } from './chamados-lcr.js';
+import { TIPO_DESIGNACAO } from './convite-regras.js';
 import { chavePessoa, ehDomingo, nomeNatural, partesData, proximoDomingo, somarDias } from './discursos-regras.js';
 
 const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -133,6 +135,62 @@ export function gerar(hoje) {
     'Secretário': 'Paulo Vasconcelos', 'Secretário Executivo': 'Sérgio Lacerda',
   } }];
 
+  // ---------- chamados da ala (o relatório "Organizações e Chamados" do LCR) ----------
+  // O documento de /api/chamados, como a importação do PDF o grava. O bispado é
+  // o dos nomes acima; os vagos são os da reunião do bispado (professor da Escola
+  // Dominical, conselheira das Moças) e mais alguns; um chamado personalizado; e
+  // dois apoiados no domingo passado ainda "a designar" — o do André já com a
+  // designação marcada na Agenda, o da Isabela por agendar. A Camila é a do apoio
+  // da ata de 3 domingos atrás. Os adultos que não estão aqui são os que o filtro
+  // "Sem chamado" mostra. A ala do relatório fica vazia: a tela mostra o nome
+  // configurado (config.js).
+  const domingo = k => somarDias(proximoDomingo(H), 7 * k);   // k < 0: domingos que passaram
+  const cham = (org, grupo, chamado, nome = '', apoiadoHa = 0, extra = {}) => ({
+    org, grupo, chamado, nome: nome ? lcr(nome) : '', apoiado: nome ? domingo(-apoiadoHa) : '',
+    designado: !!nome, personalizado: false, ...extra,
+  });
+  const naoDesignado = { designado: false };
+  const PRES_EQ = 'Presidência do Quórum de Élderes', PRES_SS = 'Presidência da Sociedade de Socorro';
+  const chamados = {
+    relatorio: { ala: '', unidade: '', estaca: '', data: H },
+    atualizadoEm: em(0, '11:00'),
+    chamados: [
+      cham('Bispado', '', 'Bispo', 'Renato Batista Lopes', 150),
+      cham('Bispado', '', 'Primeiro Conselheiro no Bispado', 'Otávio Guimarães Teles', 150),
+      cham('Bispado', '', 'Segundo Conselheiro no Bispado', 'Eduardo Nogueira Paiva', 90),
+      cham('Bispado', '', 'Secretário Executivo da Ala', 'Sérgio Lacerda Pinto', 60),
+      cham('Bispado', '', 'Secretário executivo assistente da ala'),
+      cham('Bispado', '', 'Secretário da Ala', 'Paulo Vasconcelos Brito', 200),
+      cham('Quórum de Élderes', PRES_EQ, 'Presidente do Quórum de Élderes', 'Bruno Cardoso Neves', 40),
+      cham('Quórum de Élderes', PRES_EQ, 'Primeiro Conselheiro na Presidência do Quórum de Élderes', 'Rafael Esteves Moura', 40),
+      cham('Quórum de Élderes', PRES_EQ, 'Segundo Conselheiro na Presidência do Quórum de Élderes'),
+      cham('Quórum de Élderes', PRES_EQ, 'Secretário do Quórum de Élderes', 'André Rezende Lima', 1, naoDesignado),
+      cham('Sociedade de Socorro', PRES_SS, 'Presidente da Sociedade de Socorro', 'Patrícia Albuquerque Ramos', 70),
+      cham('Sociedade de Socorro', PRES_SS, 'Primeira Conselheira na Presidência da Sociedade de Socorro', 'Juliana Fonseca Prado', 70),
+      cham('Sociedade de Socorro', PRES_SS, 'Segunda Conselheira na Presidência da Sociedade de Socorro', 'Isabela Vasconcelos Brito', 1, naoDesignado),
+      cham('Sociedade de Socorro', PRES_SS, 'Secretária da Sociedade de Socorro'),
+      cham('Quóruns do Sacerdócio Aarônico', 'Presidência do Quórum de Mestres', 'Presidente do Quórum de Mestres', 'Vítor Guimarães Teles', 20),
+      cham('Quóruns do Sacerdócio Aarônico', 'Presidência do Quórum de Mestres', 'Secretário do Quórum de Mestres'),
+      cham('Moças', 'Presidência das Moças', 'Presidente das Moças', 'Regina Xavier Monteiro', 120),
+      cham('Moças', 'Presidência das Moças', 'Primeira Conselheira na Presidência das Moças'),
+      cham('Escola Dominical', 'Presidência da Escola Dominical', 'Presidente da Escola Dominical', 'Antônio Duarte Silveira', 100),
+      cham('Escola Dominical', 'Professores', 'Professor da Escola Dominical', 'Mariana Tavares Rocha', 30),
+      cham('Escola Dominical', 'Professores', 'Professor da Escola Dominical'),
+      cham('Primária', 'Presidência da Primária', 'Presidente da Primária', 'Vera Lacerda Pinto', 80),
+      cham('Primária', 'Presidência da Primária', 'Primeira Conselheira na Presidência da Primária'),
+      cham('Primária', 'Professores', 'Professor da Primária', 'Camila Esteves Moura', 3),
+      cham('Primária', 'Professores', 'Professor da Primária'),
+      cham('Missionários de Ala', '', 'Líder da Obra Missionária da Ala', 'Marcelo Albuquerque Ramos', 90),
+      cham('Missionários de Ala', '', 'Missionário de Ala', 'Gabriel Batista Lopes', 10),
+      cham('Templo e história da família', '', 'Líder de Templo e História da Família da Ala'),
+      cham('Templo e história da família', '', 'Consultor de Templo e História da Família da Ala', 'Lúcia Duarte Silveira', 60),
+      cham('Outros Chamados', 'Música', 'Regente de Música da Ala', 'Simone Nogueira Paiva', 200),
+      cham('Outros Chamados', 'Música', 'Organista ou Pianista da Ala', 'Teresa Vasconcelos Brito', 200),
+      cham('Outros Chamados', '', 'Recepcionista da Ala', 'Tiago Holanda Ribeiro', 6, { personalizado: true }),
+    ],
+  };
+  const chamadoDe = nome => chamados.chamados.find(c => c.nome === lcr(nome));
+
   // ---------- agenda de entrevistas ----------
   const ent = (nome, tipo, responsavel, extra) => ({
     membro: lcr(nome), tipo, responsavel, data: '', hora: '', telefone: '', prioridade: 'media', obs: '',
@@ -182,6 +240,9 @@ export function gerar(hoje) {
       { data: d(12), hora: '19:00', status: 'agendada', convidadoEm: em(-6),
         reagendamentos: [{ dataAnterior: d(-2), horaAnterior: '19:00', reagendadoEm: em(-5) }] }),
     ent('Regina Xavier Monteiro', 'Desobrigação de Chamado', 'c1', { prioridade: 'normal' }),
+    // a designação do André, apoiado no domingo passado: marcada pela aba Chamados
+    ent('André Rezende Lima', TIPO_DESIGNACAO, 'c1',
+      { data: domingo(0), hora: '12:30', status: 'agendada', obs: obsDaDesignacao(chamadoDe('André Rezende Lima')) }),
     ent('Alice Cardoso Neves', 'Batismo e Confirmação de Criança de Registro (8 anos)', 'bispo',
       { data: d(10), hora: '17:00', status: 'agendada', obs: 'Com os pais presentes' }),
   ];
@@ -391,6 +452,7 @@ export function gerar(hoje) {
   return {
     colecoes: { agenda, reunioes, designacoes, eventos_extras, sacramentais, acompanhamentos, oradores, bispado, notas },
     membros,
+    chamados,
     notasPrivadas,
   };
 }

@@ -4,6 +4,7 @@
 import { loadAcompanhamentos, renderAcompanhamentos } from './acompanhamento.js';
 import { renderAgenda } from './agenda.js';
 import { renderCalendario } from './calendario.js';
+import { carregarChamadosAla, renderChamadosAla } from './chamados-ala.js';
 import { carregarChamados } from './chamados.js';
 import { API_AGENDA, API_DESIG, API_EVENTOS, API_ORADORES, API_REUNIOES, API_SAC, DADOS } from './config.js';
 import { EM_DEMO } from './demo.js';
@@ -180,10 +181,15 @@ async function enviar(url, method, body) {
 // Cada load* devolve true se conseguiu trazer dados do servidor. Sem isso o
 // Promise.all de carregarDados nunca rejeitava e o app dizia "Sincronizado"
 // mesmo sem rede.
+// A agenda já veio do servidor nesta sessão. A aba Chamados só oferece "Agendar
+// designação" depois disso: com DADOS.agenda ainda vazia (a agenda vem na 2ª leva
+// do carregarTudo, depois dos chamados), a designação já marcada não aparecia, e
+// o botão convidava a marcar outra igual.
+export let agendaCarregada = false;
 export async function loadAgenda() {
   try {
     const data = await apiFetch(API_AGENDA);
-    if (Array.isArray(data)) { DADOS.agenda = data; renderAgenda(); return true; }
+    if (Array.isArray(data)) { DADOS.agenda = data; agendaCarregada = true; renderAgenda(); return true; }
     return false;
   } catch(e) { renderAgenda(); return false; }
 }
@@ -240,7 +246,10 @@ async function carregarTudo() {
   // da aba) conta como "não carregou". Sem isto o Promise.all rejeitava inteiro
   // e o Início nunca saía de "Carregando…".
   const semRejeitar = p => Promise.resolve(p).catch(() => false);
-  const [okChamados, okMembros] = await Promise.all([carregarChamados(), carregarMovimentacoes()].map(semRejeitar));
+  // Os chamados da ala (relatório do LCR, aba Chamados) vêm junto: o Início
+  // conta quem falta designar, e o cartão do membro mostra os chamados dele.
+  const [okChamados, okMembros, okChamadosAla] = await Promise.all(
+    [carregarChamados(), carregarMovimentacoes(), carregarChamadosAla()].map(semRejeitar));
   const r = await Promise.all([
     loadAgenda(), loadReunioes(), loadDesignacoes(),
     loadEventos(), loadSacramentais(), loadAcompanhamentos(), loadOradores(),
@@ -258,9 +267,12 @@ async function carregarTudo() {
     renderAgenda(); renderReunioes(); renderDesignacoes(); renderCalendario(); renderAcompanhamentos();
     if (sacCarregado) renderAbaSacramental();
   }
+  // A aba Chamados cruza com o que chegou depois dela: o quadro de membros
+  // ("Sem chamado") e a agenda (a designação já marcada)
+  renderChamadosAla();
   const [agenda, , designacoes, eventos, sacramentais, acomp] = r;
   inicioAposCarga({ agenda, designacoes, eventos, sacramentais, acomp });
-  return okChamados && okMembros && r.every(Boolean);
+  return okChamados && okMembros && okChamadosAla && r.every(Boolean);
 }
 
 export async function carregarDados() {

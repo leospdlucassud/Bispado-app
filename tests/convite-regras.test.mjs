@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  camposDaResposta, conviteJaRespondido, conviteParaMembro, primeiroNome, tipoNoConvite,
+  TIPO_DESIGNACAO, camposDaResposta, comoNoConvite, conviteJaRespondido, conviteParaMembro, primeiroNome, tipoNoConvite,
 } from '../js/convite-regras.js';
 
 const AGORA = '2026-10-08T22:00:00.000Z';
@@ -17,6 +17,35 @@ test('o convite só diz o assunto nos tipos de rotina', () => {
 
 test('entrevista sigilosa nunca diz o assunto, nem os de rotina', () => {
   assert.equal(tipoNoConvite({ tipo: 'Preparação para Missão', sigiloso: true }), '');
+});
+
+test('designação: o chamado já foi apoiado em público, o assunto pode ir; o apoio, não', () => {
+  assert.equal(tipoNoConvite({ tipo: TIPO_DESIGNACAO }), TIPO_DESIGNACAO);
+  assert.equal(tipoNoConvite({ tipo: 'Apoio de Chamado' }), '');
+  assert.equal(tipoNoConvite({ tipo: TIPO_DESIGNACAO, sigiloso: true }), '');
+});
+
+test('como o convite fala: conversa, entrevista ou designação — sem "entrevista" na designação', () => {
+  const frase = tipo => `Gostaríamos de marcar ${comoNoConvite(tipo).frase} para domingo, 18/10/2026, às 12:30.`;
+  assert.equal(frase(''), 'Gostaríamos de marcar uma conversa com você para domingo, 18/10/2026, às 12:30.');
+  assert.equal(frase('Renovação de Recomendação para o Templo'),
+    'Gostaríamos de marcar uma entrevista com você — Renovação de Recomendação para o Templo — para domingo, 18/10/2026, às 12:30.');
+  assert.equal(frase(TIPO_DESIGNACAO),
+    'Gostaríamos de marcar a sua designação no chamado, por imposição de mãos, para domingo, 18/10/2026, às 12:30.');
+  const d = comoNoConvite(TIPO_DESIGNACAO);
+  assert.equal(d.titulo, 'Convite para a designação');
+  for (const t of [d.frase, d.assunto, d.titulo]) assert.doesNotMatch(t, /entrevista/i);
+  assert.equal(comoNoConvite('').titulo, 'Convite do bispado');
+  assert.equal(comoNoConvite('').assunto, 'Convite do bispado');
+  assert.equal(comoNoConvite('Preparação para Missão').titulo, 'Convite para entrevista');
+  assert.equal(comoNoConvite('Preparação para Missão').assunto, 'Entrevista com o bispado — Preparação para Missão');
+});
+
+test('a tela do membro recebe o tipo da designação (e o título sai dele)', () => {
+  const p = conviteParaMembro({ id: 'a2', membro: 'Exemplo, Bruno', tipo: TIPO_DESIGNACAO, obs: 'Secretário do Quórum de Élderes', data: '2026-10-18' });
+  assert.equal(p.tipo, TIPO_DESIGNACAO);
+  assert.equal(comoNoConvite(p.tipo).titulo, 'Convite para a designação');
+  assert.ok(!('obs' in p));
 });
 
 test('primeiro nome a partir de "Sobrenome, Nome" ou do nome direto', () => {

@@ -4,9 +4,10 @@
 import { renderAcompanhamentos } from './acompanhamento.js';
 import { apiFetch, atualizarUltimaSinc, avisarPendente, idProvisorioDo, setSyncStatus } from './api.js';
 import { comNome } from './chamados.js';
+import { renderChamadosAla } from './chamados-ala.js';
 import { reativarAbaAtual } from './app.js';
 import { ALA, API_AGENDA, CARGOS_INFO, COR_STATUS, DADOS, corDoCargo, nomeDoResponsavel } from './config.js';
-import { primeiroNome, tipoNoConvite } from './convite-regras.js';
+import { TIPO_DESIGNACAO, comoNoConvite, primeiroNome, tipoNoConvite } from './convite-regras.js';
 import { MEMBROS } from './dados-membros.js';
 import { EM_DEMO, comDemo } from './demo.js';
 import { confirmar, pedirTexto } from './dialogo.js';
@@ -41,8 +42,9 @@ export const TIPOS_ENTREVISTA = [
   'Preparação para Missão',
   'Retorno de Missão',
   'Recomendação para Missionário de Serviço da Igreja',
-  // Chamados
+  // Chamados — a designação é a que a aba Chamados agenda ("📅 Agendar designação")
   'Apoio de Chamado',
+  TIPO_DESIGNACAO,
   'Desobrigação de Chamado',
   // Liderança e membros
   'Ministração da Liderança',
@@ -366,19 +368,13 @@ export function mensagemConvite(e) {
   const quando = e.data
     ? formatarData(e.data) + (e.hora ? `, às ${e.hora}` : '')
     : 'em data a combinar';
-  const tipo = tipoNoConvite(e);
   return `Olá, ${primeiroNome(e.membro)}! Aqui é o bispado da ${ALA}.\n\n` +
-    (tipo
-      ? `Gostaríamos de marcar uma entrevista com você — ${tipo} — para ${quando}.\n\n`
-      : `Gostaríamos de marcar uma conversa com você para ${quando}.\n\n`) +
+    `Gostaríamos de marcar ${comoNoConvite(tipoNoConvite(e)).frase} para ${quando}.\n\n` +
     `Por favor, responda por este link:\n${linkConfirmacao(e.id)}\n\n` +
     `Obrigado!`;
 }
 
-export const assuntoConvite = e => {
-  const tipo = tipoNoConvite(e);
-  return tipo ? `Entrevista com o bispado — ${tipo}` : 'Convite do bispado';
-};
+export const assuntoConvite = e => comoNoConvite(tipoNoConvite(e)).assunto;
 
 // Com telefone, o convite continua a um toque: link direto do WhatsApp.
 // "Outro meio" abre o diálogo (e-mail, copiar link, outro número) — e é o
@@ -451,16 +447,20 @@ export function setFilAgenda(val, btn) {
   renderAgenda();
 }
 
-export function abrirModalAgenda(id) {
+// `prefill` ({ membro, tipo, obs }): a entrevista NOVA já vem preenchida — é o
+// "📅 Agendar designação" da aba Chamados. Ao editar, vale o que está gravado.
+export function abrirModalAgenda(id, prefill = null) {
   const e = id ? DADOS.agenda.find(x=>x.id===id) : null;
+  const ini = e || { membro: prefill?.membro || '', tipo: prefill?.tipo || '', obs: prefill?.obs || '' };
   const membrosOptions = MEMBROS.map(m=>`<option value="${esc(m.name)}" ${e?.membro===m.name?'selected':''}>${esc(m.name)}</option>`).join('');
-  const tiposOptions = TIPOS_ENTREVISTA.map(t=>`<option value="${esc(t)}" ${e?.tipo===t?'selected':''}>${esc(t)}</option>`).join('');
+  const tiposOptions = TIPOS_ENTREVISTA.map(t=>`<option value="${esc(t)}" ${ini.tipo===t?'selected':''}>${esc(t)}</option>`).join('');
+  const telInicial = e?.telefone || telefoneDoMembro(ini.membro || '');
 
   document.getElementById('modal-agenda-content').innerHTML = `
     <h3>${e?'✏️ Editar':'➕ Nova'} Entrevista <button class="modal-close" data-act="fechar">✕</button></h3>
     <div class="form-group">
       <label>Membro</label>
-      <input list="lista-membros-dl" class="form-input" id="ag-membro" placeholder="Digite o nome…" value="${esc(e?.membro||'')}">
+      <input list="lista-membros-dl" class="form-input" id="ag-membro" placeholder="Digite o nome…" value="${esc(ini.membro||'')}">
       <datalist id="lista-membros-dl">${membrosOptions}</datalist>
     </div>
     <div class="form-row">
@@ -497,13 +497,13 @@ export function abrirModalAgenda(id) {
       <div class="form-group">
         <label>WhatsApp <span style="opacity:.6;font-weight:400">(do quadro de membros)</span></label>
         <input type="text" class="form-input" id="ag-telefone" placeholder="(63) 90000-0000"
-               value="${esc(e?.telefone || telefoneDoMembro(e?.membro || ''))}"
-               data-auto="${esc(e?.telefone || telefoneDoMembro(e?.membro || ''))}">
+               value="${esc(telInicial)}"
+               data-auto="${esc(telInicial)}">
       </div>
     </div>
     <div class="form-group">
       <label>Observações (máx. 100 caracteres)</label>
-      <input type="text" class="form-input" id="ag-obs" maxlength="100" placeholder="Observações livres…" value="${esc(e?.obs||'')}">
+      <input type="text" class="form-input" id="ag-obs" maxlength="100" placeholder="Observações livres…" value="${esc(ini.obs||'')}">
     </div>
     <div class="form-group" style="background:rgba(255,255,255,.03);border-radius:10px;padding:10px 12px">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-corpo);margin-bottom:8px">
@@ -557,6 +557,8 @@ export async function salvarEntrevista(id) {
     avisarPendente('entrevista');
   }
   renderAgenda();
+  // a linha "a designar" da aba Chamados troca o "Agendar" pela data marcada
+  if (payload.tipo === TIPO_DESIGNACAO || atual?.tipo === TIPO_DESIGNACAO) renderChamadosAla();
 }
 
 // O que o Editar invalida numa entrevista em aberto. Corrigir uma encerrada não

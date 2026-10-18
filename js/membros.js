@@ -2,6 +2,8 @@
 // ABA MEMBROS — Entrada/Saída + Histórico
 // =============================================
 import { reativarAbaAtual } from './app.js';
+import { CHAMADOS_ALA } from './chamados-ala.js';
+import { aDesignar, indicePorPessoa } from './chamados-lcr.js';
 import { MEMBROS, setMembros } from './dados-membros.js';
 import { confirmar } from './dialogo.js';
 import { importarPdfMembros } from './membros-import.js';
@@ -141,6 +143,8 @@ export function renderMembros() {
     return;
   }
 
+  // os chamados de cada um vêm do relatório do LCR (aba Chamados)
+  const chamadosDe = indicePorPessoa(CHAMADOS_ALA);
   el.innerHTML = `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">${lista.length} membro${lista.length>1?'s':''}</div>` +
     lista.map(m => {
       const saiu = MEMBROS_SAIDOS.includes(m.id);
@@ -150,10 +154,24 @@ export function renderMembros() {
         <div>
           <div class="membro-nome">${esc(m.name)}</div>
           <div class="membro-info">${m.gender==='M'?'♂':'♀'} · ${esc(m.age||'?')} anos${ultimaMov?' · '+esc(ultimaMov.motivo):''}</div>
+          ${linhaDeChamados(chamadosDe(m.name))}
         </div>
         ${saiu?`<span class="membro-badge saida">Saiu</span>`:`<span class="membro-badge entrada">Ativo</span>`}
       </div>`;
     }).join('');
+}
+
+// Uma linha só, curta: os títulos dos chamados (até 3; o resto vira "+N", com a
+// lista inteira no title) e o "a designar" de quem ainda espera a imposição de mãos.
+const MAX_CHAMADOS_NO_CARTAO = 3;
+function linhaDeChamados(chamados) {
+  if (!chamados.length) return '';
+  const titulo = c => esc(c.chamado) + (aDesignar(c) ? ' <span class="membro-cham-designar">(a designar)</span>' : '');
+  const resto = chamados.length - MAX_CHAMADOS_NO_CARTAO;
+  const todos = chamados.map(c => `${c.chamado} (${c.org}${c.grupo ? ' › ' + c.grupo : ''})`).join('\n');
+  return `<div class="membro-chamados" title="${esc(todos)}"><span aria-hidden="true">🤝</span> `
+    + chamados.slice(0, MAX_CHAMADOS_NO_CARTAO).map(titulo).join(' · ')
+    + (resto > 0 ? ` · +${resto}` : '') + '</div>';
 }
 
 export function renderHistorico(el, busca) {

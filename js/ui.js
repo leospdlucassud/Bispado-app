@@ -74,6 +74,10 @@ const focaveis = el => [...el.querySelectorAll('button, [href], input, select, t
 //     abrir outro no mesmo toque), ele HERDA a entrada (replaceState).
 //  2. Enquanto um voltar nosso não termina (o popstate dele não chegou),
 //     nenhuma entrada nova é empilhada: fica adiada até ele terminar.
+//  3. A troca de aba no mesmo toque em que um modal fechou ("Ir para Membros"
+//     do aviso de importação) também espera a devolução: empilhada antes, ela
+//     ficava à frente do go(-n), que caía na entrada do modal — a URL seguia na
+//     aba de antes e o Voltar pulava a aba nova.
 // =============================================
 let sobra = 0;               // entradas de modais fechados pelo app, a devolver
 let devolucaoAgendada = false;
@@ -85,9 +89,9 @@ function empurrar(estado, url) {
 }
 
 // Empilha uma entrada que não é de modal (a troca de aba, no app.js), sem
-// atropelar uma travessia em andamento.
+// atropelar uma travessia em andamento nem a devolução ainda por fazer (regra 3).
 export function registrarNoHistorico(estado, url) {
-  if (travessias) adiados.push({ estado, url });
+  if (travessias || sobra) adiados.push({ estado, url });
   else empurrar(estado, url);
 }
 
@@ -108,7 +112,8 @@ function devolverEntrada() {
   devolucaoAgendada = true;
   queueMicrotask(() => {
     devolucaoAgendada = false;
-    if (!sobra) return;                              // herdada por um modal novo
+    // herdada por um modal novo: não há voltar, e a aba que esperava por ele entra já
+    if (!sobra) { aplicarAdiados(); return; }
     const n = sobra; sobra = 0;
     travessias++;
     try { history.go(-n); } catch (e) { travessias--; return; }

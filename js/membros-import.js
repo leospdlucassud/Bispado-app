@@ -1,9 +1,12 @@
 // =============================================
 // IMPORTAÇÃO DO PDF DE MEMBROS (LCR)
 // =============================================
+import { switchTab } from './app.js';
+import { tipoDePdf } from './chamados-lcr.js';
 import { ALA } from './config.js';
 import { MEMBROS, setMembros } from './dados-membros.js';
 import { EM_DEMO } from './demo.js';
+import { detectarAlaNoPdf, lerPdfMembros } from './membros-lcr.js';
 import { API_MEMBROS, MEMBROS_SAIDOS, MOVIMENTACOES, movimentacoesCarregadas, renderMembros, setMembrosSaidos, setRosterAtualizado } from './membros.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
@@ -23,160 +26,43 @@ export async function carregarPdfJs() {
   return window.pdfjsLib;
 }
 
-// norm e MESES_PT moram em utils.js; seguem exportados daqui para quem já importa
+// norm e MESES_PT moram em utils.js, e a leitura do PDF em membros-lcr.js (sem
+// DOM, para os testes); seguem exportados daqui para quem já importa
 export { MESES_PT, norm };
+export {
+  RE_ACENTO, RE_DATA, RE_EMAIL, RE_LIXO, RE_TEL, detectarAlaNoPdf, extrairLinhas, formatarTelefone,
+  idadeDeNascimento, juntarNome, parsearPdfMembros,
+} from './membros-lcr.js';
 
-// Agrupa os trechos do PDF em linhas (por Y). Guarda a largura para saber
-// quando dois trechos vizinhos formam a mesma palavra (acentos vêm separados).
-export function extrairLinhas(itens) {
-  const linhas = [];
-  itens.forEach(it => {
-    if (!it.str || !it.str.trim()) return;
-    const x = it.transform[4], y = Math.round(it.transform[5]);
-    let ln = linhas.find(l => Math.abs(l.y - y) <= 3);
-    if (!ln) { ln = { y, partes: [] }; linhas.push(ln); }
-    // transform[0] ≈ corpo da fonte; pdf.js não preenche width neste PDF
-    ln.partes.push({ x, fs: Math.abs(it.transform[0]) || 10, txt: it.str });
-  });
-  linhas.forEach(l => l.partes.sort((a,b) => a.x - b.x));
-  return linhas.sort((a,b) => b.y - a.y);
+// O PDF que não é a Lista de Membros com texto não chega ao leitor (tipoDePdf,
+// de chamados-lcr.js). O "Microsoft Print to PDF" do Windows grava a página
+// como desenho — letra por letra em traços, sem nenhum texto: nada no navegador
+// lê isso (só OCR). O "Salvar como PDF" do navegador mantém o texto.
+function avisoDaImportacao(titulo, html, extra = '') {
+  document.getElementById('modal-import-content').innerHTML = `
+    <div style="text-align:center;padding:10px">
+      <div style="font-size:32px;margin-bottom:10px">⚠️</div>
+      <div style="--c:#e8b040;font-size:14px;font-weight:700;margin-bottom:10px">${esc(titulo)}</div>
+      <div style="color:var(--text-corpo);font-size:13px;line-height:1.6;text-align:left">${html}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:16px">${extra}
+        <button data-act="fechar" style="background:rgba(74,106,138,.25);color:var(--text-corpo);border:none;border-radius:10px;padding:10px 20px;cursor:pointer">Fechar</button>
+      </div>
+    </div>`;
 }
 
-export const RE_LIXO   = /lista de membros|somente para uso da igreja|intellectual reserve|direitos reservados|^nome$|^sexo$|^idade$|^data de$|^nascimento$|^n[úu]mero de$|^telefone$|^e-?mail$/i;
-
-// Acentos vêm como trechos separados. Sem width, estima-se a largura pelo corpo
-// da fonte para decidir se dois trechos vizinhos têm um espaço entre eles.
-export const RE_ACENTO = /^[áàâãäéèêëíìîïóòôõöúùûüçñÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ]$/;
-
-export function juntarNome(partes) {
-  let out = '';
-  partes.forEach((p, i) => {
-    if (i > 0 && !RE_ACENTO.test(p.txt)) {   // acento sempre cola na letra anterior
-      const a = partes[i-1];
-      const larguraAprox = a.txt.length * a.fs * 0.5;
-      if (p.x - (a.x + larguraAprox) > a.fs * 0.18) out += ' ';
-    }
-    out += p.txt;
-  });
-  return out.replace(/\s+/g, ' ').trim();
-}
-
-
-export function idadeDeNascimento(nasc) {
-  const m = /^(\d{1,2})\s+([a-zç]{3})\.?\s+(\d{4})$/i.exec(nasc || '');
-  if (!m) return 0;
-  const mes = MESES_PT[m[2].toLowerCase()];
-  if (mes === undefined) return 0;
-  const nascimento = new Date(+m[3], mes, +m[1]);
-  const hoje = new Date();
-  let anos = hoje.getFullYear() - nascimento.getFullYear();
-  const dm = hoje.getMonth() - nascimento.getMonth();
-  if (dm < 0 || (dm === 0 && hoje.getDate() < nascimento.getDate())) anos--;
-  return (anos >= 0 && anos < 130) ? anos : 0;
-}
-
-export function formatarTelefone(t) {
-  const d = (t || '').replace(/\D/g, '');
-  if (d.length === 11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
-  if (d.length === 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
-  return d.length >= 8 ? (t || '').trim() : '';
-}
-export const RE_DATA   = /^\d{1,2}\s+[a-zç]{3}\.?\s+\d{4}$/i;
-export const RE_TEL    = /^\(?\d{2}\)?\s*\d{4,5}-?\d{4}$/;
-export const RE_EMAIL  = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-
-// O nome ocupa uma caixa de texto que pode quebrar em várias linhas, enquanto as
-// demais colunas ficam centralizadas verticalmente. Por isso os pedaços do nome
-// aparecem acima E abaixo da linha que traz o sexo. Cada pedaço é associado à
-// linha-âncora verticalmente mais próxima.
-export function parsearPdfMembros(paginas) {
-  const registros = [];
-
-  paginas.forEach(itens => {
-    const linhas = extrairLinhas(itens);
-
-    // A coluna Sexo é a âncora: única com um M ou F isolado.
-    let xSexo = null;
-    for (const l of linhas) {
-      const p = l.partes.find(p => /^[MF]$/.test(p.txt.trim()));
-      if (p) { xSexo = p.x; break; }
-    }
-    if (xSexo == null) return;
-
-    const ancoras = [], soltas = [];
-
-    linhas.forEach(l => {
-      const uteis = l.partes.filter(p => !RE_LIXO.test(p.txt.trim()));
-      if (!uteis.length) return;
-      const esq = uteis.filter(p => p.x <  xSexo - 2);
-      const dir = uteis.filter(p => p.x >= xSexo - 2);
-
-      if (dir.some(p => /^[MF]$/.test(p.txt.trim()))) {
-        const campos = { sexo:'', idade:'', nasc:'', tel:'', email:'' };
-        dir.forEach(p => {
-          const t = p.txt.trim();
-          if      (/^[MF]$/.test(t))     campos.sexo  = t;
-          else if (/^\d{1,3}$/.test(t))  campos.idade = t;
-          else if (RE_DATA.test(t))      campos.nasc  = t;
-          else if (RE_TEL.test(t))       campos.tel   = t;
-          else                           campos.email += t;
-        });
-        ancoras.push({ y: l.y, campos, pedacos: esq.length ? [{ y: l.y, partes: esq }] : [] });
-      } else {
-        if (esq.length) soltas.push({ y: l.y, partes: esq });
-        if (dir.length) soltas.push({ y: l.y, email: dir.map(p => p.txt.trim()).join('') });
-      }
-    });
-
-    // cada linha solta pertence à âncora mais próxima
-    soltas.forEach(s => {
-      let alvo = null, dist = Infinity;
-      ancoras.forEach(a => { const d = Math.abs(a.y - s.y); if (d < dist) { dist = d; alvo = a; } });
-      if (!alvo || dist > 18) return;
-      if (s.email) alvo.campos.email += s.email;
-      else alvo.pedacos.push(s);
-    });
-
-    ancoras.forEach(a => {
-      // pedaços de cima para baixo
-      const nome = a.pedacos
-        .sort((p, q) => q.y - p.y)
-        .map(f => juntarNome(f.partes))
-        .join(' ').replace(/\s+/g, ' ').trim();
-      registros.push({
-        name: nome,
-        gender: a.campos.sexo,
-        age: parseInt(a.campos.idade, 10) || idadeDeNascimento(a.campos.nasc),
-        nascimento: a.campos.nasc,
-        telefone: formatarTelefone(a.campos.tel),
-        email: a.campos.email.replace(/\s+/g, ''),
-      });
-    });
-  });
-
-  const limpos = registros
-    .filter(r => r.name && r.name.length >= 3 && !/^\d+$/.test(r.name))
-    .map(r => ({ ...r, email: RE_EMAIL.test(r.email) ? r.email : '' }));
-
-  // remove repetidos, conservando o registro mais completo
-  const porNome = new Map();
-  limpos.forEach(r => {
-    const k = norm(r.name);
-    const preenchidos = o => [o.age, o.nascimento, o.telefone, o.email].filter(Boolean).length;
-    const atual = porNome.get(k);
-    if (!atual || preenchidos(r) > preenchidos(atual)) porNome.set(k, r);
-  });
-  return [...porNome.values()];
-}
-
-export function detectarAlaNoPdf(paginas) {
-  for (const itens of paginas) {
-    const txt = itens.map(i => i.str).join(' ');
-    const m = txt.match(/Lista de Membros\s*(.+?)\s*\((\d+)\)/);
-    if (m) return { nome: m[1].trim(), unidade: m[2] };
-  }
-  return null;
-}
+const AVISO_DO_TIPO = {
+  'sem-texto': () => avisoDaImportacao('Este PDF não tem texto', `
+    <p>Ele foi salvo como imagem — é o que acontece ao imprimir pela impressora <strong>Microsoft Print to PDF</strong> —, e não há nomes para ler nele.</p>
+    <p style="margin-top:8px">Gere de novo pelo LCR: abra a <strong>Lista de Membros</strong>, toque em <strong>Imprimir</strong> e, no destino da impressão, escolha <strong>Salvar como PDF</strong> (não “Microsoft Print to PDF”).</p>`),
+  chamados: () => avisoDaImportacao('Este é o relatório Organizações e Chamados', `
+    <p>O PDF escolhido é o relatório <strong>Organizações e Chamados</strong> do LCR. Ele se importa na aba <strong>Chamados</strong>, pelo botão <strong>📄 Importar PDF do LCR</strong>.</p>
+    <p style="margin-top:8px">Aqui entra a <strong>Lista de Membros</strong>.</p>`,
+    `<button data-act="ir-chamados" style="background:#fb923c;color:#0d1b2a;border:none;border-radius:10px;padding:10px 20px;font-weight:700;cursor:pointer">Ir para Chamados</button>`),
+  // lerPdfMembros recusa: com o Endereço e sem as colunas, o endereço iria para o e-mail
+  'sem-cabecalho': () => avisoDaImportacao('O cabeçalho da lista não foi reconhecido', `
+    <p>Este PDF tem a coluna <strong>Endereço</strong>, mas os nomes das colunas não são os que o app conhece (<strong>Nome</strong>, <strong>Sexo</strong>, <strong>Idade</strong>…). Sem eles não dá para separar o endereço dos outros dados — e o endereço não pode ir para o quadro.</p>
+    <p style="margin-top:8px">Gere de novo pelo LCR em <strong>português</strong>: <strong>Lista de Membros</strong> → <strong>Imprimir</strong> → <strong>Salvar como PDF</strong>.</p>`),
+};
 
 export async function importarPdfMembros(input) {
   const arquivo = input.files && input.files[0];
@@ -200,9 +86,15 @@ export async function importarPdfMembros(input) {
       paginas.push((await pg.getTextContent()).items);
     }
 
-    const lidos = parsearPdfMembros(paginas);
-    if (!lidos.length) throw new Error('Nenhum membro reconhecido. Confirme que é a "Lista de Membros" exportada do LCR.');
-    mostrarPreviaImportacao(lidos, detectarAlaNoPdf(paginas), doc.numPages);
+    // PDF sem texto ou o relatório de chamados: diz o que fazer, em vez do
+    // "nenhum membro reconhecido" (o resto vai ao leitor, que decide)
+    const tipo = tipoDePdf(paginas);
+    if (AVISO_DO_TIPO[tipo]) { AVISO_DO_TIPO[tipo](); return; }
+
+    const leitura = lerPdfMembros(paginas);
+    if (leitura.semCabecalho) { AVISO_DO_TIPO['sem-cabecalho'](); return; }
+    if (!leitura.membros.length) throw new Error('Nenhum membro reconhecido. Confirme que é a "Lista de Membros" exportada do LCR.');
+    mostrarPreviaImportacao(leitura.membros, detectarAlaNoPdf(paginas), doc.numPages, leitura);
   } catch (e) {
     document.getElementById('modal-import-content').innerHTML = `
       <div style="text-align:center;padding:10px">
@@ -216,7 +108,8 @@ export async function importarPdfMembros(input) {
 
 export let IMPORT_PENDENTE = null;
 
-export function mostrarPreviaImportacao(lidos, ala, nPaginas) {
+// leitura: o resto do que lerPdfMembros devolve (contagem, endereco, repetidos)
+export function mostrarPreviaImportacao(lidos, ala, nPaginas, { contagem = null, endereco = false, repetidos = 0 } = {}) {
   const atuais = new Map(MEMBROS.map(m => [norm(m.name), m]));
   const vistos = new Set();
 
@@ -247,14 +140,25 @@ export function mostrarPreviaImportacao(lidos, ala, nPaginas) {
          O PDF é da <strong>${esc(ala.nome)}</strong>, mas o painel está configurado como <strong>${esc(ALA)}</strong>. Confira antes de aplicar.
        </div>` : '';
 
+  // O LCR fecha a lista com "Contagem: N". Lido a menos, alguém ficaria de fora
+  // do quadro (e cairia em "Ausentes no PDF") sem nenhum erro aparente.
+  const confere = contagem != null && contagem === lidos.length;
+  const avisoContagem = contagem != null && !confere
+    ? `<div style="background:rgba(232,176,64,.12);border:1px solid rgba(232,176,64,.35);border-radius:8px;padding:8px 10px;font-size:11px;--c:#e8b040;margin-bottom:10px">
+         O PDF diz <strong>Contagem: ${contagem}</strong>, mas foram lidos <strong>${lidos.length}</strong> membros.
+         ${repetidos ? `${repetidos === 1 ? 'Um nome aparece' : `${repetidos} nomes aparecem`} duas vezes no PDF e ${repetidos === 1 ? 'ficou' : 'ficaram'} uma vez só.` : ''}
+         Confira os novos e os ausentes antes de aplicar.
+       </div>` : '';
+
   document.getElementById('modal-import-content').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <h3 style="--c:#c9a84c;font-size:16px">📄 Conferir importação</h3>
       <span data-act="fechar" style="cursor:pointer;color:var(--text3);font-size:20px">✕</span>
     </div>
     ${avisoAla}
+    ${avisoContagem}
     <div style="font-size:12px;color:var(--text2);margin-bottom:12px">
-      <strong style="color:var(--text-corpo)">${lidos.length}</strong> membros lidos em ${nPaginas} páginas${ala ? ` · ${esc(ala.nome)} (${esc(ala.unidade)})` : ''}
+      <strong style="color:var(--text-corpo)">${lidos.length}</strong> membros lidos em ${nPaginas} páginas${confere ? ' (confere com a contagem do LCR)' : ''}${ala ? ` · ${esc(ala.nome)} (${esc(ala.unidade)})` : ''}
       · <strong style="color:var(--text-corpo)">${lidos.filter(m=>m.telefone).length}</strong> com telefone
       · <strong style="color:var(--text-corpo)">${lidos.filter(m=>m.email).length}</strong> com e-mail
     </div>
@@ -263,6 +167,7 @@ export function mostrarPreviaImportacao(lidos, ala, nPaginas) {
     ${bloco('#e8b040','Ausentes no PDF', ausentes, m => `<div>− ${esc(m.name)}</div>`)}
     <div style="font-size:11px;color:var(--text2);background:rgba(255,255,255,.03);border-radius:8px;padding:8px 10px;margin-bottom:14px;line-height:1.6">
       O quadro de membros será substituído pelo conteúdo do PDF. Movimentações e histórico são preservados.
+      ${endereco ? '<br>A coluna <strong>Endereço</strong> do PDF é ignorada: o endereço não é guardado.' : ''}
       ${ausentes.length ? '<br><strong style="--c:#e8b040">Os ausentes serão removidos da lista ativa</strong> — registre a saída antes se quiser manter o histórico.' : ''}
     </div>
     <div style="display:flex;gap:8px">
@@ -320,6 +225,7 @@ function ligarImportMembros() {
     if (!el) return;
     if (el.dataset.act === 'fechar') fecharModal('modal-import');
     else if (el.dataset.act === 'aplicar') aplicarImportacao();
+    else if (el.dataset.act === 'ir-chamados') { fecharModal('modal-import'); switchTab('chamados'); }
   });
 }
 ligarImportMembros();

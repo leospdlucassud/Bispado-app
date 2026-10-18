@@ -2,13 +2,14 @@
 // SERVIDOR DA DEMONSTRAÇÃO — o /api/* dentro do navegador (sem DOM)
 // No modo demonstração (js/demo.js), todo pedido ao /api/ é atendido aqui, e
 // nunca sai para a rede. Imita as Netlify Functions com as MESMAS regras —
-// crud-regras (upsert e PUT), fundirDomingo e travarVagas (sacramentais) e
-// convite-regras (a tela do membro) —, para a demonstração se comportar como o
-// app de verdade, inclusive nos conflitos.
+// crud-regras (upsert e PUT), fundirDomingo e travarVagas (sacramentais),
+// convite-regras (a tela do membro) e limparDocumentoChamados (chamados) —, para
+// a demonstração se comportar como o app de verdade, inclusive nos conflitos.
 // O armazém é injetado: no navegador, o localStorage separado da
 // demonstração; nos testes (tests/), um Map.
 // =============================================
 
+import { DOC_CHAMADOS_VAZIO, limparDocumentoChamados } from './chamados-lcr.js';
 import { aplicarPut, escondidoPorSigilo, fundirSimples, inserirOuMesclar, limparCorpo, semSigilosos } from './crud-regras.js';
 import { camposDaResposta, conviteParaMembro, encerrada } from './convite-regras.js';
 import { fundirDomingo, travarVagas } from './discursos-regras.js';
@@ -120,6 +121,23 @@ export function criarServidor(armazem, { agora = () => new Date().toISOString() 
     return json({ error: 'Method not allowed' }, 405);
   }
 
+  // netlify/functions/chamados.js: um documento só, trocado inteiro, com a
+  // MESMA limpeza (o que não é chave conhecida não grava)
+  function chamados(metodo, body) {
+    if (metodo === 'GET') {
+      const v = armazem.ler('chamados');
+      return json(v && typeof v === 'object' && Array.isArray(v.chamados) ? { ...DOC_CHAMADOS_VAZIO, ...v } : DOC_CHAMADOS_VAZIO);
+    }
+    if (metodo === 'POST') {
+      const r = limparDocumentoChamados(body);
+      if (r.erro) return json({ error: r.erro }, 400);
+      const doc = { ...r.doc, atualizadoEm: agora() };
+      armazem.gravar('chamados', doc);
+      return json({ ok: true, total: doc.chamados.length, atualizadoEm: doc.atualizadoEm });
+    }
+    return json({ error: 'Method not allowed' }, 405);
+  }
+
   // netlify/functions/convite.js: a tela do membro só vê a projeção mínima
   function convite(metodo, id, body) {
     if (!id) return json({ error: 'Informe o convite' }, 400);
@@ -158,6 +176,7 @@ export function criarServidor(armazem, { agora = () => new Date().toISOString() 
     if (nome === 'sessao') return sessao(metodo, body, req);
     if (nome === 'notas') return notas(metodo, id, body);
     if (nome === 'membros') return membros(metodo, body);
+    if (nome === 'chamados') return chamados(metodo, body);
     if (nome === 'convite') return convite(metodo, id, body);
     return naoAchou();
   }

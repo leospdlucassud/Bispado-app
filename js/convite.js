@@ -7,7 +7,7 @@
 // primeiro: o link de um convite da demonstração (?demo) abre os dados fictícios
 import './demo.js';
 import { ALA, API_CONVITE } from './config.js';
-import { conviteJaRespondido, encerrada } from './convite-regras.js';
+import { comoNoConvite, conviteJaRespondido, encerrada } from './convite-regras.js';
 import { esc, formatarData } from './utils.js';
 // --- Tela que o membro vê ao abrir o link do WhatsApp ---
 // Lê só a própria entrevista, por /api/convite (só os campos da tela). Antes
@@ -97,7 +97,7 @@ function telaConvite(caixa, e) {
 
   caixa.innerHTML = `
     <div style="font-size:34px;margin-bottom:6px">🕊️</div>
-    <h2 style="color:var(--sac);font-size:17px;margin-bottom:4px">${e.tipo ? 'Convite para entrevista' : 'Convite do bispado'}</h2>
+    <h2 style="color:var(--sac);font-size:17px;margin-bottom:4px">${esc(comoNoConvite(e.tipo).titulo)}</h2>
     <p style="color:var(--text2);font-size:12px;margin-bottom:18px">${esc(ALA)}</p>
     <div style="background:rgba(255,255,255,.04);border-radius:12px;padding:14px;margin-bottom:18px;text-align:left">
       <div style="color:var(--text-corpo);font-size:14px;font-weight:700;margin-bottom:6px">${esc(e.nome)}</div>

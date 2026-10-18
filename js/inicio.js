@@ -7,13 +7,16 @@
 // listaAcompanhamentos(), que já aplicam podeVer. E mesmo para o bispo a
 // entrevista sigilosa aparece sem nome e sem tipo: é a tela que fica aberta.
 //
-// Redesenha em cinco pontos: boot e volta à aba (app.js), fim de cada carga
-// (api.js), troca de cargo (usuario.js) e dos nomes dos chamados (chamados.js).
+// Redesenha em seis pontos: boot e volta à aba (app.js), fim de cada carga
+// (api.js), troca de cargo (usuario.js), dos nomes dos chamados (chamados.js) e
+// relatório de chamados novo — carregado ou importado (chamados-ala.js).
 // =============================================
 import { listaAcompanhamentos } from './acompanhamento.js';
 import { aguardandoNovaData, precisaReenviarConvite, resumoAgenda, selosConfirmacao } from './agenda.js';
 import { switchTab } from './app.js';
 import { DIAS_SEMANA, EVENTOS_FIXOS, MESES } from './calendario.js';
+import { dadosDosChamados, setFiltroChamados } from './chamados-ala.js';
+import { nomeCurto as nomeCurtoLcr, resumoDesignacoes } from './chamados-lcr.js';
 import { comNome } from './chamados.js';
 import { COR_STATUS, DADOS, cargoInfo, comAla, nomeDoResponsavel } from './config.js';
 import { nomeCurto, pendenciasDiscurso, registroDoDomingo, resumoDomingo } from './discursos-regras.js';
@@ -84,9 +87,10 @@ const vazio = txt => `<div class="vazia inicio-vazia">${txt}</div>`;
 const mudo = txt => `<div class="inicio-mudo">${txt}</div>`;
 const verMais = (txt, aba) => `<button type="button" class="inicio-mais" data-act="ir" data-aba="${aba}">${txt} →</button>`;
 
-// `dk`: o item leva ao card daquele domingo (pendências de discurso)
-function item({ cor, aba, quando = '', titulo, sub = '', dk = '' }) {
-  return `<button type="button" class="inicio-item${quando ? '' : ' sem-quando'}" style="--ic:${cor}" data-act="ir" data-aba="${aba}"${dk ? ` data-dk="${esc(dk)}"` : ''}>`
+// `dk`: o item leva ao card daquele domingo (pendências de discurso);
+// `fil`: abre a aba já num filtro (os chamados a designar)
+function item({ cor, aba, quando = '', titulo, sub = '', dk = '', fil = '' }) {
+  return `<button type="button" class="inicio-item${quando ? '' : ' sem-quando'}" style="--ic:${cor}" data-act="ir" data-aba="${aba}"${dk ? ` data-dk="${esc(dk)}"` : ''}${fil ? ` data-fil="${esc(fil)}"` : ''}>`
     + (quando ? `<span class="inicio-item-quando">${quando}</span>` : '')
     + `<span class="inicio-item-titulo">${titulo}</span>`
     + (sub ? `<span class="inicio-item-sub">${sub}</span>` : '')
@@ -252,6 +256,14 @@ function pendencias(ag, d) {
         }));
       });
   }
+  // Chamados apoiados que ainda esperam a imposição de mãos (relatório do LCR,
+  // aba Chamados): um item só, que abre a aba no filtro "A designar". Antes da
+  // 1ª resposta do servidor, "nenhum" quer dizer "não sei" — não entra.
+  const ch = dadosDosChamados();
+  if (ch.carregados) {
+    const r = resumoDesignacoes(ch.chamados, carregado.agenda ? ag.todas : []);
+    if (r.total) itens.push(itemDesignacoes(r));
+  }
   // discursos dos próximos domingos: vagas abertas, convites sem resposta…
   if (carregado.sacramentais) {
     for (const p of pendenciasDiscurso(DADOS.sacramentais, d.kHoje)) itens.push(itemDiscurso(p, d));
@@ -261,8 +273,27 @@ function pendencias(ag, d) {
     !carregado.agenda && { txt: 'as entrevistas', plural: true },
     !carregado.designacoes && { txt: 'as designações', plural: true },
     !carregado.sacramentais && { txt: 'a programação sacramental', plural: false },
+    !ch.carregados && { txt: 'os chamados', plural: true },
   ].filter(Boolean);
   return { itens, faltando };
+}
+
+// "2 chamados apoiados aguardando designação" — quem (o apoio já foi público,
+// na sacramental: o nome pode aparecer na tela que fica aberta) e o que a
+// Agenda já tem: designação marcada, ou feita e ainda não marcada no LCR (as
+// contas da Agenda saem de ag.todas, já filtrada por podeVer em resumoAgenda).
+function itemDesignacoes(r) {
+  const nomes = [...new Set(r.pendentes.map(p => nomeCurtoLcr(p.c.nome)))];
+  const quem = nomes.slice(0, 3).map(esc).join(', ') + (nomes.length > 3 ? ` e mais ${nomes.length - 3}` : '');
+  const naAgenda = [
+    r.marcadas && plural(r.marcadas, 'já marcada na Agenda', 'já marcadas na Agenda'),
+    r.feitas && plural(r.feitas, 'feita, falta marcar no LCR', 'feitas, falta marcar no LCR'),
+  ].filter(Boolean);
+  return item({
+    cor: '#fb923c', aba: 'chamados', fil: 'a-designar',
+    titulo: `🤝 ${plural(r.total, 'chamado apoiado aguardando designação', 'chamados apoiados aguardando designação')}`,
+    sub: [quem, ...naAgenda].filter(Boolean).join(' · '),
+  });
 }
 
 function itemDiscurso(p, d) {
@@ -343,6 +374,8 @@ function ligarInicio() {
     if (!alvo) return;
     if (alvo.dataset.act === 'identificar') abrirEscolhaCargo();
     else if (alvo.dataset.act === 'ir' && alvo.dataset.aba) {
+      // o item dos chamados a designar abre a aba já filtrada (o atalho, não)
+      if (alvo.dataset.fil && alvo.dataset.aba === 'chamados') setFiltroChamados(alvo.dataset.fil, { limparBusca: true });
       switchTab(alvo.dataset.aba);
       // item de um domingo: vai até o card dele; senão, o topo da aba
       // (a tela é comprida: sem isto a aba nova abriria rolada)

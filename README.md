@@ -79,7 +79,64 @@ inline, ícone inexistente, versões divergentes.
 As sete coleções simples (agenda, reuniões, designações, sacramentais,
 acompanhamentos, eventos e oradores) são funções de 3 linhas que delegam a
 `netlify/functions/_crud.js` (o prefixo `_` faz o Netlify não tratá-lo como rota).
-`membros` e `notas` têm lógica própria. Todas respondem em `/api/<recurso>`.
+`membros`, `notas` e `chamados` têm lógica própria. Todas respondem em `/api/<recurso>`.
+
+**`/api/chamados`** guarda o relatório "Organizações e Chamados" do LCR (aba
+Chamados) num documento só, no store `chamados-<ALA_ID>`:
+`{ chamados: [{ org, grupo, chamado, nome, apoiado, designado, personalizado }],
+relatorio: { ala, unidade, estaca, data } | null, atualizadoEm }`. O GET devolve
+o documento (vazio antes da 1ª importação; falha de leitura é 500, nunca "vazio" —
+a tela diria que a ala não tem chamados). O POST troca o documento inteiro depois de passar por
+`limparDocumentoChamados` (de `js/chamados-lcr.js`, a mesma da demonstração): só
+as chaves conhecidas, do tipo certo — `apoiado` vazio ou `AAAA-MM-DD`, textos de
+até 300 caracteres, até 2000 chamados; uma chave a mais (um telefone, um e-mail)
+não grava, e um campo torto recusa o corpo inteiro (400). Vago não tem data nem
+designação. O `atualizadoEm` é do servidor.
+
+### PDFs do LCR
+
+O app lê dois relatórios do LCR, sempre no próprio aparelho (pdf.js) — o PDF não
+vai para o servidor, só o que a prévia mostrou e o "Aplicar" confirmou:
+
+| Relatório | Onde importa | O que fica guardado |
+| --- | --- | --- |
+| **Lista de Membros** | aba Membros (`membros-import.js` + `membros-lcr.js`) | nome, sexo, idade, nascimento, telefone e e-mail — o quadro da ala. A coluna **Endereço**, quando o PDF traz, é lida só para não se misturar às outras e **descartada**: o endereço não é guardado |
+| **Organizações e Chamados** | aba Chamados (`chamados-ala.js` + `chamados-lcr.js`) | os chamados: quem ocupa, data do apoio, designação. As listas de membros que o relatório traz (com telefone, e-mail e nascimento) são **puladas**, nem lidas |
+
+Para gerar: no LCR, abra o relatório, toque em **Imprimir** e, se abrir a janela
+de impressão do navegador, escolha o destino **Salvar como PDF**. A impressora
+**Microsoft Print to PDF** do Windows grava as letras como desenho, sem texto:
+sem OCR não há o que ler, e as duas importações avisam disso (`tipoDePdf`, de
+`chamados-lcr.js`: `'sem-texto' | 'chamados' | 'membros' | 'outro'`). Cada uma
+também reconhece o relatório da outra e aponta a aba certa.
+
+A leitura do "Organizações e Chamados" é pela geometria do PDF (corpo da fonte,
+margem dos títulos, colunas do cabeçalho), descrita no topo de `chamados-lcr.js`.
+A "Contagem: N" que o LCR escreve no fim de cada tabela é a conferência: a prévia
+avisa da tabela em que o número de linhas lidas não bate. Os testes usam um
+relatório **sintético**, com a mesma geometria e pessoas inventadas — o PDF de
+verdade tem dados pessoais e nunca entra no repositório.
+
+A "Lista de Membros" tem dois desenhos, cada um com o seu leitor em
+`membros-lcr.js` (descritos no topo do arquivo):
+
+- **sem a coluna Endereço** (o PDF de jun/2026): leitura pelo *formato* de cada
+  trecho — o M/F é a âncora; data, telefone, e-mail e idade se reconhecem pela forma;
+- **com a coluna Endereço** (o que o LCR imprime hoje): leitura pelas *colunas* do
+  cabeçalho. O endereço tem números, CEP e siglas que, pelo formato, vazavam para
+  idade, telefone e e-mail; aqui ele é separado pela posição e jogado fora. A
+  quebra de página parte o registro (o M/F numa página, o nome na outra) e o
+  leitor junta as duas metades. A "Contagem: N" do fim da lista é conferida na
+  prévia, que também diz que o endereço não é guardado. A coluna se reconhece
+  pelo rótulo dela (também "Address"/"Dirección"); se o resto do cabeçalho não
+  for reconhecido ("Gênero" no lugar de "Sexo", o LCR em outra língua), o PDF
+  **não é lido** e a importação pede o LCR em português — nunca cai no leitor
+  pelo formato, que juntaria o endereço no e-mail. Mesmo nesse leitor, o e-mail
+  sai só da célula dele (do trecho com "@" e das linhas no mesmo x).
+
+O registro do quadro continua `{ id, name, gender, age, nascimento, telefone, email }`
+— a API de membros não tem senha, e dado pessoal a mais é dado a mais para vazar.
+`tests/membros-lcr.test.mjs` cobre os dois desenhos com listas sintéticas.
 
 `sacramentais` e `oradores` declaram um campo único (`crudHandler(chave,
 { unicoPor })`): um POST com uma data de domingo (ou uma chave de orador) que
@@ -121,14 +178,16 @@ clássico do `<head>`, manda os links antigos do convite para a página nova).
 | `dados-membros.js` | Começa vazio (o arquivo é público); o quadro vem do PDF do LCR e fica no servidor |
 | `config.js` | Constantes, estado global (`DADOS`), nome da ala, a tabela única de cargos (`CARGOS_INFO`) e as cores de status |
 | `pendentes.js` | Reaplica a fila offline sobre o que veio do servidor (sem DOM, testado) |
-| `convite-regras.js` | Regras do convite sem DOM: o que o membro pode ler (`tipoNoConvite`) e o que a resposta grava |
+| `convite-regras.js` | Regras do convite sem DOM: o que o membro pode ler (`tipoNoConvite`), como o convite fala do assunto (`comoNoConvite` — a designação de chamado não é "entrevista") e o que a resposta grava |
+| `chamados-lcr.js` | O relatório "Organizações e Chamados" do LCR sem DOM: leitura do PDF (`parsearPdfChamados`, `tipoDePdf`), contas, filtros e grupos da aba, chamados de cada membro, designação marcada na Agenda, nomes do bispado e a limpeza do que `/api/chamados` grava (testado) |
+| `membros-lcr.js` | A "Lista de Membros" do LCR sem DOM: leitura do PDF com ou sem a coluna Endereço (`lerPdfMembros`, `parsearPdfMembros`), que é descartada (testado) |
 | `crud-regras.js` | Upsert por campo único (`inserirOuMesclar`, `limparCorpo`), usado pelo servidor e pela fila (sem DOM, testado) |
 | `discursos-regras.js` | Rodízio de discursos sem DOM: datas por partes, chave do nome, estado da vaga, histórico, sugestões, mensagem do WhatsApp, pendências do Início (testado) |
 | `reunioes-regras.js` | Atas de reunião sem DOM: presença do bispado (o nome de cada chamado fica gravado como era no dia), parágrafos da pauta, texto da busca e nome do PDF `ata-<tipo>-<data>.pdf` (testado) |
 | `utils.js` | Formatação de data, `esc()` (escape de HTML para innerHTML), `ico()` (ícone do sprite) e `carregarScript()` |
 | `ui.js` | Troca de abas e abertura/fechamento de modais |
 | `dialogo.js` | `confirmar()` e `pedirTexto()` — substituem prompt/confirm nativos |
-| `chamados.js` | Nomes de quem ocupa cada chamado — ficam no servidor, editáveis no app |
+| `chamados.js` | Nomes de quem ocupa cada chamado do bispado (`/api/bispado`) — ficam no servidor, editáveis no app (não confundir com a aba Chamados, `chamados-ala.js`) |
 | `usuario.js` | Identificação por cargo e regra de sigilo (`podeVer`) |
 | `api.js` | Chamadas ao servidor, indicador de sincronização e carga inicial |
 | `offline-pwa.js` | Fila offline em IndexedDB, service worker e instalação |
@@ -142,8 +201,9 @@ clássico do `<head>`, manda os links antigos do convite para a página nova).
 | `calendario.js` | Calendário da ala e da estaca |
 | `sacramental.js` | Aba Sacramental: as 3 vistas, "Atas por mês", formulário da ata (grava só o que mudou) e `gravarCamposDomingo` |
 | `rodizio.js` | Vistas "Próximos domingos" e "Rodízio": vagas, seletor de orador, convite por WhatsApp, ficha da pessoa |
-| `membros.js` | Entradas, saídas e histórico de membros |
-| `membros-import.js` | Leitura do PDF de membros do LCR |
+| `membros.js` | Entradas, saídas e histórico de membros; o cartão mostra os chamados de cada um |
+| `membros-import.js` | Importação do PDF de membros do LCR: prévia (novos, atualizados, ausentes, conferência da "Contagem") e aplicar; avisa quando o PDF não tem texto ou é o de chamados |
+| `chamados-ala.js` | Aba Chamados: carga de `/api/chamados`, filtros, lista por organização, "📅 Agendar designação" (abre a Agenda preenchida) e a importação do PDF com prévia — que pode atualizar os nomes do bispado de `chamados.js` |
 | `notas.js` | Notas privadas (aparelho) e compartilhadas (nuvem) |
 | `manual.js` | Manual Geral, links oficiais e roteiros de entrevista |
 | `pdf.js` | Atas em PDF: a sacramental e a de cada reunião (na ordem do card, com quebra de página e rodapé em todas as páginas). O jsPDF só é carregado na primeira ata; o service worker já o guarda na instalação |

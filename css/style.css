@@ -858,3 +858,99 @@
 .quem-senha-titulo { font-weight:700; color:var(--text1); font-size:14px; }
 .quem-senha-erro { min-height:1.2em; color:var(--st-pendente); font-size:12.5px; line-height:1.5; }
 .quem-senha-erro:empty { min-height:0; }
+
+/* =============================================
+   ABA CHAMADOS (chamados-ala.js) — o relatório "Organizações e Chamados" do LCR
+   Laranja: a única cor de aba que sobrava sem confundir com status (o verde é
+   "Realizada", o amarelo é "vago"/aviso, o rosa é "a designar").
+   ============================================= */
+.tab-btn[data-tab="chamados"] { color:#fb923c; border-color:#fb923c; }
+.tab-btn[data-tab="chamados"].active { background:#fb923c; color:#0d1b2a; }
+.cham-acoes { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+/* o .btn-primary ocupa a largura toda; aqui, só a do rótulo (que quebra no celular) */
+.cham-importar { width:auto; max-width:100%; margin-top:0; font-size:12px; padding:8px 14px; }
+.cham-info { font-size:11px; color:var(--text2); margin-bottom:12px; line-height:1.5; }
+.cham-info:empty { display:none; }
+.cham-conta { font-size:11px; color:var(--text3); margin-bottom:8px; }
+.cham-vazia-dica { font-size:12px; opacity:.8; }
+
+/* uma organização: recolhível; o resumo (nome + contas) quebra no celular */
+.cham-org { background:var(--bg2); border:1px solid var(--border); border-left:4px solid #fb923c; border-radius:12px; margin-bottom:10px; overflow:hidden; }
+.cham-org > summary { list-style:none; cursor:pointer; display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:2px 10px; padding:12px 14px; min-height:44px; }
+.cham-org > summary::-webkit-details-marker { display:none; }
+.cham-org > summary:focus-visible { outline:2px solid #fb923c; outline-offset:-2px; }
+.cham-org-nome { font-size:14px; font-weight:700; color:var(--text1); min-width:0; overflow-wrap:anywhere; }
+.cham-seta { display:inline-block; color:var(--text3); transition:transform .2s; }
+.cham-org[open] .cham-seta { transform:rotate(90deg); }
+.cham-org-conta { font-size:11px; color:var(--text2); white-space:nowrap; }
+.cham-grupo { padding:0 14px 6px; }
+.cham-grupo-nome { font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text3); padding:10px 0 2px; border-top:1px solid var(--border); overflow-wrap:anywhere; }
+.cham-linha { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 10px; align-items:center; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.05); }
+.cham-linha:last-child { border-bottom:none; }
+.cham-corpo { min-width:0; }
+.cham-titulo { font-size:13.5px; font-weight:600; color:var(--text1); overflow-wrap:anywhere; }
+.cham-nome { font-size:13px; color:var(--text-corpo); margin-top:1px; overflow-wrap:anywhere; }
+.cham-nome.vazio { font-style:italic; color:var(--text3); }
+.cham-sub { font-size:11px; color:var(--text3); margin-top:1px; }
+.cham-pers { color:#fb923c; font-size:11px; }
+.cham-selos { display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:6px; }
+.selo-cham { display:inline-flex; align-items:center; font-size:11px; font-weight:700; padding:1px 8px; border-radius:10px; border:1px solid currentColor; white-space:nowrap; }
+.selo-cham-vago { color:#e8b040; }
+.selo-cham-designar { color:#f472b6; }
+.selo-cham-ok { color:#34d399; border-color:transparent; font-weight:600; padding-right:0; }
+/* a ação de quem está "a designar": agendar, a data marcada (leva à Agenda) ou
+   o lembrete de marcar no LCR a designação já feita */
+.cham-agendar { font-size:12px; padding:5px 12px; min-height:40px; white-space:nowrap; }
+.cham-marcada { background:transparent; border:none; padding:4px 0; min-height:40px; font-family:inherit; font-size:11.5px; font-weight:600; color:#60a5fa; cursor:pointer; text-decoration:underline; text-underline-offset:2px; }
+.cham-feita { font-size:11px; font-weight:600; color:#34d399; }
+/* antes de a Agenda vir do servidor não se sabe se a designação já está marcada */
+.cham-espera { font-size:11px; color:var(--text2); }
+/* em ≈360 px o selo desce para baixo do nome, em vez de espremer o título */
+@media (max-width:400px) {
+  .cham-linha { grid-template-columns:minmax(0,1fr); }
+  .cham-selos { justify-content:flex-start; }
+}
+
+/* os chamados do membro, no cartão da aba Membros (uma linha curta sob a idade) */
+.membro-card { gap:10px; }
+.membro-card > div:first-child { min-width:0; }
+.membro-chamados { font-size:11px; color:var(--text2); margin-top:2px; line-height:1.45; overflow-wrap:anywhere; }
+.membro-cham-designar { color:#f472b6; font-weight:600; }
+
+/* prévia da importação (#modal-chamados) */
+.cham-aviso { background:rgba(232,176,64,.12); border:1px solid rgba(232,176,64,.4); color:var(--text1); border-radius:8px; padding:8px 10px; font-size:12px; line-height:1.5; margin-bottom:10px; overflow-wrap:anywhere; }
+.cham-aviso-texto { font-size:13px; color:var(--text-corpo); line-height:1.6; }
+.cham-aviso-texto p + p { margin-top:8px; }
+.cham-prev-resumo { font-size:12px; color:var(--text2); margin-bottom:10px; line-height:1.5; }
+.cham-prev-resumo strong { color:var(--text1); }
+.cham-prev-titulo { font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text3); margin:14px 0 6px; }
+.cham-prev-nota { font-size:12px; color:var(--text2); line-height:1.5; margin:6px 0; }
+.cham-prev-rodape { background:rgba(255,255,255,.03); border-radius:8px; padding:8px 10px; margin-top:14px; }
+.cham-prev-bloco { margin-bottom:8px; background:rgba(255,255,255,.03); border-left:3px solid var(--border); border-radius:8px; padding:8px 10px; }
+.cham-prev-bloco > summary { cursor:pointer; font-size:13px; font-weight:700; }
+.cham-prev-lista { margin-top:8px; max-height:150px; overflow-y:auto; font-size:12px; color:var(--text-corpo); line-height:1.7; overflow-wrap:anywhere; }
+.cham-prev-org { color:var(--text3); }
+.cham-prev-mais { opacity:.7; }
+.cham-prev-tortas { margin:6px 0 0 18px; }
+.cham-bispado { list-style:none; display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--text-corpo); }
+.cham-bispado li { display:flex; flex-wrap:wrap; gap:2px 8px; line-height:1.5; overflow-wrap:anywhere; }
+.cham-bispado-cargo { font-weight:700; color:var(--text1); min-width:9.5em; }
+.cham-check { display:flex; align-items:center; gap:10px; min-height:44px; margin-top:8px; padding:8px 12px; background:var(--bg1); border:1px solid var(--border); border-radius:10px; font-size:14px; color:var(--text1); cursor:pointer; }
+.cham-check input { width:20px; height:20px; flex-shrink:0; margin:0; accent-color:#fb923c; cursor:pointer; }
+.cham-prev-botoes { display:flex; gap:8px; margin-top:16px; }
+.cham-prev-botoes .btn-primary { flex:1; margin-top:0; }
+
+[data-theme="light"] .cham-org { background:var(--bg2); border-color:var(--border); border-left-color:#c2410c; }
+[data-theme="light"] .cham-linha { border-bottom-color:rgba(0,0,0,.07); }
+[data-theme="light"] .cham-pers { color:#c2410c; }
+[data-theme="light"] .cham-org > summary:focus-visible { outline-color:#c2410c; }
+[data-theme="light"] .selo-cham-vago { color:#9a6700; }
+[data-theme="light"] .selo-cham-designar { color:#be185d; }
+[data-theme="light"] .selo-cham-ok { color:#047857; }
+[data-theme="light"] .cham-marcada { color:#1d4ed8; }
+[data-theme="light"] .cham-feita { color:#047857; }
+[data-theme="light"] .membro-cham-designar { color:#be185d; }
+[data-theme="light"] .cham-aviso { background:rgba(154,103,0,.08); border-color:rgba(154,103,0,.35); }
+[data-theme="light"] .cham-prev-rodape, [data-theme="light"] .cham-prev-bloco { background:rgba(0,0,0,.03); }
+[data-theme="light"] .cham-check { background:var(--bg3); }
+[data-theme="light"] .cham-check input { accent-color:#c2410c; }

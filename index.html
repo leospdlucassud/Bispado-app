@@ -91,6 +91,7 @@
   <button class="tab-btn" data-tab="calendario"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-calendar-days"/></svg> Calendário</button>
   <button class="tab-btn" data-tab="sacramental"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-church"/></svg> Sacramental</button>
   <button class="tab-btn" data-tab="membros"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-users"/></svg> Membros</button>
+  <button class="tab-btn" data-tab="chamados"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-badge-check"/></svg> Chamados</button>
   <button class="tab-btn" data-tab="notas"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-notebook-pen"/></svg> Notas</button>
   <button class="tab-btn" data-tab="ordenancas"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-hand-heart"/></svg> Ordenanças</button>
   <button class="tab-btn" data-tab="manual"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-book-open"/></svg> Manual</button>
@@ -113,6 +114,7 @@
     </optgroup>
     <optgroup label="Ala">
       <option value="membros">👥 Membros</option>
+      <option value="chamados">🤝 Chamados</option>
       <option value="notas">📝 Notas</option>
     </optgroup>
     <optgroup label="Consulta">
@@ -187,6 +189,7 @@
       <button type="button" class="link-card" style="--lc:#60a5fa" data-act="ir" data-aba="calendario"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-calendar-days"/></svg></span><span class="lc-txt"><span class="lc-title">Calendário</span><span class="lc-sub">Eventos da ala e da estaca</span></span></button>
       <button type="button" class="link-card" style="--lc:#e8d080" data-act="ir" data-aba="sacramental"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-church"/></svg></span><span class="lc-txt"><span class="lc-title">Sacramental</span><span class="lc-sub">Oradores, convites e ata de cada domingo</span></span></button>
       <button type="button" class="link-card" style="--lc:#2dd4bf" data-act="ir" data-aba="membros"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-users"/></svg></span><span class="lc-txt"><span class="lc-title">Membros</span><span class="lc-sub">Quadro do LCR, entradas e saídas</span></span></button>
+      <button type="button" class="link-card" style="--lc:#fb923c" data-act="ir" data-aba="chamados"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-badge-check"/></svg></span><span class="lc-txt"><span class="lc-title">Chamados</span><span class="lc-sub">Quem ocupa cada chamado, vagos e a designar</span></span></button>
       <button type="button" class="link-card" style="--lc:#60a5fa" data-act="ir" data-aba="notas"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-notebook-pen"/></svg></span><span class="lc-txt"><span class="lc-title">Notas</span><span class="lc-sub">Privadas neste aparelho ou compartilhadas</span></span></button>
       <button type="button" class="link-card" style="--lc:#a78bfa" data-act="ir" data-aba="ordenancas"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-hand-heart"/></svg></span><span class="lc-txt"><span class="lc-title">Ordenanças</span><span class="lc-sub">Palavras das ordenanças e roteiros de entrevista</span></span></button>
       <button type="button" class="link-card" style="--lc:#c9a84c" data-act="ir" data-aba="manual"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-book-open"/></svg></span><span class="lc-txt"><span class="lc-title">Manual</span><span class="lc-sub">Manual Geral e links oficiais</span></span></button>
@@ -341,6 +344,33 @@
   </div>
 
   <div id="lista-membros-tab"><div class="loading">Carregando…</div></div>
+</div>
+
+<!-- ========== CHAMADOS ==========
+     O relatório "Organizações e Chamados" do LCR, importado em PDF: quem ocupa
+     cada chamado, o que está vago e quem ainda não foi designado. Preenchido
+     por js/chamados-ala.js (os filtros e a lista são recriados a cada desenho). -->
+<div class="panel" id="panel-chamados">
+  <div style="margin-bottom:12px">
+    <h2 style="font-size:18px;--c:#fb923c"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-badge-check"/></svg> Chamados — <span data-ala></span></h2>
+    <p style="font-size:12px;color:var(--text2);margin-top:4px">Organizações e chamados do LCR — preenchidos, vagos e a designar</p>
+  </div>
+
+  <div class="membros-stats" id="chamados-stats"></div>
+
+  <div class="cham-acoes" id="chamados-acoes">
+    <button type="button" class="btn-primary cham-importar" data-act="importar">📄 Importar PDF do LCR (Organizações e Chamados)</button>
+    <input type="file" id="pdf-chamados" accept="application/pdf,.pdf" hidden>
+  </div>
+  <div class="cham-info" id="chamados-info"></div>
+
+  <div class="filtros" id="filtros-chamados"></div>
+
+  <div style="margin-bottom:10px">
+    <input type="text" class="form-input" id="busca-chamados" placeholder="🔍 Buscar chamado, pessoa ou organização…" aria-label="Buscar nos chamados" autocomplete="off" style="font-size:13px">
+  </div>
+
+  <div id="lista-chamados"><div class="loading">Carregando…</div></div>
 </div>
 
 <!-- ========== NOTAS ========== -->
@@ -835,7 +865,7 @@
   <div class="como-usar-section">
     <div class="como-usar-titulo" style="color:var(--text1)">🏠 Início</div>
     <div class="como-usar-item">É a tela que abre ao entrar no app: a saudação, o que está com você, as próximas entrevistas, o que precisa de atenção e a semana — a reunião sacramental do domingo e os eventos do calendário.</div>
-    <div class="como-usar-item"><strong>Precisa de atenção</strong> junta o que ficou para trás: membro que pediu outra data, convite a reenviar depois de um reagendamento, entrevista que passou da data sem resultado, designação com prazo vencido e designação que vence hoje ou amanhã.</div>
+    <div class="como-usar-item"><strong>Precisa de atenção</strong> junta o que ficou para trás: membro que pediu outra data, convite a reenviar depois de um reagendamento, entrevista que passou da data sem resultado, designação com prazo vencido, designação que vence hoje ou amanhã e <strong>chamados apoiados aguardando designação</strong> (do relatório da aba Chamados — o toque abre a aba já no filtro "A designar").</div>
     <div class="como-usar-item">Toque em qualquer item ou atalho para abrir a aba correspondente. As contas seguem as mesmas regras das abas.</div>
     <div class="como-usar-item">Entrevistas sigilosas só aparecem para quem entrou como Bispo (com senha) — e, mesmo para ele, aparecem aqui como <strong>🔒 Entrevista sigilosa</strong>, sem nome nem tipo, porque esta é a tela que fica aberta. O detalhe está na aba Agenda.</div>
     <div class="como-usar-item">O Início não tem o botão <strong>+</strong>: para marcar uma entrevista ou criar outro registro, abra a aba correspondente (a Agenda, para entrevistas).</div>
@@ -863,7 +893,8 @@
     <div class="como-usar-item">No card ficam só os próximos passos: convidar (ou <strong>Definir a nova data</strong>, quando o membro pediu outra), <strong>Realizada</strong> e <strong>Reagendar</strong>. O resto — Editar, outro meio de convite, Não realizada, Acompanhar, Sigilo e Excluir — fica em <strong>Mais</strong>.</div>
     <div class="como-usar-item">Marque como "Realizada" após a entrevista. "Não realizada" exige informar o motivo.</div>
     <div class="como-usar-item"><strong>Convidar</strong> abre o WhatsApp com a mensagem pronta — nome, data e horário. O telefone vem do quadro de membros (importe o PDF do LCR na aba Membros) e pode ser digitado à mão no formulário.</div>
-    <div class="como-usar-item">O tipo da entrevista só aparece no convite quando é de rotina (recomendação para o templo, ordenação, entrevista de jovens, missão…). Nos demais tipos — e em qualquer entrevista sigilosa — a mensagem diz apenas <strong>"uma conversa com o bispado"</strong>, porque ela aparece na prévia da tela bloqueada e o número muitas vezes é o da família. O diálogo de convite mostra o que o membro vai ler.</div>
+    <div class="como-usar-item">O tipo da entrevista só aparece no convite quando é de rotina (recomendação para o templo, ordenação, entrevista de jovens, missão, designação de chamado…). Nos demais tipos — e em qualquer entrevista sigilosa — a mensagem diz apenas <strong>"uma conversa com o bispado"</strong>, porque ela aparece na prévia da tela bloqueada e o número muitas vezes é o da família. O diálogo de convite mostra o que o membro vai ler.</div>
+    <div class="como-usar-item"><strong>Designação de Chamado (Imposição de Mãos)</strong> é o tipo que a aba Chamados usa no <strong>📅 Agendar designação</strong>. Como o chamado já foi apoiado na sacramental, o convite diz o assunto, com as palavras dele: "gostaríamos de marcar a sua designação no chamado, por imposição de mãos". O <strong>Apoio de Chamado</strong>, que vem antes de o chamado ser público, continua como "uma conversa com o bispado".</div>
     <div class="como-usar-item">A mensagem leva um link. Ao tocar nele, o membro vê uma tela simples e escolhe <span style="--c:#34d399">Confirmo</span>, <span style="--c:#e8b040">Preciso de outra data</span> ou <span style="--c:#e05555">Não poderei ir</span>. A resposta aparece no card da entrevista automaticamente.</div>
     <div class="como-usar-item"><strong>Acompanhar</strong> e <strong>Marcar como sigilosa</strong>, em Mais, ligam ou desligam essas marcações a qualquer momento — não só ao criar a entrevista. Marcar Acompanhar faz a entrevista aparecer na aba Acompanhamento.</div>
   </div>
@@ -925,6 +956,29 @@
   </div>
 
   <div class="como-usar-section">
+    <div class="como-usar-titulo" style="--c:#2dd4bf">👥 Membros</div>
+    <div class="como-usar-item">O quadro de membros vem da <strong>Lista de Membros</strong> do LCR, importada em PDF pelo botão <strong>📄 Importar PDF do LCR</strong>: nome, sexo, idade, nascimento, telefone e e-mail. É dele que vêm o telefone do convite, as sugestões do rodízio de discursos e o filtro "Sem chamado".</div>
+    <div class="como-usar-item"><strong>Como gerar um PDF que o app lê:</strong> no LCR, abra a <strong>Lista de Membros</strong>, toque em <strong>Imprimir</strong> e, na janela de impressão, escolha o destino <strong>Salvar como PDF</strong>.</div>
+    <div class="como-usar-item">Não use a impressora <strong>Microsoft Print to PDF</strong> do Windows: ela grava as letras como desenho, sem texto, e nada consegue ler o arquivo — o app avisa e explica como gerar de novo. O mesmo vale para um PDF escaneado ou uma foto da lista.</div>
+    <div class="como-usar-item">A Lista de Membros que o LCR imprime hoje traz também a coluna <strong>Endereço</strong>. Pode importar assim mesmo: o app lê essa coluna só para não misturá-la com idade, telefone e e-mail, e a descarta — <strong>o endereço não é guardado</strong>. A lista sem essa coluna também funciona. Se o app disser que o cabeçalho da lista não foi reconhecido, gere o PDF com o LCR em <strong>português</strong>: sem os nomes das colunas, ele não lê, para o endereço não ir parar no e-mail.</div>
+    <div class="como-usar-item">Escolheu o relatório <strong>Organizações e Chamados</strong> por engano? O app avisa, com um botão para a aba Chamados, onde ele se importa.</div>
+    <div class="como-usar-item">Antes de gravar, a prévia mostra os membros novos, os dados atualizados e os ausentes no PDF, e confere o total com a <strong>Contagem</strong> que o LCR escreve no fim da lista — se faltar alguém, ela avisa. Movimentações (entradas e saídas) e o histórico são preservados.</div>
+    <div class="como-usar-item">O cartão de cada membro mostra os chamados dele, do relatório da aba Chamados — com <strong>(a designar)</strong> em quem ainda espera a imposição de mãos.</div>
+  </div>
+
+  <div class="como-usar-section">
+    <div class="como-usar-titulo" style="--c:#fb923c">🤝 Chamados</div>
+    <div class="como-usar-item">Mostra o relatório <strong>Organizações e Chamados</strong> do LCR: cada chamado da ala, por organização e grupo, com quem o ocupa, a data do apoio e se já houve a designação (imposição de mãos). O topo conta os chamados, os preenchidos, os vagos e os a designar; o ✦ marca os chamados personalizados da ala.</div>
+    <div class="como-usar-item"><strong>Filtros:</strong> Todos, Vagos, <strong>A designar</strong> (apoiados e ainda sem a imposição de mãos) e <strong>Sem chamado</strong> — os membros ativos de 18 anos ou mais, do quadro da aba Membros, que não ocupam nenhum chamado no relatório. A busca acha por chamado, pessoa (em qualquer ordem, sem acento) ou organização; "vago" acha os chamados em aberto.</div>
+    <div class="como-usar-item">Em cada "a designar", <strong>📅 Agendar designação</strong> abre uma entrevista nova na Agenda já com a pessoa, o tipo <strong>Designação de Chamado (Imposição de Mãos)</strong> e o chamado na observação — falta só a data e quem designa. Marcada, a linha mostra a data (toque para abrir a Agenda). Realizada, a linha lembra de <strong>marcar a designação no LCR</strong>: o ✓ só chega aqui com a próxima importação.</div>
+    <div class="como-usar-item"><strong>Como importar:</strong> no LCR, abra o relatório <strong>Organizações e Chamados</strong> (no menu Relatórios), toque em <strong>Imprimir</strong> e salve o PDF — se abrir a janela de impressão, escolha o destino <strong>Salvar como PDF</strong>, não "Microsoft Print to PDF". Depois, aqui, toque em <strong>📄 Importar PDF do LCR (Organizações e Chamados)</strong>.</div>
+    <div class="como-usar-item">Antes de gravar, a prévia mostra quantos chamados foram lidos e o que mudou desde o último relatório (chamados preenchidos, trocas de ocupante, desobrigações). Ela avisa se alguma tabela não confere com a <strong>"Contagem"</strong> que o LCR escreve no fim de cada uma, se o PDF é de outra ala ou mais antigo que o já importado. <strong>Aplicar</strong> substitui os chamados da aba pelos do PDF.</div>
+    <div class="como-usar-item"><strong>Nomes do bispado:</strong> a prévia compara Bispo, conselheiros e secretários do relatório com os nomes do app — os da entrada, dos convites e da presença nas atas. Se algo mudou, a caixa <strong>Atualizar os nomes do bispado</strong> já vem marcada; desmarque para manter os atuais. Um nome escrito mais curto (só o primeiro nome e o sobrenome, por exemplo) conta como a mesma pessoa e fica como está.</div>
+    <div class="como-usar-item"><strong>O que não é guardado:</strong> o relatório traz também a lista de membros de cada organização, com idade, data de nascimento, telefone e e-mail. Essa parte não é lida nem gravada — do PDF ficam só os chamados, quem os ocupa, a data do apoio e a designação.</div>
+    <div class="como-usar-item">Os chamados também aparecem no cartão de cada membro (aba Membros) e no <strong>Precisa de atenção</strong> do Início. Na demonstração, a aba vem com chamados fictícios e a importação fica desligada.</div>
+  </div>
+
+  <div class="como-usar-section">
     <div class="como-usar-titulo" style="--c:#f8c56d">🕊️ Ordenanças</div>
     <div class="como-usar-item">Consulta rápida às ordenanças do sacerdócio com as <strong>palavras exatas</strong> das orações de oração fixa.</div>
     <div class="como-usar-item">Toque em uma ordenança para ver quem pode oficiar, a referência nas escrituras e os passos.</div>
@@ -974,7 +1028,7 @@
   <div class="como-usar-section">
     <div class="como-usar-titulo" style="--c:#c9a84c">🎭 Modo demonstração</div>
     <div class="como-usar-item">Para apresentar o painel sem mostrar ninguém da ala, abra o endereço do app com <strong>?demo</strong> no fim (por exemplo, <strong>…netlify.app/?demo</strong>). Uma faixa no topo avisa que os dados são fictícios.</div>
-    <div class="como-usar-item">Todas as abas vêm preenchidas com uma ala inventada: entrevistas em todos os estados, convites respondidos, acompanhamentos, designações, reuniões, a programação sacramental com o rodízio e o quadro de membros. Dá para mexer à vontade.</div>
+    <div class="como-usar-item">Todas as abas vêm preenchidas com uma ala inventada: entrevistas em todos os estados, convites respondidos, acompanhamentos, designações, reuniões, a programação sacramental com o rodízio, o quadro de membros e os chamados da ala (com vagos e a designar). Dá para mexer à vontade.</div>
     <div class="como-usar-item">Nada da demonstração chega aos dados da ala, e nada da ala aparece nela: tudo fica só neste navegador, separado até das suas notas privadas. A importação do LCR fica desligada.</div>
     <div class="como-usar-item">Para mostrar a resposta do membro chegando ao painel, abra o link do convite <strong>neste mesmo navegador</strong>: no convite, toque em <strong>Copiar link do convite</strong>, cole numa aba nova e responda; depois toque em Sincronizar. Aberto em outro aparelho (pelo WhatsApp, por exemplo), o link mostra a tela do membro com uma cópia própria dos dados, e a resposta fica só lá.</div>
     <div class="como-usar-item">Funciona sem internet, desde que o app já tenha sido aberto uma vez com sinal neste aparelho.</div>
@@ -1012,6 +1066,10 @@
 
 <!-- Modal Importação de Membros -->
 <div class="modal-overlay" id="modal-import"><div class="modal-box" id="modal-import-content"></div></div>
+
+<!-- Modal Importação de Chamados (js/chamados-ala.js): separado do de membros,
+     cada um com o seu "Aplicar" -->
+<div class="modal-overlay" id="modal-chamados"><div class="modal-box" id="modal-chamados-content"></div></div>
 
 <!-- Diálogo genérico (confirmar / pedir texto) -->
 <div class="modal-overlay" id="modal-dialogo"><div class="modal-box" id="modal-dialogo-content"></div></div>

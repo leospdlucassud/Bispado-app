@@ -5,6 +5,14 @@
 // tocam em document nem em DADOS — e os testes (tests/) rodam direto no Node.
 // =============================================
 
+// A designação (imposição de mãos) vem DEPOIS do apoio na reunião sacramental:
+// o chamado já foi lido diante da ala, então o assunto pode ir no convite — ao
+// contrário do "Apoio de Chamado", que é conversa antes de o chamado ser público.
+// Mas não é entrevista: o convite fala dela com as palavras dela (comoNoConvite).
+// A aba Chamados (chamados-ala.js) agenda com este tipo, e chamados-lcr.js o
+// procura na Agenda.
+export const TIPO_DESIGNACAO = 'Designação de Chamado (Imposição de Mãos)';
+
 // Tipos que podem aparecer no convite. O convite vai pelo WhatsApp ou e-mail:
 // aparece na prévia da tela bloqueada, e o número cadastrado muitas vezes é o da
 // família. Por isso só os tipos de rotina são nomeados; os demais — e qualquer
@@ -29,6 +37,7 @@ export const TIPOS_NO_CONVITE = new Set([
   'Preparação para Missão',
   'Retorno de Missão',
   'Recomendação para Missionário de Serviço da Igreja',
+  TIPO_DESIGNACAO,
   'Ministração da Liderança',
   'Novo Membro (Pós-Batismo)',
   'Batismo e Confirmação de Criança de Registro (8 anos)',
@@ -38,6 +47,19 @@ export const TIPOS_NO_CONVITE = new Set([
 // O tipo que o membro pode ler, ou '' quando o convite não deve dizer o assunto.
 export function tipoNoConvite(e) {
   return e && !e.sigiloso && TIPOS_NO_CONVITE.has(e.tipo) ? e.tipo : '';
+}
+
+// Como o convite fala do assunto, nos três lugares em que ele aparece: a frase
+// da mensagem ("Gostaríamos de marcar <frase> para <quando>." — WhatsApp, e-mail
+// e link copiado), o assunto do e-mail e o título da tela do membro. Recebe o
+// tipo JÁ filtrado por tipoNoConvite ('' = o assunto não aparece).
+export function comoNoConvite(tipo) {
+  if (!tipo) return { frase: 'uma conversa com você', assunto: 'Convite do bispado', titulo: 'Convite do bispado' };
+  // "marcar uma entrevista — Designação de Chamado —" soaria como outra coisa
+  if (tipo === TIPO_DESIGNACAO) {
+    return { frase: 'a sua designação no chamado, por imposição de mãos,', assunto: 'Convite do bispado — designação no chamado', titulo: 'Convite para a designação' };
+  }
+  return { frase: `uma entrevista com você — ${tipo} —`, assunto: `Entrevista com o bispado — ${tipo}`, titulo: 'Convite para entrevista' };
 }
 
 // "Sobrenome, Nome" → primeiro nome

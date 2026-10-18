@@ -1,6 +1,9 @@
 // Modo demonstração: dados fictícios e o servidor que roda no navegador — `npm test`.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import {
+  compararBispado, limparDocumentoChamados, membrosSemChamado, resumoChamados, resumoDesignacoes,
+} from '../js/chamados-lcr.js';
 import { gerar } from '../js/demo-dados.js';
 import { criarServidor } from '../js/demo-servidor.js';
 import {
@@ -70,6 +73,35 @@ test('o quadro tem gente de todos os grupos do rodízio', () => {
   for (const g of ['primaria', 'rapazes', 'mocas', 'ss', 'quorum']) assert.ok(grupos.has(g), g);
 });
 
+test('os chamados fictícios: gente do quadro, o bispado de sempre, vagos, a designar e um personalizado', () => {
+  for (const d of DATAS) {
+    const { chamados: doc, membros, colecoes } = gerar(d);
+    // o documento é o que a importação grava: passa inteiro pela limpeza do servidor
+    const limpo = limparDocumentoChamados(doc);
+    assert.equal(limpo.erro, undefined, d);
+    assert.deepEqual(limpo.doc, { chamados: doc.chamados, relatorio: doc.relatorio }, d);
+    assert.equal(doc.relatorio.data, d);
+    assert.ok(doc.atualizadoEm.startsWith(d));
+    const nomes = new Set(membros.roster.filter(m => !membros.saidos.includes(m.id)).map(m => m.name));
+    for (const c of doc.chamados.filter(c => c.nome)) {
+      assert.ok(nomes.has(c.nome), c.nome);
+      assert.ok(ehDomingo(c.apoiado) && c.apoiado <= d, `${c.chamado}: ${c.apoiado}`);
+    }
+    // os nomes do bispado (entrada, convites, atas) já conferem com o relatório
+    assert.ok(compararBispado(doc.chamados, colecoes.bispado[0].nomes).every(b => b.estado === 'igual'), d);
+    const r = resumoChamados(doc.chamados);
+    assert.ok(r.vagos >= 5 && r.preenchidos >= 15, JSON.stringify(r));
+    assert.equal(r.aDesignar, 2);
+    assert.ok(doc.chamados.some(c => c.personalizado && c.nome));
+    // um a designar já com a designação marcada na Agenda, o outro por agendar
+    const des = resumoDesignacoes(doc.chamados, colecoes.agenda);
+    assert.deepEqual([des.total, des.marcadas, des.feitas], [2, 1, 0], d);
+    // e o "Sem chamado" tem quem mostrar
+    assert.ok(membrosSemChamado(membros.roster.filter(m => !membros.saidos.includes(m.id)), doc.chamados).length >= 5);
+  }
+  assert.doesNotMatch(JSON.stringify(gerar(HOJE).chamados), /Palmas|telefone|email|nascimento/i);
+});
+
 test('a agenda cobre os estados da entrevista e do convite', () => {
   const ag = gerar(HOJE).colecoes.agenda;
   for (const st of ['pendente', 'agendada', 'realizada', 'nao-realizada']) assert.ok(ag.some(e => e.status === st), st);
@@ -126,6 +158,36 @@ test('membros, notas e erros', async () => {
   assert.equal((await pedir(srv, 'GET', '/api/nada')).status, 404);
   const torto = await srv.atender(new Request('http://local/api/agenda', { method: 'POST', body: '{' }));
   assert.equal(torto.status, 400);
+});
+
+test('chamados: um documento só, trocado inteiro, com a limpeza do servidor', async () => {
+  const srv = criarServidor(armazem(), { agora: () => '2026-10-15T12:00:00.000Z' });
+  assert.deepEqual(await (await pedir(srv, 'GET', '/api/chamados')).json(), { chamados: [], relatorio: null, atualizadoEm: null });
+  const bispo = { org: 'Bispado', grupo: '', chamado: 'Bispo', nome: 'Exemplo, Bruno', apoiado: '2026-09-13', designado: true, personalizado: false };
+  const r = await (await pedir(srv, 'POST', '/api/chamados', {
+    chamados: [{ ...bispo, telefone: '(63) 90000-0001' }, { org: 'Bispado', chamado: 'Secretário da Ala' }],
+    relatorio: { ala: 'Ala Exemplo 9', unidade: '000009', estaca: 'Estaca Exemplo Brasil', data: '2026-10-14' },
+  })).json();
+  assert.deepEqual(r, { ok: true, total: 2, atualizadoEm: '2026-10-15T12:00:00.000Z' });
+  const doc = await (await pedir(srv, 'GET', '/api/chamados')).json();
+  assert.deepEqual(doc.chamados[0], bispo);   // sem o telefone
+  assert.equal(doc.chamados[1].nome, '');
+  assert.equal(doc.relatorio.data, '2026-10-14');
+  assert.equal(doc.atualizadoEm, '2026-10-15T12:00:00.000Z');
+  // o relatório novo substitui o anterior inteiro; o torto não grava nada
+  await pedir(srv, 'POST', '/api/chamados', { chamados: [bispo] });
+  assert.deepEqual((await (await pedir(srv, 'GET', '/api/chamados')).json()).chamados, [bispo]);
+  const recusado = await pedir(srv, 'POST', '/api/chamados', { chamados: [{ ...bispo, apoiado: '13 set 2026' }] });
+  assert.equal(recusado.status, 400);
+  assert.match((await recusado.json()).error, /apoiado/);
+  assert.deepEqual((await (await pedir(srv, 'GET', '/api/chamados')).json()).chamados, [bispo]);
+  assert.equal((await pedir(srv, 'DELETE', '/api/chamados')).status, 405);
+});
+
+test('chamados: a carga da demonstração (semear grava "chamados") sai igual pelo GET', async () => {
+  const { chamados } = gerar(HOJE);
+  const srv = criarServidor(armazem({ chamados }));
+  assert.deepEqual(await (await pedir(srv, 'GET', '/api/chamados')).json(), chamados);
 });
 
 test('convite: a tela do membro vê só o primeiro nome e responde pela regra do servidor', async () => {

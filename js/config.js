@@ -12,6 +12,9 @@ export const API_SAC       = '/api/sacramentais';
 export const API_ORADORES  = '/api/oradores';
 // entrar como Bispo ou ADM (a senha é conferida no servidor) — sessao.js
 export const API_SESSAO    = '/api/sessao';
+// o relatório "Organizações e Chamados" do LCR, importado na aba Chamados —
+// chamados-ala.js (os nomes do bispado continuam em /api/bispado, chamados.js)
+export const API_CHAMADOS  = '/api/chamados';
 // Horário da reunião sacramental, "HH:MM". Preenchido, entra na mensagem do
 // convite para discursar ("domingo, 18 de outubro, às 9h"); vazio, fica de fora.
 export const HORARIO_SACRAMENTAL = '';
@@ -60,7 +63,7 @@ export let DADOS = { agenda:[], reunioes:[], designacoes:[], eventos_extras:[], 
 // (o que esta publicado) para o app instalado se atualizar sozinho.
 // Nao editar a mao: `node scripts/versao.mjs patch|minor|major` atualiza este,
 // o version.json, o CACHE do sw.js e o package.json juntos.
-export const VERSAO = '5.25.0';
+export const VERSAO = '5.26.0';
 
 // =============================================
 // NOME DA ALA

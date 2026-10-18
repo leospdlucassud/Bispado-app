@@ -7,6 +7,7 @@ import { abrirModalAgenda } from './agenda.js';
 import { carregarDados, iniciarAtualizacaoAutomatica, sincronizarManual } from './api.js';
 import { clearSearch, doSearch } from './busca.js';
 import { abrirModalEvento, renderCalendario } from './calendario.js';
+import { carregarChamadosAla, chamadosAlaCarregados, renderChamadosAla } from './chamados-ala.js';
 import { aplicarNomeAla } from './config.js';
 import { abrirModalDesig } from './designacoes.js';
 import { renderInicio } from './inicio.js';
@@ -48,7 +49,7 @@ document.getElementById('main-fab')?.addEventListener('click', () => {
 // Casca do app: navegação de abas, tema, fonte, sincronização e busca.
 // (Fase 2 da migração ESM: antes eram onclick/oninput inline no index.html.)
 function ligarCasca() {
-  // abas — delegação: um listener na barra cobre os 12 botões
+  // abas — delegação: um listener na barra cobre todos os botões
   document.querySelector('.tabs')?.addEventListener('click', e => {
     const btn = e.target.closest('.tab-btn');
     if (btn?.dataset.tab) switchTab(btn.dataset.tab);
@@ -96,6 +97,9 @@ export function switchTab(t, { historico = true } = {}) {
   if (t === 'inicio') renderInicio();
   if (t === 'notas') carregarNotasCompartilhadas();
   if (t === 'membros') carregarMovimentacoes();
+  // a carga do boot (api.js) já trouxe; redesenhar pega o quadro de membros
+  // que chegou depois (o filtro "Sem chamado" depende dele)
+  if (t === 'chamados') { if (chamadosAlaCarregados) renderChamadosAla(); else carregarChamadosAla(); }
   // sempre redesenha: os dados podem ter chegado com a aba fechada
   if (t === 'sacramental') { if (sacCarregado) renderAbaSacramental(); else carregarSacramentais(); }
   if (mudou) {
