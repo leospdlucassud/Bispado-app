@@ -27,7 +27,7 @@ import { dataLocal } from './utils.js';
 
 // Sobe quando demo-dados.js muda de forma: a carga guardada deixa de valer e é
 // gerada de novo, em vez de abrir dados no formato antigo
-export const VERSAO_DEMO = 5;   // 5: os chamados da ala (aba Chamados)
+export const VERSAO_DEMO = 6;   // 6: os relatórios da aba Vamos crescer a Ala e um ano de frequência nas atas
 
 const CHAVE_ABA = 'bispado_demo';       // sessionStorage: a demonstração vale por aba
 const PREFIXO = 'demo:';                // compartimento do localStorage e do IndexedDB
@@ -105,6 +105,9 @@ function semear() {
   gravar('membros', carga.membros);
   // um documento só, como o /api/chamados (demo-servidor.js) o lê
   gravar('chamados', carga.chamados);
+  // idem o /api/crescimento: { publico, privado } — o privado (a lista das
+  // recomendações, com o elenco fictício) sai só com a sessão, que já vem aberta
+  gravar('crescimento', carga.crescimento);
   localStorage.setItem('notas_privadas', JSON.stringify(carga.notasPrivadas));
   // abre como o bispo, que vê tudo (inclusive o sigiloso); a troca de cargo é
   // parte do que se demonstra

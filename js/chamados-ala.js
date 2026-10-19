@@ -16,10 +16,11 @@ import { NOMES_CARGOS, carregarChamados, nomesCarregados, salvarChamados } from 
 import {
   FILTROS_CHAMADOS, aDesignar, agruparPorOrganizacao, compararBispado, compararChamados, designacaoNaAgenda,
   filtrarChamados, membroDoQuadro, membrosSemChamado, nomesAposImportar, obsDaDesignacao, ordemNatural,
-  parsearPdfChamados, resumoChamados, tipoDePdf,
+  parsearPdfChamados, resumoChamados,
 } from './chamados-lcr.js';
 import { ALA, API_CHAMADOS, DADOS } from './config.js';
 import { TIPO_DESIGNACAO } from './convite-regras.js';
+import { NOMES_DOS_PDFS, abaDoPdf, tipoDePdfLcr } from './crescimento-lcr.js';
 import { MEMBROS } from './dados-membros.js';
 import { EM_DEMO } from './demo.js';
 import { renderInicio } from './inicio.js';
@@ -297,6 +298,11 @@ const AVISO_TIPO = {
     <p>O PDF escolhido é a <strong>Lista de Membros</strong> do LCR. Ele se importa na aba Membros, pelo botão <strong>📄 Importar PDF do LCR</strong>.</p>
     <p>Aqui entra o relatório <strong>Organizações e Chamados</strong>.</p>`,
     '<button type="button" class="btn-secondary btn-destaque" data-act="ir-membros">Ir para Membros</button>'),
+  // os relatórios da aba Vamos crescer a Ala (o tipoDePdfLcr os distingue da Lista de Membros)
+  crescimento: tipo => mostrarAviso('🌱', `Este é o relatório ${NOMES_DOS_PDFS[tipo]}`, `
+    <p>O PDF escolhido é o relatório <strong>${esc(NOMES_DOS_PDFS[tipo])}</strong> do LCR. Ele se importa na aba <strong>Vamos crescer a Ala</strong>, pelo botão <strong>📄 Importar PDF do LCR</strong>.</p>
+    <p>Aqui entra o relatório <strong>Organizações e Chamados</strong>.</p>`,
+    '<button type="button" class="btn-secondary btn-destaque" data-act="ir-crescimento">Ir para Vamos crescer a Ala</button>'),
   outro: () => mostrarAviso('⚠️', 'Não é o relatório de chamados', `
     <p>Não encontrei neste PDF o relatório <strong>Organizações e Chamados</strong> do LCR (o título no alto de cada página e as tabelas Chamado · Nome · Apoiado).</p>
     <p>Confira o arquivo escolhido.</p>`),
@@ -328,8 +334,11 @@ export async function importarPdfChamados(input) {
     const paginas = [];
     for (let i = 1; i <= doc.numPages; i++) paginas.push((await (await doc.getPage(i)).getTextContent()).items);
     if (!modalAberto()) return;   // fechou enquanto lia
-    const tipo = tipoDePdf(paginas);
-    if (tipo !== 'chamados') { (AVISO_TIPO[tipo] || AVISO_TIPO.outro)(); return; }
+    // o PDF de outra aba (abaDoPdf) recebe o aviso de onde ele se importa
+    const tipo = tipoDePdfLcr(paginas);
+    const aba = abaDoPdf(tipo);
+    if (aba === 'crescimento') { AVISO_TIPO.crescimento(tipo); return; }
+    if (aba !== 'chamados') { (AVISO_TIPO[tipo] || AVISO_TIPO.outro)(); return; }
     const lido = parsearPdfChamados(paginas);
     if (!lido.chamados.length) throw new Error('O relatório foi reconhecido, mas nenhum chamado foi lido nele. Confira se o PDF veio inteiro.');
     // A prévia compara com o que está no servidor. O que ainda não veio (app
@@ -510,6 +519,7 @@ function ligarChamadosAla() {
     if (!el) return;
     if (el.dataset.act === 'aplicar') aplicarImportacaoChamados();
     else if (el.dataset.act === 'ir-membros') { fecharModal('modal-chamados'); switchTab('membros'); }
+    else if (el.dataset.act === 'ir-crescimento') { fecharModal('modal-chamados'); switchTab('crescimento'); }
   });
 }
 ligarChamadosAla();

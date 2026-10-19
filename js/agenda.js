@@ -8,6 +8,7 @@ import { renderChamadosAla } from './chamados-ala.js';
 import { reativarAbaAtual } from './app.js';
 import { ALA, API_AGENDA, CARGOS_INFO, COR_STATUS, DADOS, corDoCargo, nomeDoResponsavel } from './config.js';
 import { TIPO_DESIGNACAO, comoNoConvite, primeiroNome, tipoNoConvite } from './convite-regras.js';
+import { renderCrescimento } from './crescimento.js';
 import { MEMBROS } from './dados-membros.js';
 import { EM_DEMO, comDemo } from './demo.js';
 import { confirmar, pedirTexto } from './dialogo.js';
@@ -448,7 +449,8 @@ export function setFilAgenda(val, btn) {
 }
 
 // `prefill` ({ membro, tipo, obs }): a entrevista NOVA já vem preenchida — é o
-// "📅 Agendar designação" da aba Chamados. Ao editar, vale o que está gravado.
+// "📅 Agendar designação" da aba Chamados e o "📅 Agendar renovação" da aba
+// Vamos crescer a Ala. Ao editar, vale o que está gravado.
 export function abrirModalAgenda(id, prefill = null) {
   const e = id ? DADOS.agenda.find(x=>x.id===id) : null;
   const ini = e || { membro: prefill?.membro || '', tipo: prefill?.tipo || '', obs: prefill?.obs || '' };
@@ -559,6 +561,9 @@ export async function salvarEntrevista(id) {
   renderAgenda();
   // a linha "a designar" da aba Chamados troca o "Agendar" pela data marcada
   if (payload.tipo === TIPO_DESIGNACAO || atual?.tipo === TIPO_DESIGNACAO) renderChamadosAla();
+  // e a das renovações (aba Vamos crescer a Ala, de onde o "📅 Agendar
+  // renovação" abriu este formulário) — que só desenha se estiver aberta
+  renderCrescimento();
 }
 
 // O que o Editar invalida numa entrevista em aberto. Corrigir uma encerrada não

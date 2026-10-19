@@ -18,7 +18,10 @@
 
 import { obsDaDesignacao } from './chamados-lcr.js';
 import { TIPO_DESIGNACAO } from './convite-regras.js';
-import { chavePessoa, ehDomingo, nomeNatural, partesData, proximoDomingo, somarDias } from './discursos-regras.js';
+import {
+  TIPO_RENOVACAO, fundirCrescimento, limparCorpoCrescimento, participantesAdultos, participantesJovens, resumoRecomendacoes,
+} from './crescimento-lcr.js';
+import { chavePessoa, ehDomingo, nomeNatural, partesData, proximoDomingo, somarDias, somarMeses } from './discursos-regras.js';
 
 const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const dois = n => String(n).padStart(2, '0');
@@ -89,6 +92,227 @@ function nascimentoDe(hoje, idade, aniv) {
 
 // "Sobrenome, Prenome" → "Prenome Sobrenome", como o app grava na vaga
 const natural = nome => nomeNatural(nome);
+
+// ---------- a aba Vamos crescer a Ala: os relatórios fictícios do LCR ----------
+// O elenco acima é a parte da ala que aparece nas outras abas; os relatórios do
+// LCR falam da ala INTEIRA (288 membros — como a frequência das atas, ~100 por
+// domingo, já supunha). Por isso as listas das recomendações juntam o elenco a
+// "o resto da ala": gente inventada que nunca aparece com nome na tela — só
+// recomendação válida por mais de 2 meses, sem recomendação ou não batizado,
+// nada que entre nas "Renovações a agendar". Quem aparece com nome na lista
+// está no quadro, com telefone, e é quem a Agenda conhece (a renovação marcada
+// da Patrícia, a feita da Laura). Os números batem entre si: as Estatísticas
+// somam o total, a linha 2 do Trimestral é a lista dos investidos, a 20 a dos jovens.
+const PRENOMES = {
+  M: ['Arthur', 'Bernardo', 'Caio', 'Diego', 'Elias', 'Fábio', 'Gustavo', 'Henrique', 'Igor', 'Jonas',
+    'Leandro', 'Márcio', 'Nélson', 'Osvaldo', 'Renan', 'Saulo', 'Túlio', 'Vinícius', 'Wesley', 'Yuri'],
+  F: ['Adriana', 'Beatriz', 'Cecília', 'Débora', 'Elaine', 'Flávia', 'Gisele', 'Heloísa', 'Ingrid', 'Joana',
+    'Kátia', 'Luana', 'Marta', 'Nádia', 'Olga', 'Priscila', 'Raquel', 'Sílvia', 'Tânia', 'Valéria'],
+};
+const SOBRENOMES = ['Amaral', 'Barros', 'Campos', 'Dantas', 'Faria', 'Gouveia', 'Leal', 'Medeiros', 'Paixão',
+  'Quintela', 'Sales', 'Toledo', 'Valente', 'Aguiar', 'Brandão'];
+// o i-ésimo do "resto da ala": nenhum nome se repete até i = 59
+const outroDaAla = (i, sexo) => `${SOBRENOMES[i % 15]} ${SOBRENOMES[(i + 5) % 15]}, ${PRENOMES[sexo][i % 20]}`;
+
+// Estatísticas da Unidade (as chaves de lerEstatisticas): homens + mulheres +
+// rapazes + moças + crianças = o total; os três grupos de adultos = os adultos
+const ESTATISTICAS = {
+  totalMembros: 288, homens: 108, sumosSacerdotes: 12, elderes: 28, elderesPerspectiva: 68, mulheres: 124,
+  rapazes: 18, sacerdotes: 8, mestres: 6, diaconos: 4, mocas: 16, guardias: 6, mensageiras: 5, edificadoras: 5,
+  criancasPrimaria: 17, criancas0a2: 5, familias: 172, familiasSemPortadorSM: 131, familiasComJovens: 26,
+  familiasComFilhos: 19, familiasMonoparentais: 8, adultos: 232, adultosCasados: 64, adultosSolteiros36: 70, jas: 98,
+  recemConversos: 4, conversosAdultosM: 1, conversosAdultosF: 1, conversosRapazes: 1, conversosMocas: 0, conversosCriancas: 1,
+  ordenacoesRecemConversos: 2, recemConversosOrdenados: 1, recemConversosNaoOrdenados: 1,
+  pessoasNaoIncluidas: 3, nascimentoFaltando: 0, batizadosNaoConfirmados: 0, registradosNoveAnosOuMais: 2,
+};
+
+// As 26 linhas do Relatório Trimestral (os rótulos do LCR) no trimestre mais
+// recente: [n, real, potencial, % de 1 ano antes, % de 5 anos antes, passo]. Nos
+// trimestres anteriores, real − passo × k: o histórico mostra a ala subindo — e
+// algumas linhas abaixo de um ano antes, para as setas ▼ e os próximos passos.
+// As linhas 2 e 20 saem das listas das recomendações (null aqui).
+const SECAO_DA_LINHA = n => (n <= 9 ? 'conversao' : n <= 13 ? 'membros' : n <= 17 ? 'adultos' : n <= 20 ? 'jovens' : n <= 22 ? 'criancas' : 'conversos');
+const LINHAS_TRIMESTRAL = [
+  [1, 'Pessoas que são seladas ao cônjuge no templo', 30, 52, 55, 48, 1],
+  [2, 'Membros com investidura que possuem recomendação válida para o templo', null, null, 80, 70, 1],
+  [3, 'Pessoas do sexo masculino com idade entre 18–25 anos que estão servindo ou que serviram missão de tempo integral', 2, 14, 21, 14, 0],
+  [4, 'Homens adultos que portam o Sacerdócio de Melquisedeque', 40, 108, 35, 33, 1],
+  [5, 'Élderes em perspectiva ordenados ao Sacerdócio de Melquisedeque nos últimos 12 meses', 3, 71, 2, 4, 1],
+  [6, 'Rapazes com o ofício do sacerdócio adequado à faixa etária', 14, 18, 72, 60, 0],
+  [7, 'Média de frequência na reunião sacramental', 98, 288, 31, 36, 2],
+  [8, 'Conversos batizados e confirmados nos últimos 12 meses', 4, null, null, null, 1],
+  [9, 'Adultos e jovens que enviaram nomes de seus antepassados para as ordenanças do templo nos últimos 12 meses', 22, 260, 9, 4, 2],
+  [10, 'Total de membros', 286, null, null, null, 2],
+  [11, 'Total de famílias', 171, null, null, null, 1],
+  [12, 'Duplas de irmãos ministradores entrevistados', 9, 24, 33, 50, 1],
+  [13, 'Duplas de irmãs ministradoras entrevistadas', 14, 30, 40, 55, 1],
+  [14, 'Portadores do Sacerdócio de Melquisedeque que frequentam as reuniões do sacerdócio, da Escola Dominical ou da Primária', 22, 40, 50, 45, 1],
+  [15, 'Élderes em perspectiva que estão frequentando as reuniões do sacerdócio, da Escola Dominical ou da Primária', 9, 68, 15, 12, 0],
+  [16, 'Mulheres que estão frequentando as reuniões da Sociedade de Socorro, da Escola Dominical, das Moças ou da Primária', 52, 124, 38, 35, 2],
+  [17, 'Jovens adultos solteiros que estão frequentando as reuniões do sacerdócio, da Sociedade de Socorro, da Escola Dominical, das Moças ou da Primária', 18, 98, 16, 20, 1],
+  [18, 'Rapazes que estão frequentando as reuniões do sacerdócio e da Escola Dominical', 9, 18, 61, 55, 0],
+  [19, 'Moças que estão frequentando as reuniões das Moças e da Escola Dominical', 10, 16, 56, 60, 1],
+  [20, 'Jovens com recomendação para o templo válida para batismos e confirmações vicários', null, null, 45, 30, 1],
+  [21, 'Crianças com idade entre 0 e 2 anos (em 1º de janeiro)', 5, null, null, null, 0],
+  [22, 'Crianças de 3 anos ou mais que frequentam a Primária', 15, 17, 82, 70, 0],
+  [23, 'Conversos que assistiram a pelo menos uma reunião sacramental no último mês', 3, 4, 67, 100, 0],
+  [24, 'Jovens e adultos conversos com um chamado ou responsabilidade na Igreja', 2, 4, 33, 50, 0],
+  [25, 'Jovens e adultos conversos ordenados ao ofício apropriado do sacerdócio', 1, 2, 50, 0, 0],
+  [26, 'Conversos de 12 anos de idade ou mais que enviaram nomes de seus antepassados para as ordenanças do templo nos últimos 12 meses', 1, 3, 0, 0, 0],
+];
+
+// Frequência às classes: [grupo, matriculados, presentes no começo, por semana,
+// nas 4 últimas reuniões]. Cada grupo só se reúne nos domingos dele (Escola
+// Dominical no 1º, 3º e 5º; quóruns, Sociedade de Socorro, Moças e Rapazes no 2º
+// e no 4º; a Primária em todos) — nos outros, o grupo não entra no domingo. Os
+// élderes caem nas últimas semanas e a Escola Dominical dos jovens quase não é
+// marcada: os dois avisos da aba e dos próximos passos.
+const CLASSES = [
+  ['escolaDominicalAdultos', 230, 50, 0.6, null],
+  ['escolaDominicalJovens', 34, 12, 0, 1],
+  ['sociedadeSocorro', 124, 42, 0.1, null],
+  ['quorumElderes', 108, 30, 0, 21],
+  ['mocas', 16, 8, 0.25, null],
+  ['rapazes', 18, 8, 0, null],
+  ['primaria', 22, 15, 0.05, null],
+];
+const DOMINGOS_DO_GRUPO = {
+  escolaDominicalAdultos: [1, 3, 5], escolaDominicalJovens: [1, 3, 5], sociedadeSocorro: [2, 4], quorumElderes: [2, 4],
+  mocas: [2, 4], rapazes: [2, 4], primaria: [1, 2, 3, 4, 5],
+};
+
+function relatoriosDaDemo({ H, roster, saidos, chamados, lcr }) {
+  const d = k => somarDias(H, k);
+  const em = k => `${d(k)}T12:00:00.000Z`;
+  const mes = k => somarMeses(H.slice(0, 8) + '01', k).slice(0, 7);   // k meses de hoje, 'AAAA-MM'
+  let doc = null;
+  const aplicar = (corpo, agora) => {
+    const r = limparCorpoCrescimento(corpo);
+    if (r.erro) throw new Error('demo: relatório fictício fora do formato — ' + r.erro);
+    doc = fundirCrescimento(doc, r.parcial, agora);
+  };
+
+  // ---------- as listas das recomendações ----------
+  const doQuadro = nome => { const k = lcr(nome); return roster.find(m => m.name === k); };
+  const pessoa = (nome, situacao, meses) => {
+    const m = doQuadro(nome);
+    return { nome: m.name, sexo: m.gender, idade: m.age, situacao, validade: meses == null ? '' : mes(meses) };
+  };
+  // o elenco: os investidos do quadro (a Isabela e o Lucas ainda se preparam,
+  // os jovens adultos e o converso ainda não foram ao templo)
+  const adultos = [
+    pessoa('Patrícia Albuquerque Ramos', 'para-vencer', 0),   // a renovação já está marcada na Agenda
+    pessoa('Fernanda Cardoso Neves', 'para-vencer', 1),
+    pessoa('Marcelo Albuquerque Ramos', 'ativa', 1),
+    pessoa('Helena Guimarães Teles', 'ativa', 2),
+    pessoa('Renato Batista Lopes', 'ativa', 14), pessoa('Cláudia Batista Lopes', 'ativa', 9),
+    pessoa('Gabriel Batista Lopes', 'ativa', 20), pessoa('Bruno Cardoso Neves', 'ativa', 6),
+    pessoa('Antônio Duarte Silveira', 'ativa', 23),   // renovou há 20 dias (Agenda)
+    pessoa('Rafael Esteves Moura', 'ativa', 11), pessoa('Juliana Fonseca Prado', 'ativa', 4),
+    pessoa('Otávio Guimarães Teles', 'ativa', 17), pessoa('Sérgio Lacerda Pinto', 'ativa', 12),
+    pessoa('Vera Lacerda Pinto', 'ativa', 5), pessoa('Eduardo Nogueira Paiva', 'ativa', 8),
+    pessoa('Simone Nogueira Paiva', 'ativa', 15), pessoa('André Rezende Lima', 'ativa', 19),
+    pessoa('Bianca Rezende Lima', 'ativa', 19), pessoa('Paulo Vasconcelos Brito', 'ativa', 7),
+    pessoa('Teresa Vasconcelos Brito', 'ativa', 10), pessoa('Mariana Tavares Rocha', 'ativa', 3),
+    pessoa('Regina Xavier Monteiro', 'vencida', -1), pessoa('Lúcia Duarte Silveira', 'vencida', -3),
+    pessoa('Camila Esteves Moura', 'vencida', -8), pessoa('Rosa Queiroz Bastos', 'vencida', -14),
+  ];
+  // o resto da ala: válidas por mais de 2 meses (de 3 a 24)
+  for (let i = 0; i < 30; i++) {
+    const sexo = i % 3 === 0 ? 'M' : 'F';
+    adultos.push({ nome: outroDaAla(i, sexo), sexo, idade: 24 + ((i * 11) % 55), situacao: 'ativa', validade: mes(3 + ((i * 7) % 22)) });
+  }
+  const jovens = [
+    pessoa('Davi Albuquerque Ramos', 'ativa', 7), pessoa('Lívia Albuquerque Ramos', 'ativa', 10),
+    pessoa('Sofia Fonseca Prado', 'ativa', 11),
+    pessoa('Vítor Guimarães Teles', 'ativa', 1),       // vence: a agendar
+    pessoa('Pedro Fonseca Prado', 'vencida', -2),
+    pessoa('Laura Guimarães Teles', 'vencida', -1),    // renovou ontem (Agenda): sai da lista na próxima importação
+    pessoa('Natália Xavier Monteiro', '', null),       // ainda sem recomendação
+  ];
+  // 18 rapazes e 16 moças na ala (as Estatísticas): o resto, sem nome na tela
+  for (let i = 0; i < 27; i++) {
+    const sexo = i < 15 ? 'M' : 'F';
+    const situacao = i % 3 === 0 ? 'ativa' : i % 9 === 4 ? 'nao-batizado' : '';
+    jovens.push({ nome: outroDaAla(30 + i, sexo), sexo, idade: 11 + (i % 7), situacao, validade: situacao === 'ativa' ? mes(3 + (i % 9)) : '' });
+  }
+  const validas = l => l.filter(p => p.situacao === 'ativa' || p.situacao === 'para-vencer').length;
+
+  // ---------- os trimestres (o mais recente completo e os dois de antes) ----------
+  const m0 = +H.slice(5, 7);
+  let tri = Math.ceil(m0 / 3) - 1, ano = +H.slice(0, 4);
+  if (!tri) { tri = 4; ano--; }
+  for (let k = 2; k >= 0; k--) {
+    let t = tri - k, a = ano;
+    while (t < 1) { t += 4; a--; }
+    // o relatório do trimestre sai depois dele: duas semanas no seguinte (no máximo, hoje)
+    const seguinte = somarMeses(`${a}-${dois(3 * t - 2)}-01`, 3);
+    const data = somarDias(seguinte, 14) < H ? somarDias(seguinte, 14) : H;
+    const linhas = LINHAS_TRIMESTRAL.map(([n, rotulo, real, potencial, ant, cinco, passo]) => {
+      if (n === 2) [real, potencial] = [validas(adultos), adultos.length];
+      if (n === 20) [real, potencial] = [validas(jovens), ESTATISTICAS.rapazes + ESTATISTICAS.mocas];
+      const r = Math.max(0, real - passo * k);
+      const pct = potencial ? Math.round(r / potencial * 100) : null;
+      return { n, secao: SECAO_DA_LINHA(n), rotulo, real: r, potencial, pct, pctAnoAnterior: potencial ? ant : null, pct5Anos: potencial ? cinco : null };
+    });
+    aplicar({ publico: { trimestral: { ala: '', unidade: '', trimestre: t, ano: a, data, linhas } } }, `${data}T12:00:00.000Z`);
+  }
+
+  // ---------- Estatísticas da Unidade (a parte dos investidos sai da lista) ----------
+  const valores = {
+    ...ESTATISTICAS, adultosInvestidos: adultos.length,
+    investidosComRecomendacao: validas(adultos), investidosSemRecomendacao: adultos.length - validas(adultos),
+  };
+  aplicar({ publico: { estatisticas: { ala: '', unidade: '', data: '', valores, outros: [] } } }, em(-2));
+
+  // ---------- as recomendações: o resumo para todos, a lista no privado ----------
+  const ativos = roster.filter(m => !saidos.includes(m.id));
+  const doRelatorio = d(-2);
+  aplicar({
+    publico: { recomendacoes: {
+      adultos: resumoRecomendacoes(adultos, { tipo: 'adultos', data: doRelatorio, contagem: adultos.length }),
+      jovens: resumoRecomendacoes(jovens, { tipo: 'jovens', data: doRelatorio, contagem: jovens.length }),
+    } },
+    privado: {
+      recomendacoesPessoas: { adultos, jovens },
+      participantes: {
+        adultos: participantesAdultos({ membros: ativos, chamados, recomendacoes: adultos }).total,
+        jovens: participantesJovens({ membros: ativos, chamados, recomendacoes: jovens }).total,
+      },
+    },
+  }, em(-2));
+  // o número que só o bispo sabe (34.4): passa de uma ala, falta para duas
+  aplicar({ privado: { portadoresAtivosDizimistas: 26 } }, em(-40));
+
+  // ---------- frequência às classes: os 4 últimos meses, até o domingo passado ----------
+  const semanas = [];
+  let i = 0;
+  for (let dk = proximoDomingo(somarMeses(H.slice(0, 8) + '01', -3)); dk < H; dk = somarDias(dk, 7)) {
+    const p = partesData(dk);
+    if (p.d <= 7 && (p.m === 4 || p.m === 10)) continue;   // conferência geral: não há aula
+    const ordem = Math.ceil(p.d / 7);
+    const porGrupo = {};
+    for (const [g, matriculados, base, sobe] of CLASSES) {
+      if (!DOMINGOS_DO_GRUPO[g].includes(ordem)) continue;
+      porGrupo[g] = { presentes: Math.round(base + sobe * i + ((i * 7 + matriculados) % 5) - 2), matriculados };
+    }
+    semanas.push({ data: dk, porGrupo, registrada: true });
+    i++;
+  }
+  // as 4 últimas reuniões dos grupos que mudam no fim (os élderes caem; a
+  // Escola Dominical dos jovens quase não é marcada)
+  for (const [g, , , , recente] of CLASSES) {
+    if (recente == null) continue;
+    semanas.filter(s => s.porGrupo[g]).slice(-4).forEach((s, k) => { s.porGrupo[g].presentes = Math.max(0, recente + (k % 2) - (g === 'escolaDominicalJovens' ? 1 : 0)); });
+  }
+  for (const s of semanas) for (const g of Object.values(s.porGrupo)) g.presentes = Math.min(g.matriculados, Math.max(0, g.presentes));
+  aplicar({ publico: { frequenciaClasses: { semanas } } }, em(-2));
+
+  // ---------- o % da sacramental dos anos passados (digitado do LCR) ----------
+  const a0 = +H.slice(0, 4);
+  aplicar({ publico: { historicoSacramental: { [a0 - 4]: 38, [a0 - 3]: 35, [a0 - 2]: 33, [a0 - 1]: 31 } } }, em(-60));
+  return doc;
+}
 
 export function gerar(hoje) {
   const H = hoje;
@@ -197,7 +421,7 @@ export function gerar(hoje) {
     acompanhar: false, sigiloso: false, status: 'pendente', reagendamentos: [], ...extra,
   });
   const agenda = [
-    ent('Patrícia Albuquerque Ramos', 'Renovação de Recomendação para o Templo', 'c1',
+    ent('Patrícia Albuquerque Ramos', TIPO_RENOVACAO.adultos, 'c1',
       { data: d(2), hora: '19:30', status: 'agendada', convidadoEm: em(-3), confirmacao: 'confirmado', confirmadoEm: em(-2, '15:20') }),
     ent('Davi Albuquerque Ramos', 'Entrevista Semestral (Jovem de 16–17 Anos)', 'bispo',
       { data: d(4), hora: '10:00', status: 'agendada', convidadoEm: em(-1) }),
@@ -221,7 +445,7 @@ export function gerar(hoje) {
         ] }),
     ent('Mariana Tavares Rocha', 'Declaração de Dízimo', 'bispo',
       { data: d(-10), hora: '11:00', status: 'realizada', realizadaEm: em(-10, '14:30'), obs_conclusao: 'Tudo certo.' }),
-    ent('Antônio Duarte Silveira', 'Renovação de Recomendação para o Templo', 'c2',
+    ent('Antônio Duarte Silveira', TIPO_RENOVACAO.adultos, 'c2',
       { data: d(-20), hora: '09:30', status: 'realizada', realizadaEm: em(-20, '12:40'), obs_conclusao: 'Recomendação renovada.' }),
     ent('Pedro Fonseca Prado', 'Ordenação ao Ofício de Mestre', 'c1',
       { data: d(-14), hora: '10:30', status: 'realizada', realizadaEm: em(-14, '13:50'), obs_conclusao: 'Apoio na sacramental do próximo domingo.' }),
@@ -245,6 +469,10 @@ export function gerar(hoje) {
       { data: domingo(0), hora: '12:30', status: 'agendada', obs: obsDaDesignacao(chamadoDe('André Rezende Lima')) }),
     ent('Alice Cardoso Neves', 'Batismo e Confirmação de Criança de Registro (8 anos)', 'bispo',
       { data: d(10), hora: '17:00', status: 'agendada', obs: 'Com os pais presentes' }),
+    // a renovação da Laura foi ontem, depois do relatório das recomendações (de
+    // anteontem): nas "Renovações a agendar" ela aparece como feita
+    ent('Laura Guimarães Teles', TIPO_RENOVACAO.jovens, 'c2',
+      { data: d(-1), hora: '19:00', status: 'realizada', realizadaEm: em(-1, '22:30'), obs: 'Recomendação vencida', obs_conclusao: 'Recomendação renovada.' }),
   ];
 
   // ---------- reuniões ----------
@@ -371,6 +599,17 @@ export function gerar(hoje) {
       apoios: k === 3 ? 'Apoio: irmã Camila Moura como professora da Primária.' : '' });
   }
 
+  // um ano de frequência (a aba Vamos crescer a Ala desenha 12 meses): os
+  // domingos de antes dos 10 de atas completas vêm só com a contagem e a
+  // presidência, um pouco abaixo dos recentes — a ala cresceu no ano. A
+  // conferência geral segue sem ata.
+  for (let k = 52; k > 10; k--) {
+    const dk = dom(-k);
+    const tipo = ehPrimeiro(dk) ? tipoDoPrimeiro(dk) : 'normal';
+    if (tipo === 'conf-geral') { sacramentais.push({ data: dk, tipo }); continue; }
+    sacramentais.push({ data: dk, tipo, ...presidencia(k), frequencia: String(84 + ((k * 5) % 17)) });
+  }
+
   // próximos: cada domingo mostra um estado diferente das vagas
   const PROXIMOS = [
     // o domingo que vem: dois confirmados (dá o Lembrete) e um sem resposta há 5 dias
@@ -449,10 +688,14 @@ export function gerar(hoje) {
     { id: 'n_demo_p2', titulo: '', texto: 'Ligar para o irmão Antônio na quinta.', autor: 'Bispo', criadaEm: em(-1) },
   ];
 
+  // ---------- a aba Vamos crescer a Ala (o documento de /api/crescimento) ----------
+  const crescimento = relatoriosDaDemo({ H, roster, saidos, chamados: chamados.chamados, lcr });
+
   return {
     colecoes: { agenda, reunioes, designacoes, eventos_extras, sacramentais, acompanhamentos, oradores, bispado, notas },
     membros,
     chamados,
+    crescimento,
     notasPrivadas,
   };
 }

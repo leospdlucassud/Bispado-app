@@ -10,6 +10,10 @@
 // Redesenha em seis pontos: boot e volta à aba (app.js), fim de cada carga
 // (api.js), troca de cargo (usuario.js), dos nomes dos chamados (chamados.js) e
 // relatório de chamados novo — carregado ou importado (chamados-ala.js).
+//
+// O cartão "Rumo a duas alas" e o item das recomendações a renovar vêm da aba
+// Vamos crescer a Ala (dadosDoCrescimento, só números). O item só aparece com a
+// sessão de Bispo ou ADM: a lista por pessoa é a parte privada do servidor.
 // =============================================
 import { listaAcompanhamentos } from './acompanhamento.js';
 import { aguardandoNovaData, precisaReenviarConvite, resumoAgenda, selosConfirmacao } from './agenda.js';
@@ -19,8 +23,12 @@ import { dadosDosChamados, setFiltroChamados } from './chamados-ala.js';
 import { nomeCurto as nomeCurtoLcr, resumoDesignacoes } from './chamados-lcr.js';
 import { comNome } from './chamados.js';
 import { COR_STATUS, DADOS, cargoInfo, comAla, nomeDoResponsavel } from './config.js';
+import { dadosDoCrescimento, irParaSecao } from './crescimento.js';
+import { destaqueDoRumo, mesCurto } from './crescimento-lcr.js';
 import { nomeCurto, pendenciasDiscurso, registroDoDomingo, resumoDomingo } from './discursos-regras.js';
+import { barraDeMeta, fmt } from './graficos.js';
 import { irParaDomingo } from './sacramental.js';
+import { papelDaSessao } from './sessao.js';
 import { USUARIO, abrirEscolhaCargo } from './usuario.js';
 import { corSegura, dataLocal, esc, formatarData } from './utils.js';
 
@@ -88,9 +96,10 @@ const mudo = txt => `<div class="inicio-mudo">${txt}</div>`;
 const verMais = (txt, aba) => `<button type="button" class="inicio-mais" data-act="ir" data-aba="${aba}">${txt} →</button>`;
 
 // `dk`: o item leva ao card daquele domingo (pendências de discurso);
-// `fil`: abre a aba já num filtro (os chamados a designar)
-function item({ cor, aba, quando = '', titulo, sub = '', dk = '', fil = '' }) {
-  return `<button type="button" class="inicio-item${quando ? '' : ' sem-quando'}" style="--ic:${cor}" data-act="ir" data-aba="${aba}"${dk ? ` data-dk="${esc(dk)}"` : ''}${fil ? ` data-fil="${esc(fil)}"` : ''}>`
+// `fil`: abre a aba já num filtro (os chamados a designar);
+// `sec`: abre a aba já numa parte dela (a lista das renovações)
+function item({ cor, aba, quando = '', titulo, sub = '', dk = '', fil = '', sec = '' }) {
+  return `<button type="button" class="inicio-item${quando ? '' : ' sem-quando'}" style="--ic:${cor}" data-act="ir" data-aba="${aba}"${dk ? ` data-dk="${esc(dk)}"` : ''}${fil ? ` data-fil="${esc(fil)}"` : ''}${sec ? ` data-sec="${esc(sec)}"` : ''}>`
     + (quando ? `<span class="inicio-item-quando">${quando}</span>` : '')
     + `<span class="inicio-item-titulo">${titulo}</span>`
     + (sub ? `<span class="inicio-item-sub">${sub}</span>` : '')
@@ -116,12 +125,16 @@ export function renderInicio() {
   if (!document.getElementById('panel-inicio')) return;   // a tela do convite troca o body
   const d = datas();
   const ag = resumoAgenda();
-  const atencao = pendencias(ag, d);
+  // os números da aba Vamos crescer a Ala, uma vez por desenho (o item das
+  // renovações e o cartão Rumo a duas alas)
+  const cr = dadosDoCrescimento();
+  const atencao = pendencias(ag, d, cr);
   renderSaudacao();
   renderResumo(ag, d, atencao);
   renderMeu(ag);
   renderEntrevistas(ag, d);
   renderAtencao(atencao);
+  renderRumo(cr);
   renderSemana(d);
 }
 
@@ -210,7 +223,7 @@ function renderEntrevistas(ag, d) {
 
 // O que ficou para trás, na ordem de urgência. Cada entrevista entra uma vez
 // só: vale a primeira regra que casar.
-function pendencias(ag, d) {
+function pendencias(ag, d, cr) {
   const itens = [], vistos = new Set();
   const add = (reg, html) => { if (!vistos.has(reg)) { vistos.add(reg); itens.push(html); } };
   if (carregado.agenda) {
@@ -264,6 +277,12 @@ function pendencias(ag, d) {
     const r = resumoDesignacoes(ch.chamados, carregado.agenda ? ag.todas : []);
     if (r.total) itens.push(itemDesignacoes(r));
   }
+  // recomendações para o templo a renovar (aba Vamos crescer a Ala): só com a
+  // sessão, e só os números — o item leva à lista, onde estão os nomes. As já
+  // renovadas depois do relatório (realizadas na Agenda) não contam. Um item só,
+  // como o dos chamados, antes dos discursos: eles são um item por vaga, e a
+  // lista mostra os 6 primeiros (MAX_ATENCAO)
+  if (cr.renovacoes?.total) itens.push(itemRenovacoes(cr.renovacoes));
   // discursos dos próximos domingos: vagas abertas, convites sem resposta…
   if (carregado.sacramentais) {
     for (const p of pendenciasDiscurso(DADOS.sacramentais, d.kHoje)) itens.push(itemDiscurso(p, d));
@@ -274,8 +293,23 @@ function pendencias(ag, d) {
     !carregado.designacoes && { txt: 'as designações', plural: true },
     !carregado.sacramentais && { txt: 'a programação sacramental', plural: false },
     !ch.carregados && { txt: 'os chamados', plural: true },
+    papelDaSessao() && !cr.carregado && { txt: 'as recomendações para o templo', plural: true },
   ].filter(Boolean);
   return { itens, faltando };
+}
+
+// "5 recomendações para o templo a renovar" — as que vencem até tal mês, as já
+// vencidas e quantas a Agenda já tem marcadas (as contas da lista da aba)
+function itemRenovacoes(r) {
+  return item({
+    cor: '#a3e635', aba: 'crescimento', sec: 'cresc-renovacoes',
+    titulo: `🛕 ${plural(r.total, 'recomendação para o templo a renovar', 'recomendações para o templo a renovar')}`,
+    sub: [
+      r.vencem && `${plural(r.vencem, 'vence', 'vencem')} até ${esc(mesCurto(r.ate))}`,
+      r.vencidas && plural(r.vencidas, 'já vencida', 'já vencidas'),
+      r.marcadas && plural(r.marcadas, 'já marcada na Agenda', 'já marcadas na Agenda'),
+    ].filter(Boolean).join(' · '),
+  });
 }
 
 // "2 chamados apoiados aguardando designação" — quem (o apoio já foi público,
@@ -339,6 +373,40 @@ function renderAtencao({ itens, faltando }) {
     + (aviso ? mudo('📡 ' + aviso) : ''));
 }
 
+// "Rumo a duas alas" (aba Vamos crescer a Ala) em dois números que animam:
+// quantos mínimos de uma ala (Manual Geral 36.2) já estão cumpridos e a barra
+// de um critério até uma e até duas alas (destaqueDoRumo). O que não se sabe
+// (o número do bispo sem a sessão) não conta nem como cumprido nem como faltando.
+function renderRumo(cr) {
+  if (!cargaTerminou) return preencher('inicio-rumo', CARREGANDO);
+  const r = destaqueDoRumo(cr.progresso);
+  const abrir = verMais('Ver o caminho até duas alas', 'crescimento');
+  if (!r.conhecidos) {
+    return preencher('inicio-rumo', (cr.carregado
+      ? vazio('📄 Importe os relatórios do LCR na aba Vamos crescer a Ala para ver onde a ala está')
+      : semServidor('Os relatórios do LCR ainda não vieram do servidor')) + abrir);
+  }
+  const semNumero = r.total - r.conhecidos;
+  const c = r.barra;
+  const falta = !c ? '' : c.atual >= c.metaDuas ? '✓ já dá para duas alas'
+    : c.atual >= c.meta ? `✓ passa de uma ala · faltam ${fmt(c.faltaDuas)} para duas`
+    : `faltam ${fmt(c.falta)} para uma ala`;
+  const barra = !c ? '' : `<div class="inicio-rumo-barra">
+      <div class="inicio-rumo-rot">${esc(c.rotulo)}: <strong>${fmt(c.atual)}</strong> · ${esc(falta)}</div>
+      ${barraDeMeta({
+        atual: c.atual, dica: false,
+        metas: [{ valor: c.meta, rotulo: `1 ala · ${fmt(c.meta)}` }, { valor: c.metaDuas, rotulo: `2 alas · ${fmt(c.metaDuas)}` }],
+        rotulo: `${c.rotulo}: ${fmt(c.atual)} — o mínimo é ${fmt(c.meta)} para uma ala e ${fmt(c.metaDuas)} para duas`,
+      })}
+    </div>`;
+  const ressalva = semNumero ? ` <span class="inicio-rumo-ressalva">(${semNumero === 1 ? 'um ainda sem número' : `${semNumero} ainda sem número`})</span>` : '';
+  preencher('inicio-rumo', `<div class="inicio-rumo">
+      <div class="inicio-rumo-num" aria-hidden="true"><strong>${r.umaAla}</strong> de ${r.total}</div>
+      <div class="inicio-rumo-txt"><span class="so-leitor">${r.umaAla} de ${r.total} </span>mínimos de uma ala já cumpridos${ressalva}
+        <span class="inicio-rumo-duas">Para dividir em duas alas: ${r.duasAlas} de ${r.total}</span></div>
+    </div>${barra}${abrir}`);
+}
+
 function renderSemana(d) {
   // o domingo primeiro: é o compromisso fixo de todo o bispado
   let situacao;
@@ -377,9 +445,11 @@ function ligarInicio() {
       // o item dos chamados a designar abre a aba já filtrada (o atalho, não)
       if (alvo.dataset.fil && alvo.dataset.aba === 'chamados') setFiltroChamados(alvo.dataset.fil, { limparBusca: true });
       switchTab(alvo.dataset.aba);
-      // item de um domingo: vai até o card dele; senão, o topo da aba
-      // (a tela é comprida: sem isto a aba nova abriria rolada)
+      // item de um domingo: vai até o card dele; de uma parte da aba (as
+      // renovações), até ela; senão, o topo da aba (a tela é comprida: sem isto
+      // a aba nova abriria rolada)
       if (alvo.dataset.dk) irParaDomingo(alvo.dataset.dk);
+      else if (alvo.dataset.sec) irParaSecao(alvo.dataset.sec);
       else window.scrollTo(0, 0);
     }
   });

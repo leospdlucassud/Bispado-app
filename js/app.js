@@ -9,6 +9,7 @@ import { clearSearch, doSearch } from './busca.js';
 import { abrirModalEvento, renderCalendario } from './calendario.js';
 import { carregarChamadosAla, chamadosAlaCarregados, renderChamadosAla } from './chamados-ala.js';
 import { aplicarNomeAla } from './config.js';
+import { abrirCrescimento } from './crescimento.js';
 import { abrirModalDesig } from './designacoes.js';
 import { renderInicio } from './inicio.js';
 import { renderManual, renderRoteiros } from './manual.js';
@@ -100,6 +101,9 @@ export function switchTab(t, { historico = true } = {}) {
   // a carga do boot (api.js) já trouxe; redesenhar pega o quadro de membros
   // que chegou depois (o filtro "Sem chamado" depende dele)
   if (t === 'chamados') { if (chamadosAlaCarregados) renderChamadosAla(); else carregarChamadosAla(); }
+  // desenha só aberta (os gráficos de oito seções): ao abrir, com o que chegou
+  // enquanto estava fechada — e busca o que ainda não veio
+  if (t === 'crescimento') abrirCrescimento();
   // sempre redesenha: os dados podem ter chegado com a aba fechada
   if (t === 'sacramental') { if (sacCarregado) renderAbaSacramental(); else carregarSacramentais(); }
   if (mudou) {

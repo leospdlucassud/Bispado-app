@@ -1,0 +1,314 @@
+// Aba "Vamos crescer a Ala": as contas que a tela desenha (js/crescimento-lcr.js)
+// e o /api/crescimento — a regra do POST da function, a mesma da demonstração
+// (js/demo-servidor.js) — `npm test`. Gente e números INVENTADOS: os relatórios
+// de verdade do LCR são "Somente para uso da Igreja".
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import {
+  MAX_CORPO_CRESCIMENTO, TIPO_RENOVACAO, aplicarPostCrescimento, destaqueDoRumo, docCrescimentoVazio,
+  domingosSemFrequencia, fundirCrescimento, gradeFrequencia, gruposSemMarcacao, historicoDigitado,
+  limparCorpoCrescimento, mesCurto, mudancasDaGrade, participantesSemNomes, piramideEtaria, progressoQualificacao,
+  proximosPassos, renovacaoNaAgenda, renovacoesAgendar, renovacoesResumo, respostaCrescimento, resumoQualificacao,
+  resumoRecomendacoes, resumoRenovacoes, tendenciaPorGrupo, vencimentosPorMes,
+} from '../js/crescimento-lcr.js';
+import { criarServidor } from '../js/demo-servidor.js';
+
+const HOJE = '2026-10-18';   // um domingo
+
+// ---------- recomendações sem os nomes ----------
+const PESSOAS = [
+  { nome: 'Exemplo, Ana', sexo: 'F', idade: 30, situacao: 'ativa', validade: '2026-11' },
+  { nome: 'Exemplo, Bruno', sexo: 'M', idade: 45, situacao: 'para-vencer', validade: '2026-10' },
+  { nome: 'Modelo, Carla', sexo: 'F', idade: 60, situacao: 'ativa', validade: '2027-06' },
+  { nome: 'Modelo, Davi', sexo: 'M', idade: 17, situacao: 'ativa', validade: '2027-01' },   // 17 na lista de adultos
+  { nome: 'Teste, Eva', sexo: 'F', idade: 52, situacao: 'vencida', validade: '2026-02' },
+  { nome: 'Teste, Fábio', sexo: 'M', idade: 70, situacao: 'cancelada', validade: '' },
+];
+const RESUMO = resumoRecomendacoes(PESSOAS, { tipo: 'adultos', data: HOJE, contagem: 6 });
+
+test('renovações sem os nomes: a mesma conta da lista por pessoa', () => {
+  const r = renovacoesResumo(RESUMO, { hoje: HOJE });
+  const lista = renovacoesAgendar(PESSOAS, { hoje: HOJE });
+  assert.equal(r.ate, '2026-12');
+  assert.equal(r.vencem, lista.filter(p => p.motivo === 'vence').length);
+  assert.equal(r.vencidas, lista.filter(p => p.motivo === 'vencida').length);
+  assert.deepEqual([r.vencem, r.vencidas], [2, 1]);
+  // a "Para vencer" sem validade ainda conta (vale a maior das duas contas)
+  const so = resumoRecomendacoes([{ nome: 'A', situacao: 'para-vencer', validade: '' }], { tipo: 'adultos' });
+  assert.equal(renovacoesResumo(so, { hoje: HOJE }).vencem, 1);
+  assert.deepEqual(renovacoesResumo(null, { hoje: HOJE }), { vencem: 0, vencidas: 0, ate: '2026-12' });
+});
+
+test('vencimentos por mês: 12 meses a partir do mês pedido, e as que já passaram', () => {
+  const v = vencimentosPorMes(RESUMO, { desde: '2026-10' });
+  assert.equal(v.meses.length, 12);
+  assert.deepEqual(v.meses.slice(0, 4).map(m => [m.mes, m.n]), [['2026-10', 1], ['2026-11', 1], ['2026-12', 0], ['2027-01', 1]]);
+  assert.equal(v.meses.at(-1).mes, '2027-09');
+  assert.equal(v.antes, 0);
+  // relatório antigo olhado mais tarde: as válidas de antes do mês "já venceram"
+  const depois = vencimentosPorMes(RESUMO, { desde: '2027-01' });
+  assert.equal(depois.antes, 2);
+  assert.equal(vencimentosPorMes(null, { desde: '2026-10' }).meses.every(m => m.n === 0), true);
+});
+
+test('participantes sem os nomes: o maior dos dois grupos, só na faixa de idade', () => {
+  assert.equal(RESUMO.validasNaFaixa, 3);   // o de 17 não é adulto para o Manual
+  const membros = [
+    { name: 'Exemplo, Ana', age: 30 }, { name: 'Outra, Gil', age: 40 }, { name: 'Outra, Hugo', age: 33 },
+    { name: 'Outra, Iara', age: 50 }, { name: 'Jovem, Juca', age: 15 },
+  ];
+  const chamados = [
+    { nome: 'Exemplo, Ana', chamado: 'x' }, { nome: 'Outra, Gil', chamado: 'y' }, { nome: 'Outra, Hugo', chamado: 'z' },
+    { nome: 'Outra, Iara', chamado: 'w' }, { nome: 'Jovem, Juca', chamado: 'v' },
+  ];
+  const p = participantesSemNomes({ membros, chamados, resumo: RESUMO }, 'adultos');
+  assert.deepEqual(p, { total: 4, chamado: 4, recomendacao: 3 });
+  assert.equal(participantesSemNomes({ membros, chamados, resumo: null }, 'jovens').total, 1);
+  // resumo guardado antes de validasNaFaixa existir: conta as válidas da lista
+  const { validasNaFaixa, ...antigo } = RESUMO;
+  assert.equal(validasNaFaixa, 3);
+  assert.equal(participantesSemNomes({ resumo: antigo }, 'adultos').recomendacao, 4);
+  // e o campo passa pela limpeza do servidor
+  const limpo = limparCorpoCrescimento({ publico: { recomendacoes: { adultos: RESUMO } } });
+  assert.equal(limpo.parcial.publico.recomendacoes.adultos.validasNaFaixa, 3);
+  assert.ok(limparCorpoCrescimento({ publico: { recomendacoes: { adultos: { ...RESUMO, validasNaFaixa: -1 } } } }).erro);
+});
+
+test('qualificação: o que se sabe cumprido, para uma e duas alas', () => {
+  const p = progressoQualificacao({ membros: 520, portadoresSM: null, adultosParticipantes: 120, jovensParticipantes: 15 });
+  assert.deepEqual(resumoQualificacao(p), { total: 4, conhecidos: 3, umaAla: 2, duasAlas: 1 });
+  assert.deepEqual(resumoQualificacao([]), { total: 0, conhecidos: 0, umaAla: 0, duasAlas: 0 });
+});
+
+test('o cartão do Início: os mínimos cumpridos e a barra dos membros (nunca a de uma estimativa)', () => {
+  const p = progressoQualificacao({ membros: 300, portadoresSM: null, adultosParticipantes: 60, jovensParticipantes: 25 });
+  const d = destaqueDoRumo(p);
+  assert.deepEqual([d.total, d.conhecidos, d.umaAla, d.duasAlas], [4, 3, 2, 0]);
+  assert.equal(d.barra.chave, 'membros');
+  assert.deepEqual([d.barra.atual, d.barra.meta, d.barra.metaDuas, d.barra.faltaDuas], [300, 250, 500, 200]);
+  // sem o total de membros, nenhuma barra: nem a dos participantes (um mínimo),
+  // nem o número do bispo (fica na aba, não na tela que fica aberta) — mas ele conta
+  const semMembros = destaqueDoRumo(progressoQualificacao({ portadoresSM: 22, adultosParticipantes: 60 }));
+  assert.equal(semMembros.barra, null);
+  assert.deepEqual([semMembros.conhecidos, semMembros.umaAla], [2, 1]);
+  assert.equal(destaqueDoRumo(progressoQualificacao({ adultosParticipantes: 60 })).barra, null);
+  assert.deepEqual(destaqueDoRumo(progressoQualificacao({})), { total: 4, conhecidos: 0, umaAla: 0, duasAlas: 0, barra: null });
+});
+
+// ---------- a renovação na Agenda ----------
+const ent = (membro, tipo, extra = {}) => ({ membro, tipo, status: 'pendente', data: '', hora: '', ...extra });
+
+test('renovação na Agenda: marcada, feita depois do relatório, ou nada', () => {
+  const ana = PESSOAS[0];   // "Exemplo, Ana"
+  // a Agenda escreve o nome na ordem do quadro ou na natural: a chave casa os dois
+  const marcadas = [
+    ent('Ana Exemplo', TIPO_RENOVACAO.adultos, { status: 'agendada', data: '2026-10-25', hora: '19:00' }),
+    ent('Exemplo, Ana', TIPO_RENOVACAO.adultos, { status: 'pendente', data: '' }),
+  ];
+  const m = renovacaoNaAgenda(marcadas, ana, 'adultos');
+  assert.equal(m.estado, 'marcada');
+  assert.equal(m.e.data, '2026-10-25');   // a com data vem antes da sem data
+  // outro tipo, outra pessoa ou a entrevista encerrada sem acontecer: não conta
+  assert.equal(renovacaoNaAgenda([ent('Ana Exemplo', 'Orientação Espiritual'), ent('Bruno Exemplo', TIPO_RENOVACAO.adultos),
+    ent('Ana Exemplo', TIPO_RENOVACAO.adultos, { status: 'nao-realizada' })], ana, 'adultos'), null);
+  // realizada: só vale se for depois do relatório (a lista ainda é de antes)
+  const feita = [ent('Ana Exemplo', TIPO_RENOVACAO.adultos, { status: 'realizada', data: '2026-10-17' })];
+  assert.equal(renovacaoNaAgenda(feita, ana, 'adultos', { desde: '2026-10-16' }).estado, 'feita');
+  assert.equal(renovacaoNaAgenda(feita, ana, 'adultos', { desde: '2026-10-18' }), null);
+  assert.equal(renovacaoNaAgenda(feita, ana, 'adultos'), null);   // sem a data do relatório, não se sabe
+  // sem data, vale o dia em que foi marcada como realizada
+  const semData = [ent('Ana Exemplo', TIPO_RENOVACAO.adultos, { status: 'realizada', realizadaEm: '2026-10-17T22:00:00.000Z' })];
+  assert.equal(renovacaoNaAgenda(semData, ana, 'adultos', { desde: '2026-10-16' }).estado, 'feita');
+  // a do jovem: uso limitado, ou marcada como batismos vicários; a de adulto não
+  const caio = { nome: 'Jovem, Caio', situacao: 'vencida', validade: '2026-09' };
+  assert.equal(renovacaoNaAgenda([ent('Caio Jovem', TIPO_RENOVACAO.jovens)], caio, 'jovens').estado, 'marcada');
+  assert.equal(renovacaoNaAgenda([ent('Caio Jovem', 'Recomendação para o Templo (Batismos Vicários)')], caio, 'jovens').estado, 'marcada');
+  assert.equal(renovacaoNaAgenda([ent('Caio Jovem', TIPO_RENOVACAO.adultos)], caio, 'jovens'), null);
+  assert.equal(renovacaoNaAgenda(marcadas, { nome: '' }, 'adultos'), null);
+  assert.equal(renovacaoNaAgenda(null, ana, 'adultos'), null);
+});
+
+test('renovações para o Início: só os números, sem as já feitas, com as marcadas', () => {
+  const agenda = [
+    ent('Bruno Exemplo', TIPO_RENOVACAO.adultos, { status: 'agendada', data: '2026-10-22' }),          // vence: marcada
+    ent('Eva Teste', TIPO_RENOVACAO.adultos, { status: 'realizada', data: '2026-10-17' }),              // vencida: feita
+  ];
+  const r = resumoRenovacoes({ adultos: PESSOAS, jovens: [] }, agenda, { hoje: HOJE, datas: { adultos: '2026-10-16' } });
+  // a lista tem 3 a renovar (2 vencem, 1 vencida); a da Eva já foi renovada
+  assert.equal(renovacoesAgendar(PESSOAS, { hoje: HOJE }).length, 3);
+  assert.deepEqual(r, { total: 2, vencem: 2, vencidas: 0, marcadas: 1, feitas: 1, ate: '2026-12' });
+  assert.ok(!JSON.stringify(r).includes('Exemplo'));
+  // sem a Agenda (ainda não veio): todas a fazer, nenhuma marcada
+  assert.deepEqual(resumoRenovacoes({ adultos: PESSOAS }, [], { hoje: HOJE }), { total: 3, vencem: 2, vencidas: 1, marcadas: 0, feitas: 0, ate: '2026-12' });
+  assert.equal(resumoRenovacoes(null, null, { hoje: HOJE }).total, 0);
+});
+
+test('pirâmide: homens e mulheres por faixa, da mais velha para a mais nova', () => {
+  const p = piramideEtaria([
+    { gender: 'M', age: 0 }, { gender: 'F', age: 2 }, { gender: 'F', age: '12' }, { gender: 'M', age: 80 },
+    { gender: 'F', age: 200 }, { gender: '', age: 30 }, { gender: 'M', age: '' }, { gender: 'M' },
+  ]);
+  assert.equal(p.faixas[0].faixa, '76+');
+  assert.equal(p.faixas.at(-1).faixa, '0–2');
+  assert.deepEqual([p.faixas.at(-1).m, p.faixas.at(-1).f], [1, 1]);
+  assert.equal(p.faixas.find(f => f.faixa === '12–17').f, 1);
+  assert.deepEqual([p.faixas[0].m, p.faixas[0].f], [1, 1]);
+  assert.equal(p.semIdade, 3);
+});
+
+// ---------- a grade da sacramental ----------
+const ATAS = [
+  { data: '2026-10-04', frequencia: '98', orador1: 'Exemplo, Ana' },
+  { data: '2026-10-11', tipo: 'conf-geral' },
+  { data: '2026-09-27', frequencia: 'cento e dez' },   // texto que não é número: não conta
+  { data: '2026-09-20', frequencia: 0 },
+];
+
+test('grade: os domingos do mês, a conferência sem campo e o domingo que ainda vem', () => {
+  const g = gradeFrequencia(ATAS, '2026-10', HOJE);
+  assert.deepEqual(g.map(d => d.data), ['2026-10-04', '2026-10-11', '2026-10-18', '2026-10-25']);
+  assert.deepEqual(g.map(d => [d.frequencia, d.tem, d.semReuniao, d.futuro]), [
+    ['98', true, false, false], ['', false, true, false], ['', false, false, false], ['', false, false, true]]);
+  assert.equal(gradeFrequencia(ATAS, '2026-02', HOJE).length, 4);   // fevereiro acaba no dia 28
+  assert.deepEqual(gradeFrequencia(ATAS, '2026-13', HOJE), []);
+  assert.deepEqual(gradeFrequencia(ATAS, 'outubro', HOJE), []);
+});
+
+test('grade: grava só o que mudou, número inteiro ou vazio (apaga)', () => {
+  const g = gradeFrequencia(ATAS, '2026-10', HOJE);
+  const r = mudancasDaGrade(g, { '2026-10-04': ' 98 ', '2026-10-18': '0105', '2026-10-25': '50', '2026-10-11': '40' });
+  assert.deepEqual(r, { mudancas: [{ data: '2026-10-18', frequencia: '105' }], invalidos: [] });
+  assert.deepEqual(mudancasDaGrade(g, { '2026-10-04': '' }).mudancas, [{ data: '2026-10-04', frequencia: '' }]);
+  assert.deepEqual(mudancasDaGrade(g, { '2026-10-04': '9a', '2026-10-18': '-3' }).invalidos, ['2026-10-04', '2026-10-18']);
+  assert.deepEqual(mudancasDaGrade(g, {}), { mudancas: [], invalidos: [] });
+});
+
+test('domingos sem contagem: os que já passaram, sem o de hoje e sem as conferências', () => {
+  assert.deepEqual(domingosSemFrequencia(ATAS, { hoje: HOJE, semanas: 4 }), ['2026-09-20', '2026-09-27']);
+  // numa quarta, o domingo que passou entra
+  assert.deepEqual(domingosSemFrequencia(ATAS, { hoje: '2026-10-21', semanas: 1 }), ['2026-10-18']);
+  assert.deepEqual(domingosSemFrequencia([{ data: '2026-10-18', frequencia: '90' }], { hoje: '2026-10-21', semanas: 1 }), []);
+});
+
+test('histórico digitado: % de 0 a 100, com vírgula ou %, e o vazio que apaga', () => {
+  assert.deepEqual(historicoDigitado({ 2022: '37', 2023: '33,5%', 2024: ' ', 2025: '120', 1890: '3', abc: '1' }),
+    { valores: { 2022: 37, 2023: 33.5, 2024: null }, invalidos: ['2025'] });
+  assert.deepEqual(historicoDigitado({ 2022: '-1', 2023: '1e2' }).invalidos, ['2022', '2023']);
+});
+
+// ---------- classes sem marcação ----------
+const semanasClasses = (taxaEq, n = 8) => Array.from({ length: n }, (_, i) => ({
+  data: `2026-0${8 + Math.floor(i / 4)}-${String(2 + 7 * (i % 4)).padStart(2, '0')}`, registrada: true,
+  porGrupo: { quorumElderes: { presentes: taxaEq, matriculados: 40 }, primaria: { presentes: 10, matriculados: 12 }, mocas: { presentes: 1, matriculados: 5 } },
+}));
+
+test('grupo grande com quase ninguém marcado: provavelmente não está sendo registrado', () => {
+  const t = tendenciaPorGrupo(semanasClasses(0));
+  assert.deepEqual(gruposSemMarcacao(t), ['quorumElderes']);   // as Moças são poucas: não acusa
+  assert.deepEqual(gruposSemMarcacao(tendenciaPorGrupo(semanasClasses(12))), []);
+  assert.deepEqual(gruposSemMarcacao([]), []);
+});
+
+// ---------- próximos passos ----------
+test('próximos passos: o que fazer agora, em ordem, sem nome nenhum', () => {
+  let pub = docCrescimentoVazio().publico;
+  // nada importado: só o convite para importar
+  assert.deepEqual(proximosPassos({ hoje: HOJE, publico: pub }).map(p => p.id), ['importar']);
+
+  const parcial = limparCorpoCrescimento({ publico: {
+    recomendacoes: { adultos: RESUMO },
+    estatisticas: { valores: { elderesPerspectiva: 12, totalMembros: 300 } },
+    trimestral: { trimestre: 3, ano: 2026, data: '2026-06-01', linhas: [
+      { n: 1, real: 5, potencial: 10, pct: 50, pctAnoAnterior: 70, pct5Anos: 40 },
+      { n: 2, real: 5, potencial: 10, pct: 50, pctAnoAnterior: 55, pct5Anos: 40 },
+      { n: 3, real: 5, potencial: 10, pct: 50, pctAnoAnterior: 52, pct5Anos: 40 },
+      { n: 4, real: 5, potencial: 10, pct: 50, pctAnoAnterior: 40, pct5Anos: 40 },
+      { n: 12, real: 1, potencial: 10, pct: 10, pctAnoAnterior: 90, pct5Anos: 40 },
+    ] },
+    frequenciaClasses: { semanas: semanasClasses(0) },
+  } }).parcial;
+  pub = fundirCrescimento(null, parcial, '2026-10-18T10:00:00.000Z').publico;
+  const chamados = [
+    { org: 'Bispado', chamado: 'Bispo', nome: 'Exemplo, Bruno', designado: true },
+    { org: 'Primária', chamado: 'Presidente da Primária', nome: 'Exemplo, Ana', designado: false },
+  ];
+  const passos = proximosPassos({
+    hoje: HOJE, publico: pub, privado: { portadoresAtivosDizimistas: null }, sessao: true,
+    chamados, chamadosCarregados: true, domingosSemContagem: ['2026-10-11'],
+  });
+  const ids = passos.map(p => p.id);
+  assert.deepEqual(ids.slice(0, 2), ['renovar-adultos', 'designar']);   // prioridade 1 primeiro
+  for (const id of ['vencidas-adultos', 'presidencias', 'portadores', 'sacramental', 'marcar-quorumElderes', 'perspectiva', 'atualizar']) {
+    assert.ok(ids.includes(id), id);
+  }
+  assert.ok(!ids.includes('importar'), 'os quatro relatórios já vieram');
+  assert.match(passos.find(p => p.id === 'atualizar').texto, /Relatório Trimestral/);   // o de junho envelheceu
+  // os dois indicadores (1 a 9) que mais caíram em relação a 1 ano antes; a linha 12 não entra
+  assert.deepEqual(ids.filter(i => i.startsWith('indicador-')), ['indicador-1', 'indicador-2']);
+  assert.ok(passos.every((p, i) => i === 0 || passos[i - 1].prioridade <= p.prioridade));
+  assert.match(passos[0].texto, /^2 recomendações de adultos vencem até dez\/2026$/);
+  assert.equal(passos.find(p => p.id === 'designar').filtro, 'a-designar');
+  // contagens, nunca nomes (o Início também mostra esta lista)
+  const texto = JSON.stringify(passos);
+  for (const nome of ['Exemplo', 'Modelo', 'Teste', 'Ana', 'Bruno']) assert.ok(!texto.includes(nome), nome);
+  // sem a sessão, não pede o número do bispo; chamados não carregados não viram "nada a designar"
+  const semSessao = proximosPassos({ hoje: HOJE, publico: pub, chamados: [], chamadosCarregados: false });
+  assert.ok(!semSessao.some(p => p.id === 'portadores' || p.id === 'designar' || p.id === 'presidencias'));
+  assert.equal(mesCurto('2026-10'), 'out/2026');
+  assert.equal(mesCurto('2026-13'), '');
+});
+
+// ---------- o POST do servidor ----------
+test('POST: junta por seção; vazio é 400; guardado estranho é 500 (não grava por cima)', () => {
+  const agora = '2026-10-18T12:00:00.000Z';
+  const a = aplicarPostCrescimento(null, { publico: { historicoSacramental: { 2022: 37 } } }, agora);
+  assert.equal(a.status, 200);
+  assert.equal(a.doc.publico.historicoSacramental[2022], 37);
+  const b = aplicarPostCrescimento(a.doc, { privado: { portadoresAtivosDizimistas: 21 } }, agora);
+  assert.equal(b.doc.publico.historicoSacramental[2022], 37);   // o resto ficou
+  assert.equal(b.doc.privado.portadoresAtivosDizimistas, 21);
+  assert.deepEqual(aplicarPostCrescimento(b.doc, {}, agora), { status: 400, erro: 'nenhuma seção para gravar' });
+  assert.deepEqual(aplicarPostCrescimento(b.doc, { inventado: 1 }, agora).status, 400);
+  assert.equal(aplicarPostCrescimento(b.doc, { privado: { portadoresAtivosDizimistas: -2 } }, agora).status, 400);
+  assert.equal(aplicarPostCrescimento('estragado', { publico: { historicoSacramental: { 2022: 37 } } }, agora).status, 500);
+  assert.ok(MAX_CORPO_CRESCIMENTO > JSON.stringify({ privado: { recomendacoesPessoas: { adultos: Array.from({ length: 2000 }, () => ({ nome: 'X'.repeat(150), sexo: 'F', idade: 99, situacao: 'para-vencer', validade: '2027-01' })) } } }).length);
+});
+
+// a demonstração: o mesmo servidor, no navegador
+const armazem = (inicial = {}) => {
+  const m = new Map(Object.entries(inicial).map(([k, v]) => [k, structuredClone(v)]));
+  return { ler: k => (m.has(k) ? structuredClone(m.get(k)) : null), gravar: (k, v) => m.set(k, structuredClone(v)) };
+};
+const pedir = (srv, metodo, corpo, sessao = false) => srv.atender(new Request('http://local/api/crescimento', {
+  method: metodo, headers: { 'Content-Type': 'application/json', ...(sessao ? { Authorization: 'Bearer demo.bispo' } : {}) },
+  body: corpo === undefined ? undefined : JSON.stringify(corpo),
+}));
+
+test('demonstração: o privado só com a sessão, e só a sessão grava', async () => {
+  const srv = criarServidor(armazem(), { agora: () => '2026-10-18T12:00:00.000Z' });
+  assert.deepEqual(await (await pedir(srv, 'GET')).json(), respostaCrescimento(null, false));
+  assert.equal((await pedir(srv, 'POST', { privado: { portadoresAtivosDizimistas: 3 } })).status, 401);
+  const r = await pedir(srv, 'POST', {
+    publico: { recomendacoes: { adultos: RESUMO } },
+    privado: { recomendacoesPessoas: { adultos: PESSOAS }, participantes: { adultos: 4 } },
+  }, true);
+  assert.equal(r.status, 200);
+  const resp = await r.json();
+  assert.equal(resp.privado.recomendacoesPessoas.adultos.length, PESSOAS.length);
+  assert.equal(resp.publico.importadoEm['recomendacoes-adultos'], '2026-10-18T12:00:00.000Z');
+  // sem a sessão: as contagens, e nenhum nome
+  const publico = await (await pedir(srv, 'GET')).json();
+  assert.deepEqual(Object.keys(publico), ['publico']);
+  assert.equal(publico.publico.recomendacoes.adultos.lidos, PESSOAS.length);
+  assert.ok(!JSON.stringify(publico).includes('Exemplo'));
+  const comSessao = await (await pedir(srv, 'GET', undefined, true)).json();
+  assert.equal(comSessao.privado.participantes.adultos, 4);
+  // um corpo errado não grava nada; o que já estava fica
+  assert.equal((await pedir(srv, 'POST', { publico: { historicoSacramental: { 2022: 140 } } }, true)).status, 400);
+  assert.equal((await (await pedir(srv, 'GET', undefined, true)).json()).publico.historicoSacramental[2022], undefined);
+  assert.equal((await pedir(srv, 'DELETE', undefined, true)).status, 405);
+  // guardado estragado: erro, não "nada importado"
+  const torto = criarServidor(armazem({ crescimento: 'texto' }));
+  assert.equal((await pedir(torto, 'GET')).status, 500);
+  assert.equal((await pedir(torto, 'POST', { publico: { historicoSacramental: { 2022: 37 } } }, true)).status, 500);
+});

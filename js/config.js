@@ -15,6 +15,9 @@ export const API_SESSAO    = '/api/sessao';
 // o relatório "Organizações e Chamados" do LCR, importado na aba Chamados —
 // chamados-ala.js (os nomes do bispado continuam em /api/bispado, chamados.js)
 export const API_CHAMADOS  = '/api/chamados';
+// os relatórios do LCR da aba "Vamos crescer a Ala" e o que só o bispo informa
+// (o privado só vem com a sessão; gravar pede a sessão) — crescimento.js
+export const API_CRESCIMENTO = '/api/crescimento';
 // Horário da reunião sacramental, "HH:MM". Preenchido, entra na mensagem do
 // convite para discursar ("domingo, 18 de outubro, às 9h"); vazio, fica de fora.
 export const HORARIO_SACRAMENTAL = '';

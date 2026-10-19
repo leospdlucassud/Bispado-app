@@ -4,6 +4,11 @@ import { test } from 'node:test';
 import {
   compararBispado, limparDocumentoChamados, membrosSemChamado, resumoChamados, resumoDesignacoes,
 } from '../js/chamados-lcr.js';
+import {
+  CHAVES_ESTATISTICAS, frequenciaSacramental, gruposSemMarcacao, historicoSacramental, limparCorpoCrescimento,
+  normalizarDocCrescimento, participantesAdultos, participantesJovens, progressoQualificacao, renovacaoNaAgenda,
+  renovacoesAgendar, resumoQualificacao, resumoRecomendacoes, resumoRenovacoes, tendenciaPorGrupo,
+} from '../js/crescimento-lcr.js';
 import { gerar } from '../js/demo-dados.js';
 import { criarServidor } from '../js/demo-servidor.js';
 import {
@@ -112,6 +117,116 @@ test('a agenda cobre os estados da entrevista e do convite', () => {
   assert.ok(ag.some(e => e.data === HOJE), 'entrevista hoje');
 });
 
+// ---------- a aba Vamos crescer a Ala ----------
+const ativosDe = membros => membros.roster.filter(m => !membros.saidos.includes(m.id));
+const validas = l => l.filter(p => p.situacao === 'ativa' || p.situacao === 'para-vencer').length;
+
+test('Vamos crescer a Ala: o documento fictício é o que a importação gravaria', () => {
+  for (const d of DATAS) {
+    const { crescimento: doc } = gerar(d);
+    assert.deepEqual(normalizarDocCrescimento(doc), doc, d);
+    const pub = doc.publico, pri = doc.privado;
+    // cada seção volta igual da limpeza do servidor (nada fora do formato)
+    for (const t of Object.values(pub.trimestral)) {
+      assert.deepEqual(limparCorpoCrescimento({ publico: { trimestral: t } }).parcial.publico.trimestral, t, d);
+    }
+    const r = limparCorpoCrescimento({
+      publico: { estatisticas: pub.estatisticas, recomendacoes: pub.recomendacoes, frequenciaClasses: pub.frequenciaClasses, historicoSacramental: pub.historicoSacramental },
+      privado: { recomendacoesPessoas: pri.recomendacoesPessoas, portadoresAtivosDizimistas: pri.portadoresAtivosDizimistas, participantes: pri.participantes },
+    });
+    assert.equal(r.erro, undefined, d);
+    assert.deepEqual(r.parcial.publico.estatisticas, pub.estatisticas);
+    assert.deepEqual(r.parcial.publico.frequenciaClasses, pub.frequenciaClasses);
+    assert.deepEqual(r.parcial.privado.recomendacoesPessoas, pri.recomendacoesPessoas);
+    // três trimestres já encerrados, com as 26 linhas
+    const chaves = Object.keys(pub.trimestral);
+    assert.equal(chaves.length, 3, d);
+    for (const k of chaves) {
+      const t = pub.trimestral[k];
+      assert.deepEqual(t.linhas.map(l => l.n), Array.from({ length: 26 }, (_, i) => i + 1));
+      assert.ok(t.data <= d, `${k}: ${t.data}`);
+      assert.ok(`${t.ano}-${String(t.trimestre * 3).padStart(2, '0')}` < d.slice(0, 7), `${k} ainda não acabou em ${d}`);
+    }
+    // as Estatísticas somam: o total, os adultos, os homens adultos e os jovens
+    const v = pub.estatisticas.valores;
+    assert.deepEqual(Object.keys(v).sort(), [...CHAVES_ESTATISTICAS].sort());
+    assert.equal(v.homens + v.mulheres + v.rapazes + v.mocas + v.criancasPrimaria + v.criancas0a2, v.totalMembros);
+    assert.equal(v.adultosCasados + v.adultosSolteiros36 + v.jas, v.adultos);
+    assert.equal(v.sumosSacerdotes + v.elderes + v.elderesPerspectiva, v.homens);
+    assert.equal(v.sacerdotes + v.mestres + v.diaconos, v.rapazes);
+    assert.equal(v.guardias + v.mensageiras + v.edificadoras, v.mocas);
+    // as listas e o que se diz delas: o resumo público, a linha 2, os investidos e os jovens da ala
+    for (const tipo of ['adultos', 'jovens']) {
+      const l = pri.recomendacoesPessoas[tipo];
+      assert.deepEqual(pub.recomendacoes[tipo], resumoRecomendacoes(l, { tipo, data: pub.recomendacoes[tipo].data, contagem: l.length }));
+    }
+    const ultimo = pub.trimestral[chaves.at(-1)];
+    assert.deepEqual([ultimo.linhas[1].real, ultimo.linhas[1].potencial], [validas(pri.recomendacoesPessoas.adultos), v.adultosInvestidos]);
+    assert.equal(v.investidosComRecomendacao + v.investidosSemRecomendacao, pri.recomendacoesPessoas.adultos.length);
+    assert.equal(pri.recomendacoesPessoas.jovens.length, v.rapazes + v.mocas);
+  }
+});
+
+test('Vamos crescer a Ala: quem aparece com nome está no quadro e é quem a Agenda conhece', () => {
+  for (const d of DATAS) {
+    const { crescimento: doc, membros, colecoes, chamados } = gerar(d);
+    const ativos = ativosDe(membros);
+    const nomes = new Set(ativos.map(m => m.name));
+    const pri = doc.privado, pub = doc.publico;
+    // só sai nome na tela nas "Renovações a agendar": todos do quadro (o resto da ala, nunca)
+    for (const tipo of ['adultos', 'jovens']) {
+      const lista = renovacoesAgendar(pri.recomendacoesPessoas[tipo], { hoje: d });
+      assert.ok(lista.length > 0, `${d} ${tipo}`);
+      for (const p of lista) assert.ok(nomes.has(p.nome), `${d}: ${p.nome}`);
+      assert.equal(new Set(pri.recomendacoesPessoas[tipo].map(p => p.nome)).size, pri.recomendacoesPessoas[tipo].length, 'nome repetido');
+    }
+    // a Agenda tem uma renovação marcada e uma feita depois do relatório
+    const datas = { adultos: pub.recomendacoes.adultos.data, jovens: pub.recomendacoes.jovens.data };
+    const r = resumoRenovacoes(pri.recomendacoesPessoas, colecoes.agenda, { hoje: d, datas });
+    assert.ok(r.marcadas >= 1 && r.feitas >= 1 && r.vencem >= 1 && r.vencidas >= 1, `${d}: ${JSON.stringify(r)}`);
+    const patricia = pri.recomendacoesPessoas.adultos.find(p => p.nome === 'Albuquerque Ramos, Patrícia');
+    assert.equal(renovacaoNaAgenda(colecoes.agenda, patricia, 'adultos', { desde: datas.adultos }).estado, 'marcada');
+    // a parte pública não tem nome nenhum, nem do quadro nem do resto da ala
+    const publico = JSON.stringify(pub);
+    for (const p of [...pri.recomendacoesPessoas.adultos, ...pri.recomendacoesPessoas.jovens]) assert.ok(!publico.includes(p.nome), p.nome);
+    for (const m of membros.roster) assert.ok(!publico.includes(m.name), m.name);
+    // os participantes guardados são a conta da importação, com o quadro e os chamados da demonstração
+    assert.equal(pri.participantes.adultos, participantesAdultos({ membros: ativos, chamados: chamados.chamados, recomendacoes: pri.recomendacoesPessoas.adultos }).total);
+    assert.equal(pri.participantes.jovens, participantesJovens({ membros: ativos, chamados: chamados.chamados, recomendacoes: pri.recomendacoesPessoas.jovens }).total);
+  }
+});
+
+test('Vamos crescer a Ala: um ano de frequência nas atas e os meses de classes', () => {
+  for (const d of DATAS) {
+    const { crescimento: doc, colecoes } = gerar(d);
+    const pub = doc.publico;
+    const membros = pub.estatisticas.valores.totalMembros;
+    const f = frequenciaSacramental(colecoes.sacramentais, { membros, hoje: d });
+    // os 12 meses com contagem (o corrente pode não ter tido domingo ainda)
+    assert.ok(f.porMes.filter(m => m.media != null).length >= 11, d);
+    assert.ok(f.porMes.every(m => m.pct == null || (m.pct > 20 && m.pct < 50)), d);
+    // a conferência geral segue sem frequência (não há reunião na ala)
+    assert.ok(colecoes.sacramentais.filter(s => s.tipo === 'conf-geral').every(s => !('frequencia' in s)));
+    // os 4 anos de antes informados; o corrente, calculado das atas
+    const ano = +d.slice(0, 4);
+    const anos = historicoSacramental(pub.historicoSacramental, f.porAno, ano);
+    assert.deepEqual(anos.filter(a => a.fonte === 'informado').map(a => a.ano), [ano - 4, ano - 3, ano - 2, ano - 1]);
+    // classes: de 3 a 4 meses de domingos (sem os de conferência), cada grupo só nos dele
+    const s = pub.frequenciaClasses.semanas;
+    assert.ok(s.length >= 12 && s.every(x => ehDomingo(x.data) && x.data < d && x.registrada), d);
+    assert.ok(new Set(s.map(x => x.data.slice(0, 7))).size >= 3, d);
+    assert.ok(s.every(x => !('escolaDominicalAdultos' in x.porGrupo && 'sociedadeSocorro' in x.porGrupo)), 'Escola Dominical e Sociedade de Socorro no mesmo domingo');
+    const tend = tendenciaPorGrupo(s);
+    assert.equal(tend.length, 7, d);
+    assert.deepEqual(gruposSemMarcacao(tend), ['escolaDominicalJovens'], d);
+    assert.equal(tend.find(t => t.grupo === 'quorumElderes').direcao, 'desce', d);
+    // o caminho até duas alas: dois mínimos cumpridos, nenhum ainda para duas
+    const pri = doc.privado;
+    const prog = progressoQualificacao({ membros, portadoresSM: pri.portadoresAtivosDizimistas, adultosParticipantes: pri.participantes.adultos, jovensParticipantes: pri.participantes.jovens });
+    assert.deepEqual(resumoQualificacao(prog), { total: 4, conhecidos: 4, umaAla: 2, duasAlas: 0 }, d);
+  }
+});
+
 // ---------- o servidor ----------
 const armazem = (inicial = {}) => {
   const m = new Map(Object.entries(inicial).map(([k, v]) => [k, structuredClone(v)]));
@@ -188,6 +303,16 @@ test('chamados: a carga da demonstração (semear grava "chamados") sai igual pe
   const { chamados } = gerar(HOJE);
   const srv = criarServidor(armazem({ chamados }));
   assert.deepEqual(await (await pedir(srv, 'GET', '/api/chamados')).json(), chamados);
+});
+
+test('crescimento: a carga da demonstração sai pelo GET, o privado só com a sessão "demo"', async () => {
+  const { crescimento } = gerar(HOJE);
+  const srv = criarServidor(armazem({ crescimento }));
+  assert.deepEqual(await (await pedir(srv, 'GET', '/api/crescimento')).json(), { publico: crescimento.publico });
+  // entra como o bispo entra na demonstração (senha "demo") e recebe a lista das recomendações
+  const login = await (await pedir(srv, 'POST', '/api/sessao', { papel: 'bispo', senha: 'demo' })).json();
+  const comSessao = await srv.atender(new Request('http://local/api/crescimento', { headers: { Authorization: 'Bearer ' + login.token } }));
+  assert.deepEqual(await comSessao.json(), crescimento);
 });
 
 test('convite: a tela do membro vê só o primeiro nome e responde pela regra do servidor', async () => {

@@ -79,7 +79,7 @@ inline, ícone inexistente, versões divergentes.
 As sete coleções simples (agenda, reuniões, designações, sacramentais,
 acompanhamentos, eventos e oradores) são funções de 3 linhas que delegam a
 `netlify/functions/_crud.js` (o prefixo `_` faz o Netlify não tratá-lo como rota).
-`membros`, `notas` e `chamados` têm lógica própria. Todas respondem em `/api/<recurso>`.
+`membros`, `notas`, `chamados` e `crescimento` têm lógica própria. Todas respondem em `/api/<recurso>`.
 
 **`/api/chamados`** guarda o relatório "Organizações e Chamados" do LCR (aba
 Chamados) num documento só, no store `chamados-<ALA_ID>`:
@@ -93,22 +93,64 @@ até 300 caracteres, até 2000 chamados; uma chave a mais (um telefone, um e-mai
 não grava, e um campo torto recusa o corpo inteiro (400). Vago não tem data nem
 designação. O `atualizadoEm` é do servidor.
 
+**`/api/crescimento`** guarda os relatórios do LCR da aba **Vamos crescer a
+Ala** num documento só, no store `crescimento-<ALA_ID>`, em duas partes:
+
+- `publico` — só contagens: os trimestres do Relatório Trimestral (por chave
+  `AAAA-T<n>`, o histórico fica), as Estatísticas da Unidade, o **resumo** das
+  duas listas de recomendações (por situação, por mês de validade, por faixa de
+  idade), a frequência às classes por domingo e por grupo (presentes e
+  matriculados — nunca por pessoa) e o % da sacramental dos anos passados;
+- `privado` — o que é de uma pessoa ou só o bispo sabe: as listas das
+  recomendações por pessoa (`{ nome, sexo, idade, situacao, validade }`, para as
+  "Renovações a agendar"), o número de portadores do Sacerdócio de Melquisedeque
+  ativos e dizimistas integrais e os participantes contados a partir delas.
+
+O GET entrega o `privado` **só com a sessão de Bispo ou ADM** (`sessaoDa`, de
+`_sessao.js`, como os sigilosos de `_crud.js`); sem ela, só `{ publico }`. O
+POST **pede** a sessão (401 sem ela; token vencido ou de senha trocada volta com
+`X-Sessao: invalida`), aceita até 1,5 milhão de caracteres (413 acima) e manda
+só as seções que mudaram: `aplicarPostCrescimento` (de `js/crescimento-lcr.js`,
+a mesma conta da demonstração) limpa o corpo — só as chaves conhecidas, do tipo
+e tamanho certos; um campo torto recusa tudo (400) — e **junta por seção**:
+importar o Trimestral não apaga as recomendações, um mês de frequência não
+apaga os outros, um domingo ainda sem presença não apaga o que já tinha. A
+gravação é por compare-and-swap (409 depois de 4 tentativas). Documento
+guardado sem a forma esperada é 500, no GET e no POST — nunca "nada importado",
+e nunca uma gravação por cima. O dízimo de cada pessoa **não existe** no app: o
+bispo informa só o total de portadores dizimistas (34.4). A frequência da
+sacramental não mora aqui: é o campo `frequencia` de cada ata (`/api/sacramentais`).
+
 ### PDFs do LCR
 
-O app lê dois relatórios do LCR, sempre no próprio aparelho (pdf.js) — o PDF não
+O app lê sete relatórios do LCR, sempre no próprio aparelho (pdf.js) — o PDF não
 vai para o servidor, só o que a prévia mostrou e o "Aplicar" confirmou:
 
 | Relatório | Onde importa | O que fica guardado |
 | --- | --- | --- |
 | **Lista de Membros** | aba Membros (`membros-import.js` + `membros-lcr.js`) | nome, sexo, idade, nascimento, telefone e e-mail — o quadro da ala. A coluna **Endereço**, quando o PDF traz, é lida só para não se misturar às outras e **descartada**: o endereço não é guardado |
 | **Organizações e Chamados** | aba Chamados (`chamados-ala.js` + `chamados-lcr.js`) | os chamados: quem ocupa, data do apoio, designação. As listas de membros que o relatório traz (com telefone, e-mail e nascimento) são **puladas**, nem lidas |
+| **Relatório Trimestral** | aba Vamos crescer a Ala (`crescimento.js` + `crescimento-lcr.js`) | as 26 linhas (real, potencial, % e os % de 1 e 5 anos antes), por trimestre. A página 2, **Detalhes sobre o Converso** (com nomes), não é lida |
+| **Estatísticas da Unidade** | idem | os totais da unidade (membros, famílias, sacerdócio, adultos, recém-conversos, investidos…) |
+| **Situação de Recomendação para o Templo** (adultos) e **Situação da Recomendação do Jovem** | idem | para todos, só as contagens; a lista por pessoa vai para a parte **privada** (só com a sessão de Bispo/ADM). O tipo de recomendação não é guardado |
+| **Frequência à classe e ao quórum** (um mês por PDF) | idem | por domingo e por grupo (élderes, Sociedade de Socorro, Escola Dominical, Rapazes, Moças, Primária…), quantos vieram e quantos estão matriculados. A presença é lida dos **ícones** desenhados (`pdf-icones.js`); nenhum nome é lido nem guardado |
 
 Para gerar: no LCR, abra o relatório, toque em **Imprimir** e, se abrir a janela
 de impressão do navegador, escolha o destino **Salvar como PDF**. A impressora
 **Microsoft Print to PDF** do Windows grava as letras como desenho, sem texto:
-sem OCR não há o que ler, e as duas importações avisam disso (`tipoDePdf`, de
-`chamados-lcr.js`: `'sem-texto' | 'chamados' | 'membros' | 'outro'`). Cada uma
-também reconhece o relatório da outra e aponta a aba certa.
+sem OCR não há o que ler, e as importações avisam disso.
+
+**Que PDF é este, e de que aba:** `tipoDePdfLcr` (de `crescimento-lcr.js`)
+reconhece os cinco relatórios da aba Vamos crescer a Ala pelo título e, nos
+outros, devolve o que o `tipoDePdf` de `chamados-lcr.js` diz (`'sem-texto' |
+'chamados' | 'membros' | 'outro'`). `abaDoPdf(tipo)` dá a aba que importa cada um
+(`ABA_DO_PDF`), e os três botões **📄 Importar PDF do LCR** perguntam a ela: o
+PDF de outra aba recebe o aviso "importe lá", com o botão para a aba certa. Não
+chame o `tipoDePdf` direto num importador: as recomendações e a frequência às
+classes têm "Nome | Sexo" no cabeçalho, como a Lista de Membros, e ele as toma
+por ela — a aba Membros trocaria o quadro inteiro por quem tem recomendação.
+`tests/importacao-pdf.test.mjs` confere que cada relatório entra por um
+importador só.
 
 A leitura do "Organizações e Chamados" é pela geometria do PDF (corpo da fonte,
 margem dos títulos, colunas do cabeçalho), descrita no topo de `chamados-lcr.js`.
@@ -181,6 +223,9 @@ clássico do `<head>`, manda os links antigos do convite para a página nova).
 | `convite-regras.js` | Regras do convite sem DOM: o que o membro pode ler (`tipoNoConvite`), como o convite fala do assunto (`comoNoConvite` — a designação de chamado não é "entrevista") e o que a resposta grava |
 | `chamados-lcr.js` | O relatório "Organizações e Chamados" do LCR sem DOM: leitura do PDF (`parsearPdfChamados`, `tipoDePdf`), contas, filtros e grupos da aba, chamados de cada membro, designação marcada na Agenda, nomes do bispado e a limpeza do que `/api/chamados` grava (testado) |
 | `membros-lcr.js` | A "Lista de Membros" do LCR sem DOM: leitura do PDF com ou sem a coluna Endereço (`lerPdfMembros`, `parsearPdfMembros`), que é descartada (testado) |
+| `crescimento-lcr.js` | A aba Vamos crescer a Ala sem DOM: os leitores dos cinco relatórios (`lerTrimestral`, `lerEstatisticas`, `lerRecomendacoes`, `lerFrequenciaClasses`), que PDF é e de que aba (`tipoDePdfLcr`, `abaDoPdf`), as metas do Manual Geral 36.2 para uma e duas alas, os participantes que dá para provar, as médias da sacramental, a tendência das classes, as renovações (e a renovação já na Agenda), os próximos passos e a limpeza/junção do que `/api/crescimento` grava (testado) |
+| `pdf-icones.js` | As caixas dos ícones desenhados de uma página do pdf.js 3.11 (a presença na frequência às classes não é texto), no navegador e no Node (testado) |
+| `graficos.js` | Os gráficos em SVG feito à mão, sem biblioteca: anel, barra até as metas, barra empilhada, colunas, linha no tempo, pequenos múltiplos, pirâmide, medidor — com `role="img"`, rótulo e a tabela "Ver os números" (sem DOM, testado) |
 | `crud-regras.js` | Upsert por campo único (`inserirOuMesclar`, `limparCorpo`), usado pelo servidor e pela fila (sem DOM, testado) |
 | `discursos-regras.js` | Rodízio de discursos sem DOM: datas por partes, chave do nome, estado da vaga, histórico, sugestões, mensagem do WhatsApp, pendências do Início (testado) |
 | `reunioes-regras.js` | Atas de reunião sem DOM: presença do bispado (o nome de cada chamado fica gravado como era no dia), parágrafos da pauta, texto da busca e nome do PDF `ata-<tipo>-<data>.pdf` (testado) |
@@ -202,13 +247,14 @@ clássico do `<head>`, manda os links antigos do convite para a página nova).
 | `sacramental.js` | Aba Sacramental: as 3 vistas, "Atas por mês", formulário da ata (grava só o que mudou) e `gravarCamposDomingo` |
 | `rodizio.js` | Vistas "Próximos domingos" e "Rodízio": vagas, seletor de orador, convite por WhatsApp, ficha da pessoa |
 | `membros.js` | Entradas, saídas e histórico de membros; o cartão mostra os chamados de cada um |
-| `membros-import.js` | Importação do PDF de membros do LCR: prévia (novos, atualizados, ausentes, conferência da "Contagem") e aplicar; avisa quando o PDF não tem texto ou é o de chamados |
+| `membros-import.js` | Importação do PDF de membros do LCR: prévia (novos, atualizados, ausentes, conferência da "Contagem") e aplicar; avisa quando o PDF não tem texto ou é de outra aba (os chamados, os relatórios da aba Vamos crescer a Ala) |
 | `chamados-ala.js` | Aba Chamados: carga de `/api/chamados`, filtros, lista por organização, "📅 Agendar designação" (abre a Agenda preenchida) e a importação do PDF com prévia — que pode atualizar os nomes do bispado de `chamados.js` |
+| `crescimento.js` | Aba Vamos crescer a Ala: carga de `/api/crescimento` (o privado só com a sessão), as oito seções com os gráficos, a importação dos cinco relatórios com prévia, o que só o bispo informa, a grade da frequência da sacramental (grava nas atas) e o "📅 Agendar renovação" (abre a Agenda preenchida e mostra a já marcada) |
 | `notas.js` | Notas privadas (aparelho) e compartilhadas (nuvem) |
 | `manual.js` | Manual Geral, links oficiais e roteiros de entrevista |
 | `pdf.js` | Atas em PDF: a sacramental e a de cada reunião (na ordem do card, com quebra de página e rodapé em todas as páginas). O jsPDF só é carregado na primeira ata; o service worker já o guarda na instalação |
 | `busca.js` | Busca global |
-| `inicio.js` | Tela de boas-vindas (aba Início, a primeira ao abrir): saudação, resumo, pendências e atalhos |
+| `inicio.js` | Tela de boas-vindas (aba Início, a primeira ao abrir): saudação, resumo, pendências (com as recomendações a renovar, só com a sessão), o cartão "Rumo a duas alas" e atalhos |
 | `app.js` | Botão flutuante e inicialização |
 
 ### ES Modules
@@ -242,6 +288,14 @@ com `data-act` e cada módulo liga os seus numa função `ligar<Área>()`.
   resto da API continua aberto, e o `/api/convite` mostra ao membro o primeiro
   nome e a data da própria entrevista pelo id. Para o que não pode sair do
   aparelho do bispo, use as Notas privadas. `podeVer()` continua filtrando a tela.
+  Em `/api/crescimento`, o que é de uma pessoa (as listas das recomendações) e o
+  número de portadores dizimistas só saem com a sessão, e só a sessão grava.
+- **Dados dos relatórios do LCR ("Somente para uso da Igreja").** Nada do PDF de
+  verdade entra no repositório — nem nome, nem os totais da ala: os testes usam
+  relatórios **sintéticos** (a mesma geometria, gente e números inventados), e a
+  demonstração, uma ala fictícia. Na aba Vamos crescer a Ala, os números públicos
+  são contagens; nenhum texto da tela, dos próximos passos ou do Início leva
+  nome, a não ser a lista das renovações (com a sessão).
 - **Ao criar uma tela que liste entrevistas ou acompanhamentos**, aplique o
   filtro `podeVer` também no contador e na busca, não só na lista.
 - **Ao alterar qualquer arquivo**, rode `node scripts/versao.mjs patch` (ou

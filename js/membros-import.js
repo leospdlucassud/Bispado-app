@@ -2,8 +2,8 @@
 // IMPORTAÇÃO DO PDF DE MEMBROS (LCR)
 // =============================================
 import { switchTab } from './app.js';
-import { tipoDePdf } from './chamados-lcr.js';
 import { ALA } from './config.js';
+import { NOMES_DOS_PDFS, abaDoPdf, tipoDePdfLcr } from './crescimento-lcr.js';
 import { MEMBROS, setMembros } from './dados-membros.js';
 import { EM_DEMO } from './demo.js';
 import { detectarAlaNoPdf, lerPdfMembros } from './membros-lcr.js';
@@ -34,8 +34,9 @@ export {
   idadeDeNascimento, juntarNome, parsearPdfMembros,
 } from './membros-lcr.js';
 
-// O PDF que não é a Lista de Membros com texto não chega ao leitor (tipoDePdf,
-// de chamados-lcr.js). O "Microsoft Print to PDF" do Windows grava a página
+// O PDF que não é a Lista de Membros com texto não chega ao leitor (tipoDePdfLcr,
+// de crescimento-lcr.js: o tipoDePdf de chamados-lcr.js mais os relatórios da
+// aba Vamos crescer a Ala). O "Microsoft Print to PDF" do Windows grava a página
 // como desenho — letra por letra em traços, sem nenhum texto: nada no navegador
 // lê isso (só OCR). O "Salvar como PDF" do navegador mantém o texto.
 function avisoDaImportacao(titulo, html, extra = '') {
@@ -64,6 +65,14 @@ const AVISO_DO_TIPO = {
     <p style="margin-top:8px">Gere de novo pelo LCR em <strong>português</strong>: <strong>Lista de Membros</strong> → <strong>Imprimir</strong> → <strong>Salvar como PDF</strong>.</p>`),
 };
 
+// Os relatórios da aba Vamos crescer a Ala (recomendações, frequência às
+// classes…) têm "Nome | Sexo" no cabeçalho, como a Lista de Membros: sem este
+// aviso, a lista das recomendações (só quem tem recomendação) substituiria o quadro.
+const avisoDoCrescimento = tipo => avisoDaImportacao(`Este é o relatório ${NOMES_DOS_PDFS[tipo]}`, `
+    <p>O PDF escolhido é o relatório <strong>${esc(NOMES_DOS_PDFS[tipo])}</strong> do LCR. Ele se importa na aba <strong>Vamos crescer a Ala</strong>, pelo botão <strong>📄 Importar PDF do LCR</strong>.</p>
+    <p style="margin-top:8px">Aqui entra a <strong>Lista de Membros</strong>.</p>`,
+  `<button data-act="ir-crescimento" style="background:#a3e635;color:#0d1b2a;border:none;border-radius:10px;padding:10px 20px;font-weight:700;cursor:pointer">Ir para Vamos crescer a Ala</button>`);
+
 export async function importarPdfMembros(input) {
   const arquivo = input.files && input.files[0];
   input.value = '';
@@ -86,10 +95,14 @@ export async function importarPdfMembros(input) {
       paginas.push((await pg.getTextContent()).items);
     }
 
-    // PDF sem texto ou o relatório de chamados: diz o que fazer, em vez do
-    // "nenhum membro reconhecido" (o resto vai ao leitor, que decide)
-    const tipo = tipoDePdf(paginas);
-    if (AVISO_DO_TIPO[tipo]) { AVISO_DO_TIPO[tipo](); return; }
+    // PDF sem texto ou de outra aba (abaDoPdf: os chamados, os relatórios da
+    // aba Vamos crescer a Ala): diz o que fazer, em vez do "nenhum membro
+    // reconhecido" ou de ler a lista errada (o resto vai ao leitor, que decide)
+    const tipo = tipoDePdfLcr(paginas);
+    const aba = abaDoPdf(tipo);
+    if (tipo === 'sem-texto') { AVISO_DO_TIPO['sem-texto'](); return; }
+    if (aba === 'chamados') { AVISO_DO_TIPO.chamados(); return; }
+    if (aba === 'crescimento') { avisoDoCrescimento(tipo); return; }
 
     const leitura = lerPdfMembros(paginas);
     if (leitura.semCabecalho) { AVISO_DO_TIPO['sem-cabecalho'](); return; }
@@ -226,6 +239,7 @@ function ligarImportMembros() {
     if (el.dataset.act === 'fechar') fecharModal('modal-import');
     else if (el.dataset.act === 'aplicar') aplicarImportacao();
     else if (el.dataset.act === 'ir-chamados') { fecharModal('modal-import'); switchTab('chamados'); }
+    else if (el.dataset.act === 'ir-crescimento') { fecharModal('modal-import'); switchTab('crescimento'); }
   });
 }
 ligarImportMembros();

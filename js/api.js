@@ -6,6 +6,7 @@ import { renderAgenda } from './agenda.js';
 import { renderCalendario } from './calendario.js';
 import { carregarChamadosAla, renderChamadosAla } from './chamados-ala.js';
 import { carregarChamados } from './chamados.js';
+import { carregarCrescimento, renderCrescimento } from './crescimento.js';
 import { API_AGENDA, API_DESIG, API_EVENTOS, API_ORADORES, API_REUNIOES, API_SAC, DADOS } from './config.js';
 import { EM_DEMO } from './demo.js';
 import { cabecalhoSessao, sair } from './sessao.js';
@@ -248,8 +249,9 @@ async function carregarTudo() {
   const semRejeitar = p => Promise.resolve(p).catch(() => false);
   // Os chamados da ala (relatório do LCR, aba Chamados) vêm junto: o Início
   // conta quem falta designar, e o cartão do membro mostra os chamados dele.
-  const [okChamados, okMembros, okChamadosAla] = await Promise.all(
-    [carregarChamados(), carregarMovimentacoes(), carregarChamadosAla()].map(semRejeitar));
+  // E os relatórios da aba Vamos crescer a Ala (o privado só com a sessão).
+  const [okChamados, okMembros, okChamadosAla, okCrescimento] = await Promise.all(
+    [carregarChamados(), carregarMovimentacoes(), carregarChamadosAla(), carregarCrescimento()].map(semRejeitar));
   const r = await Promise.all([
     loadAgenda(), loadReunioes(), loadDesignacoes(),
     loadEventos(), loadSacramentais(), loadAcompanhamentos(), loadOradores(),
@@ -270,9 +272,12 @@ async function carregarTudo() {
   // A aba Chamados cruza com o que chegou depois dela: o quadro de membros
   // ("Sem chamado") e a agenda (a designação já marcada)
   renderChamadosAla();
+  // A aba Vamos crescer a Ala também: o quadro (participantes, pirâmide), os
+  // chamados (liderança) e as atas (a frequência da sacramental)
+  renderCrescimento();
   const [agenda, , designacoes, eventos, sacramentais, acomp] = r;
   inicioAposCarga({ agenda, designacoes, eventos, sacramentais, acomp });
-  return okChamados && okMembros && okChamadosAla && r.every(Boolean);
+  return okChamados && okMembros && okChamadosAla && okCrescimento && r.every(Boolean);
 }
 
 export async function carregarDados() {

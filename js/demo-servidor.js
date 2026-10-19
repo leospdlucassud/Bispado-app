@@ -3,7 +3,8 @@
 // No modo demonstração (js/demo.js), todo pedido ao /api/ é atendido aqui, e
 // nunca sai para a rede. Imita as Netlify Functions com as MESMAS regras —
 // crud-regras (upsert e PUT), fundirDomingo e travarVagas (sacramentais),
-// convite-regras (a tela do membro) e limparDocumentoChamados (chamados) —, para
+// convite-regras (a tela do membro), limparDocumentoChamados (chamados) e
+// aplicarPostCrescimento (a aba Vamos crescer a Ala) —, para
 // a demonstração se comportar como o app de verdade, inclusive nos conflitos.
 // O armazém é injetado: no navegador, o localStorage separado da
 // demonstração; nos testes (tests/), um Map.
@@ -12,6 +13,7 @@
 import { DOC_CHAMADOS_VAZIO, limparDocumentoChamados } from './chamados-lcr.js';
 import { aplicarPut, escondidoPorSigilo, fundirSimples, inserirOuMesclar, limparCorpo, semSigilosos } from './crud-regras.js';
 import { camposDaResposta, conviteParaMembro, encerrada } from './convite-regras.js';
+import { aplicarPostCrescimento, respostaCrescimento } from './crescimento-lcr.js';
 import { fundirDomingo, travarVagas } from './discursos-regras.js';
 
 // As coleções do crudHandler (netlify/functions/_crud.js), com as mesmas opções
@@ -138,6 +140,25 @@ export function criarServidor(armazem, { agora = () => new Date().toISOString() 
     return json({ error: 'Method not allowed' }, 405);
   }
 
+  // netlify/functions/crescimento.js: um documento só, em duas partes; o
+  // privado só sai com a sessão, e só a sessão grava — juntando por seção, com
+  // a MESMA conta (aplicarPostCrescimento)
+  function crescimento(metodo, body, req) {
+    const papel = papelDe(req);
+    if (metodo === 'GET') {
+      const doc = respostaCrescimento(armazem.ler('crescimento'), !!papel);
+      return doc ? json(doc) : json({ error: 'Conteúdo inesperado em crescimento' }, 500);
+    }
+    if (metodo === 'POST') {
+      if (!papel) return json({ error: 'sessao' }, 401);
+      const r = aplicarPostCrescimento(armazem.ler('crescimento'), body, agora());
+      if (r.erro) return json({ error: r.erro }, r.status);
+      armazem.gravar('crescimento', r.doc);
+      return json(respostaCrescimento(r.doc, true));
+    }
+    return json({ error: 'Method not allowed' }, 405);
+  }
+
   // netlify/functions/convite.js: a tela do membro só vê a projeção mínima
   function convite(metodo, id, body) {
     if (!id) return json({ error: 'Informe o convite' }, 400);
@@ -177,6 +198,7 @@ export function criarServidor(armazem, { agora = () => new Date().toISOString() 
     if (nome === 'notas') return notas(metodo, id, body);
     if (nome === 'membros') return membros(metodo, body);
     if (nome === 'chamados') return chamados(metodo, body);
+    if (nome === 'crescimento') return crescimento(metodo, body, req);
     if (nome === 'convite') return convite(metodo, id, body);
     return naoAchou();
   }

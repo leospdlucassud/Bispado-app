@@ -482,6 +482,18 @@
   .inicio-mais { background:none;border:none;padding:6px 2px;min-height:32px;color:var(--gold);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit; }
   /* a cor de .vazia (#445566) some no fundo do cartão: 2,1:1 */
   #panel-inicio .inicio-vazia { padding:14px 8px;font-size:13px;color:var(--text2); }
+  /* "Rumo a duas alas" (a aba Vamos crescer a Ala): o número grande ao lado do
+     texto e a barra de um critério até 1 e 2 alas (graficos.js, sem a dica) */
+  .inicio-rumo { display:flex;align-items:center;gap:12px;margin-bottom:4px; }
+  .inicio-rumo-num { flex-shrink:0;font-size:15px;font-weight:600;color:var(--text2);white-space:nowrap; }
+  .inicio-rumo-num strong { font-size:32px;line-height:1;font-weight:700;color:var(--text1); }
+  .inicio-rumo-txt { min-width:0;font-size:13px;line-height:1.5;color:var(--text1); }
+  .inicio-rumo-ressalva { font-size:12px;color:var(--text2); }
+  .inicio-rumo-duas { display:block;margin-top:2px;font-size:12px;color:var(--text2); }
+  .inicio-rumo-barra { margin-top:8px; }
+  .inicio-rumo-rot { margin-bottom:2px;font-size:12.5px;color:var(--text-corpo);overflow-wrap:anywhere; }
+  .inicio-rumo-rot strong { color:var(--text1); }
+  #inicio-rumo .cg-meta { max-width:420px; }
 
   /* .link-card foi feito para <a>; aqui os atalhos são <button> */
   .inicio-atalhos .link-card { width:100%;min-width:0;min-height:44px;text-align:left;cursor:pointer;font-family:inherit;color:inherit; }
@@ -954,3 +966,281 @@
 [data-theme="light"] .cham-prev-rodape, [data-theme="light"] .cham-prev-bloco { background:rgba(0,0,0,.03); }
 [data-theme="light"] .cham-check { background:var(--bg3); }
 [data-theme="light"] .cham-check input { accent-color:#c2410c; }
+
+/* =============================================
+   GRÁFICOS (graficos.js) — SVG feito à mão, em papéis de cor
+   Os desenhos usam classes de PAPEL (cg-f-* = preenchimento, cg-t-* = traço,
+   cg-bg-* = fundo de div); o valor de cada papel mora aqui, com a versão do
+   tema claro. Cores conferidas com o validador da skill de gráficos contra o
+   fundo dos cartões (--bg2), cada tema com os seus tons (ver graficos.js):
+   s1/s2/s3 se separam em todos os pares, também para daltonismo. O acento é o
+   lima da aba Vamos crescer a Ala. Bom / atenção / crítico são situação, não
+   série — sempre com ícone e rótulo.
+   ============================================= */
+:root {
+  --cg-fundo:var(--bg2);
+  --cg-acento:#a3e635; --cg-s1:#3987e5; --cg-s2:#d95926; --cg-s3:#199e70;
+  --cg-bom:#0ca30c; --cg-atencao:#fab219; --cg-critico:#d03b3b;
+  --cg-neutro:#7a8fa8; --cg-media:#8eacc8; --cg-trilho:#243b55;
+  --cg-eixo:#2a4060; --cg-grade:#1c2d42; --cg-marca:#e8edf2; --cg-mira:#7a8fa8;
+}
+[data-theme="light"] {
+  /* o lima e o verde-água claros somem no creme: os mesmos papéis, escurecidos */
+  --cg-acento:#4d7c0f; --cg-s1:#2a78d6; --cg-s2:#eb6834; --cg-s3:#1baf7a;
+  --cg-neutro:#8a8f98; --cg-media:#5f6975; --cg-trilho:#e9e0cc;
+  --cg-eixo:#cdbf9f; --cg-grade:#efe7d6; --cg-marca:#20293a; --cg-mira:#5f6975;
+}
+.cg { display:block; width:100%; height:auto; overflow:visible; font-family:inherit; }
+.cg-f-acento { fill:var(--cg-acento); } .cg-f-s1 { fill:var(--cg-s1); } .cg-f-s2 { fill:var(--cg-s2); } .cg-f-s3 { fill:var(--cg-s3); }
+.cg-f-bom { fill:var(--cg-bom); } .cg-f-atencao { fill:var(--cg-atencao); } .cg-f-critico { fill:var(--cg-critico); }
+.cg-f-neutro { fill:var(--cg-neutro); } .cg-f-media { fill:var(--cg-media); } .cg-f-trilho { fill:var(--cg-trilho); }
+.cg-t-acento { stroke:var(--cg-acento); } .cg-t-s1 { stroke:var(--cg-s1); } .cg-t-s2 { stroke:var(--cg-s2); } .cg-t-s3 { stroke:var(--cg-s3); }
+.cg-t-bom { stroke:var(--cg-bom); } .cg-t-atencao { stroke:var(--cg-atencao); } .cg-t-critico { stroke:var(--cg-critico); }
+.cg-t-neutro { stroke:var(--cg-neutro); } .cg-t-media { stroke:var(--cg-media); } .cg-t-trilho { stroke:var(--cg-trilho); }
+.cg-t-eixo { stroke:var(--cg-eixo); } .cg-t-grade { stroke:var(--cg-grade); } .cg-t-marca { stroke:var(--cg-marca); }
+.cg-bg-acento { background:var(--cg-acento); } .cg-bg-s1 { background:var(--cg-s1); } .cg-bg-s2 { background:var(--cg-s2); } .cg-bg-s3 { background:var(--cg-s3); }
+.cg-bg-bom { background:var(--cg-bom); } .cg-bg-atencao { background:var(--cg-atencao); } .cg-bg-critico { background:var(--cg-critico); }
+.cg-bg-neutro { background:var(--cg-neutro); } .cg-bg-media { background:var(--cg-media); } .cg-bg-trilho { background:var(--cg-trilho); }
+/* o texto nunca leva a cor da série: tinta de texto */
+.cg-txt { fill:var(--text2); } .cg-txt-forte { fill:var(--text1); } .cg-txt-mudo { fill:var(--text3); }
+/* o número DENTRO da marca: a tinta que passa de 4,5:1 sobre a cor daquele tema */
+.cg-sobre { fill:#0d1b2a; }
+.cg-sobre-s1, .cg-sobre-s2, .cg-sobre-critico { fill:#fff; }
+.cg-sobre-trilho { fill:var(--text1); }
+[data-theme="light"] .cg-sobre-acento, [data-theme="light"] .cg-sobre-s1, [data-theme="light"] .cg-sobre-media { fill:#fff; }
+[data-theme="light"] .cg-sobre-s2 { fill:#0d1b2a; }
+/* o anel na cor do fundo em volta do ponto: legível onde cruza a linha */
+.cg-anel-fundo { stroke:var(--cg-fundo); }
+/* a mira (fio vertical e ponto) só com o dedo, o cursor ou o foco em cima */
+.cg-mira { stroke:var(--cg-mira); opacity:0; }
+.cg-mira-ponto { opacity:0; }
+.cg-alvo { outline:none; }
+.cg-alvo:hover .cg-mira, .cg-alvo:focus .cg-mira, .cg-alvo.cg-ativo .cg-mira,
+.cg-alvo:hover .cg-mira-ponto, .cg-alvo:focus .cg-mira-ponto, .cg-alvo.cg-ativo .cg-mira-ponto { opacity:1; }
+/* a marca tocada "levanta" um pouco */
+.cg-alvo:hover > path, .cg-alvo:focus > path, .cg-alvo.cg-ativo > path { filter:brightness(1.18); }
+[data-theme="light"] .cg-alvo:hover > path, [data-theme="light"] .cg-alvo:focus > path, [data-theme="light"] .cg-alvo.cg-ativo > path { filter:brightness(.88); }
+.cg-alvo:focus-visible > rect[fill="transparent"] { stroke:var(--text1); stroke-width:1; }
+/* tamanhos: o SVG acompanha a largura, até um teto (no computador o texto não incha) */
+.cg-anel { width:64px; height:64px; margin:0 auto; }
+.cg-meta { max-width:520px; }
+.cg-pilha { max-width:640px; }
+.cg-colunas, .cg-linha { max-width:640px; }
+.cg-mini { max-width:360px; }
+.cg-piramide { max-width:560px; margin:0 auto; }
+.cg-faisca { display:inline-block; width:72px; height:22px; vertical-align:middle; }
+/* a dica: uma só, presa à tela (crescimento.js põe o texto por textContent) */
+.cg-dica { position:fixed; z-index:9600; pointer-events:none; max-width:240px; padding:6px 10px; border-radius:8px; background:var(--bg4); color:var(--text1); border:1px solid var(--border); box-shadow:0 6px 18px rgba(0,0,0,.35); font-size:12px; line-height:1.45; white-space:pre-line; }
+.cg-dica[hidden] { display:none; }
+[data-theme="light"] .cg-dica { background:var(--bg2); box-shadow:0 6px 18px rgba(0,0,0,.12); }
+/* a moldura: título, subtítulo, legenda, desenho, nota e a tabela */
+.cg-figura { margin:0; min-width:0; background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:12px; padding:12px; }
+[data-theme="light"] .cg-figura { background:rgba(0,0,0,.015); }
+.cg-figura figcaption { display:flex; flex-direction:column; gap:2px; margin-bottom:8px; }
+.cg-fig-titulo { font-size:13.5px; font-weight:700; color:var(--text1); }
+.cg-fig-sub { font-size:11.5px; color:var(--text2); line-height:1.5; }
+.cg-fig-nota { font-size:11.5px; color:var(--text2); margin-top:8px; line-height:1.5; }
+.cg-desenho { min-width:0; }
+.cg-legenda { list-style:none; display:flex; flex-wrap:wrap; gap:4px 14px; margin:0 0 8px; font-size:12px; color:var(--text-corpo); }
+.cg-legenda li { display:inline-flex; align-items:center; gap:6px; }
+.cg-legenda strong { color:var(--text1); }
+.cg-chave { width:14px; height:10px; flex-shrink:0; }
+.cg-tabela { margin-top:8px; font-size:12px; }
+.cg-tabela > summary { cursor:pointer; color:var(--text2); padding:4px 0; min-height:32px; display:flex; align-items:center; }
+.cg-tabela-rolagem { overflow-x:auto; max-height:260px; overflow-y:auto; margin-top:4px; }
+.cg-tabela table { border-collapse:collapse; width:100%; font-size:12px; color:var(--text-corpo); }
+.cg-tabela th, .cg-tabela td { padding:4px 8px; border-bottom:1px solid var(--border); text-align:left; white-space:nowrap; }
+.cg-tabela thead th { color:var(--text2); font-weight:600; position:sticky; top:0; background:var(--bg2); }
+.cg-tabela .num { text-align:right; font-variant-numeric:tabular-nums; }
+.cg-tabela tbody th { font-weight:600; color:var(--text1); }
+/* o medidor (div): rótulo e "x de y" em cima, o trilho embaixo */
+.cg-medidor { min-width:0; }
+.cg-medidor-cab { display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:12.5px; margin-bottom:4px; }
+.cg-medidor-rot { color:var(--text1); font-weight:600; min-width:0; overflow-wrap:anywhere; }
+.cg-medidor-num { color:var(--text2); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.cg-medidor-trilho { height:10px; border-radius:0 5px 5px 0; background:var(--cg-trilho); overflow:hidden; }
+.cg-medidor-barra { height:100%; border-radius:0 4px 4px 0; min-width:0; }
+.cg-medidor-nota { font-size:11px; color:var(--text2); margin-top:3px; overflow-wrap:anywhere; }
+
+/* =============================================
+   ABA VAMOS CRESCER A ALA (crescimento.js)
+   Lima: crescimento, e a única cor de aba que sobrava sem confundir com status
+   nem com as outras abas (o verde é a Agenda e "Realizada").
+   ============================================= */
+.tab-btn[data-tab="crescimento"] { color:#a3e635; border-color:#a3e635; }
+.tab-btn[data-tab="crescimento"].active { background:#a3e635; color:#0d1b2a; }
+.cresc-topo { margin-bottom:12px; }
+.cresc-topo-sub { font-size:12px; color:var(--text2); margin-top:4px; line-height:1.5; }
+.cresc-importar { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-bottom:8px; }
+.cresc-importar-btn { width:auto; max-width:100%; margin-top:0; font-size:12px; padding:8px 14px; background:#a3e635; color:#0d1b2a; }
+[data-theme="light"] .cresc-importar-btn { background:#4d7c0f; color:#fff; }
+.cresc-importar-dica { flex:1 1 260px; font-size:11.5px; color:var(--text2); line-height:1.5; }
+.cresc-importar-dica:empty { display:none; }
+.cresc-fontes { font-size:11px; color:var(--text2); margin-bottom:10px; line-height:1.5; }
+.cresc-fontes:empty { display:none; }
+.cresc-alerta-txt { color:#e8b040; }
+[data-theme="light"] .cresc-alerta-txt { color:#9a6700; }
+/* o índice: um toque leva a cada parte (a aba é longa no celular) */
+.cresc-indice { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+.cresc-indice .filtro-btn { font-size:11.5px; }
+/* a barra de navegação fica presa no topo: o título da seção para abaixo dela */
+.cresc-secao { scroll-margin-top:130px; border-left:3px solid #a3e635; }
+[data-theme="light"] .cresc-secao { border-left-color:#4d7c0f; }
+.cresc-importar { scroll-margin-top:130px; }
+@media (max-width:640px) { .cresc-secao, .cresc-importar { scroll-margin-top:70px; } .cresc-secao { padding:14px 12px; } }
+.cresc-secao .nova-card-title { color:var(--text1); }
+.cresc-lead { font-size:14px; color:var(--text1); line-height:1.6; margin-bottom:14px; }
+.cresc-texto { font-size:12.5px; color:var(--text-corpo); line-height:1.6; margin:8px 0 10px; }
+.cresc-nota { font-size:11.5px; color:var(--text2); line-height:1.6; margin-top:14px; padding:8px 10px; background:rgba(255,255,255,.03); border-radius:8px; }
+[data-theme="light"] .cresc-nota { background:rgba(0,0,0,.03); }
+.cresc-mudo { font-size:11.5px; color:var(--text2); line-height:1.5; }
+.cresc-sub { font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--text2); margin:18px 0 8px; }
+.cresc-vazia { text-align:center; padding:20px 12px; color:var(--text2); font-size:13px; line-height:1.6; }
+.cresc-vazia-dica { display:block; font-size:12px; opacity:.85; margin-top:2px; }
+.cresc-aviso { background:rgba(232,176,64,.12); border:1px solid rgba(232,176,64,.4); color:var(--text1); border-radius:8px; padding:8px 10px; font-size:12px; line-height:1.5; margin-bottom:10px; }
+[data-theme="light"] .cresc-aviso { background:rgba(154,103,0,.08); border-color:rgba(154,103,0,.35); }
+.cresc-cadeado { font-size:12.5px; color:var(--text-corpo); background:rgba(224,85,85,.07); border:1px dashed rgba(224,85,85,.35); border-radius:10px; padding:10px 12px; margin-top:12px; line-height:1.6; }
+.cresc-botoes { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.cresc-figuras { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap:12px; margin-top:12px; }
+.cresc-medidores { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap:10px 16px; }
+.cresc-medidores-compactos { margin-top:12px; gap:8px 12px; }
+
+/* 1. os critérios de 36.2: um cartão por critério */
+.cresc-criterios { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap:12px; }
+.cresc-crit { background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:12px; padding:12px 14px; min-width:0; }
+[data-theme="light"] .cresc-crit { background:var(--bg2); }
+.cresc-crit-cab { display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:6px 10px; }
+.cresc-crit-rot { font-size:13px; font-weight:700; color:var(--text1); line-height:1.4; flex:1 1 12em; }
+.cresc-crit-num { font-size:30px; font-weight:700; color:var(--text1); line-height:1.15; margin:6px 0 2px; }
+.cresc-crit-un { font-size:13px; font-weight:600; color:var(--text2); }
+.cresc-cadeado-num { font-size:24px; }
+.cresc-crit-barra { margin:4px 0 2px; }
+.cresc-crit-sit { font-size:12.5px; color:var(--text-corpo); font-weight:600; line-height:1.5; }
+.cresc-crit-sit.ok { color:#a3e635; }
+[data-theme="light"] .cresc-crit-sit.ok { color:#3f6212; }
+.cresc-crit-fonte { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; font-size:11px; color:var(--text2); margin-top:8px; }
+.cresc-crit-nota { font-size:11.5px; color:var(--text2); line-height:1.55; margin-top:8px; }
+.cresc-selo { display:inline-flex; align-items:center; font-size:10.5px; font-weight:700; padding:1px 8px; border-radius:10px; border:1px solid currentColor; white-space:nowrap; }
+.cresc-selo-regra { color:#a3e635; }
+.cresc-selo-lcr { color:#60a5fa; }
+.cresc-selo-est { color:#e8b040; }
+.cresc-selo-bispo { color:#f87171; }
+[data-theme="light"] .cresc-selo-regra { color:#3f6212; }
+[data-theme="light"] .cresc-selo-lcr { color:#1d4ed8; }
+[data-theme="light"] .cresc-selo-est { color:#9a6700; }
+[data-theme="light"] .cresc-selo-bispo { color:#b91c1c; }
+.cresc-form-bispo { margin-top:10px; }
+.cresc-form-bispo label { display:block; font-size:12px; font-weight:600; color:var(--text2); margin-bottom:5px; }
+.cresc-form-linha { display:flex; gap:8px; align-items:center; }
+.cresc-form-linha .form-input { max-width:140px; }
+
+/* 8. os próximos passos */
+.cresc-passos { list-style:none; display:flex; flex-direction:column; gap:6px; }
+.cresc-passo { display:grid; grid-template-columns:28px minmax(0,1fr) auto; align-items:center; gap:10px; width:100%; min-height:48px; text-align:left; background:transparent; border:none; border-left:3px solid var(--border); border-radius:0 10px 10px 0; padding:8px 10px; color:var(--text1); font-family:inherit; font-size:13px; line-height:1.45; cursor:pointer; transition:background-color .2s; }
+.cresc-passo:hover { background-color:rgba(255,255,255,.05); }
+[data-theme="light"] .cresc-passo:hover { background-color:var(--bg3); }
+.cresc-passo.prioridade-1 { border-left-color:#a3e635; }
+[data-theme="light"] .cresc-passo.prioridade-1 { border-left-color:#4d7c0f; }
+.cresc-passo.prioridade-2 { border-left-color:#8eacc8; }
+.cresc-passo-ico { font-size:18px; text-align:center; }
+.cresc-passo-titulo { display:block; font-weight:600; overflow-wrap:anywhere; }
+.cresc-passo-sub { display:block; font-size:11.5px; color:var(--text2); margin-top:2px; overflow-wrap:anywhere; }
+.cresc-passo-ir { color:var(--text3); }
+
+/* 2. a sacramental: um cartão por mês, como na página do LCR */
+.cresc-meses { display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:8px; }
+.cresc-mes { background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:12px; padding:8px; text-align:center; min-width:0; }
+[data-theme="light"] .cresc-mes { background:var(--bg2); }
+.cresc-mes.atual { border-color:#a3e635; }
+[data-theme="light"] .cresc-mes.atual { border-color:#4d7c0f; }
+.cresc-mes.vazio { opacity:.7; }
+.cresc-mes-nome { font-size:12px; font-weight:700; color:var(--text1); margin-bottom:4px; }
+.cresc-mes-agora { display:block; font-size:10px; font-weight:600; color:var(--text2); }
+.cresc-mes-media { font-size:11.5px; color:var(--text2); margin-top:4px; }
+.cresc-mes-media strong { color:var(--text1); }
+.cresc-mes-semanas { list-style:none; margin-top:6px; font-size:11px; color:var(--text-corpo); font-variant-numeric:tabular-nums; }
+.cresc-mes-semanas li { display:flex; justify-content:space-between; gap:6px; padding:1px 4px; }
+.cresc-mes-semanas li span:first-child { color:var(--text2); }
+.cresc-sac-grade:empty { display:none; }
+.cresc-grade-nav { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.cresc-grade-nav .cal-nav:disabled { opacity:.35; cursor:default; }
+.cresc-grade-mes { font-size:14px; font-weight:700; color:var(--text1); min-width:7em; text-align:center; }
+.cresc-grade { display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:8px; align-items:end; }
+.cresc-grade-dia { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--text2); }
+.cresc-grade-data { font-weight:700; color:var(--text1); }
+.cresc-grade-dia .form-input { padding:8px 10px; font-size:14px; }
+.cresc-grade-sem { font-size:11.5px; color:var(--text3); padding:9px 0; font-style:italic; }
+.cresc-grade-salvar { grid-column:1 / -1; justify-self:start; }
+.cresc-bispo { margin-top:12px; font-size:12.5px; color:var(--text-corpo); }
+.cresc-bispo > summary { cursor:pointer; color:var(--text2); min-height:36px; display:flex; align-items:center; }
+.cresc-form-anos { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; margin-top:8px; }
+.cresc-ano { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:700; color:var(--text1); }
+.cresc-ano .form-input { width:84px; padding:8px 10px; }
+
+/* 3. o trimestral: as linhas 1 a 9 em cartões; as outras, compactas */
+.cresc-indicadores { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(250px, 100%), 1fr)); gap:10px; }
+.cresc-ind { background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:12px; padding:10px 12px; min-width:0; display:flex; flex-direction:column; gap:6px; }
+[data-theme="light"] .cresc-ind { background:var(--bg2); }
+.cresc-ind-cab { display:flex; gap:8px; align-items:flex-start; }
+.cresc-ind-n { flex-shrink:0; min-width:22px; height:22px; border-radius:11px; background:var(--bg4); color:var(--text1); font-size:11px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; }
+.cresc-ind-rot { font-size:12px; color:var(--text-corpo); line-height:1.45; overflow-wrap:anywhere; }
+.cresc-ind-valor { font-size:13px; color:var(--text2); }
+.cresc-ind-valor strong { font-size:17px; color:var(--text1); }
+.cresc-ind-comps { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; font-size:11.5px; }
+.cresc-ind-hist { margin-left:auto; }
+.cresc-comp { white-space:nowrap; color:var(--text2); }
+.cresc-comp-melhor { color:#34d399; }
+.cresc-comp-pior { color:#f87171; }
+[data-theme="light"] .cresc-comp-melhor { color:#047857; }
+[data-theme="light"] .cresc-comp-pior { color:#b91c1c; }
+.cresc-ind-grupos { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap:4px 20px; margin-top:6px; }
+.cresc-ind-grupo-tit { font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--text3); margin:14px 0 4px; }
+.cresc-ind-lista { list-style:none; }
+.cresc-ind-linha { display:grid; grid-template-columns:22px minmax(0,1fr) auto; gap:2px 8px; align-items:baseline; padding:6px 0; border-bottom:1px solid rgba(255,255,255,.05); font-size:12px; }
+[data-theme="light"] .cresc-ind-linha { border-bottom-color:rgba(0,0,0,.07); }
+.cresc-ind-linha .cresc-ind-val { color:var(--text2); white-space:nowrap; }
+.cresc-ind-linha .cresc-ind-val strong { color:var(--text1); }
+.cresc-ind-linha .cresc-ind-comps { grid-column:2 / -1; }
+
+/* 4. recomendações: as renovações (com os nomes, só com a sessão) */
+.cresc-renov { margin-top:10px; background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:10px; padding:8px 12px; }
+[data-theme="light"] .cresc-renov { background:var(--bg2); }
+.cresc-renov > summary { cursor:pointer; font-size:13px; font-weight:700; color:var(--text1); min-height:36px; display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; }
+.cresc-renov-lista { list-style:none; margin-top:6px; max-height:420px; overflow-y:auto; }
+.cresc-renov-linha { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px 10px; align-items:center; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.05); }
+[data-theme="light"] .cresc-renov-linha { border-bottom-color:rgba(0,0,0,.07); }
+.cresc-renov-nome { font-size:13px; font-weight:600; color:var(--text1); overflow-wrap:anywhere; }
+.cresc-renov-sub { font-size:11.5px; color:var(--text2); }
+.cresc-agendar { font-size:12px; padding:5px 12px; min-height:40px; white-space:nowrap; }
+/* o estado na Agenda (os selos .cham-marcada / .cham-feita da aba Chamados) */
+.cresc-renov-acao { display:flex; justify-content:flex-end; text-align:right; min-width:0; }
+.cresc-renov-acao .cham-feita { max-width:16em; line-height:1.4; }
+/* o item do Início leva direto ao título da lista: abaixo da barra presa no topo */
+#cresc-renovacoes { scroll-margin-top:130px; }
+@media (max-width:640px) { #cresc-renovacoes { scroll-margin-top:70px; } }
+@media (max-width:400px) { .cresc-renov-linha { grid-template-columns:minmax(0,1fr); } .cresc-renov-acao { justify-content:flex-start; text-align:left; } }
+
+/* 5. classes: pequenos múltiplos, na mesma escala */
+.cresc-grupos { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap:10px; }
+.cresc-grupo { background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:12px; padding:10px 12px; min-width:0; }
+[data-theme="light"] .cresc-grupo { background:var(--bg2); }
+.cresc-grupo-cab { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.cresc-grupo-nome { font-size:13px; font-weight:700; color:var(--text1); overflow-wrap:anywhere; }
+.cresc-grupo-pct { font-size:18px; font-weight:700; color:var(--text1); }
+.cresc-grupo-sub { font-size:11px; color:var(--text2); margin:2px 0 6px; line-height:1.5; }
+.cresc-grupo-alerta { font-size:11px; color:var(--text-corpo); background:rgba(232,176,64,.1); border-left:3px solid #e8b040; border-radius:0 6px 6px 0; padding:4px 8px; margin-top:6px; line-height:1.45; }
+
+/* 6. famílias: números soltos (stat) e a pirâmide */
+.cresc-destaque { font-size:13.5px; color:var(--text1); line-height:1.6; padding:10px 12px; border-radius:10px; background:rgba(163,230,53,.08); border:1px solid rgba(163,230,53,.3); margin-bottom:4px; }
+[data-theme="light"] .cresc-destaque { background:rgba(77,124,15,.07); border-color:rgba(77,124,15,.3); }
+.cresc-destaque strong { font-size:16px; }
+.cresc-stats { display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:8px; }
+.cresc-stat { background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:10px; padding:8px 10px; min-width:0; }
+[data-theme="light"] .cresc-stat { background:var(--bg2); }
+.cresc-stat-num { font-size:20px; font-weight:700; color:var(--text1); }
+.cresc-stat-rot { font-size:11.5px; color:var(--text2); line-height:1.4; overflow-wrap:anywhere; }
+.cresc-stat-nota { font-size:10.5px; color:var(--text3); margin-top:2px; line-height:1.4; }
+
+/* a prévia da importação (o resto vem de .cham-prev-*) */
+.cresc-lista-pdfs { margin:6px 0 6px 18px; }
+.cresc-prev-chaves { max-height:none; display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:0 12px; margin-bottom:10px; }

@@ -92,6 +92,7 @@
   <button class="tab-btn" data-tab="sacramental"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-church"/></svg> Sacramental</button>
   <button class="tab-btn" data-tab="membros"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-users"/></svg> Membros</button>
   <button class="tab-btn" data-tab="chamados"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-badge-check"/></svg> Chamados</button>
+  <button class="tab-btn" data-tab="crescimento"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-sprout"/></svg> Vamos crescer a Ala</button>
   <button class="tab-btn" data-tab="notas"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-notebook-pen"/></svg> Notas</button>
   <button class="tab-btn" data-tab="ordenancas"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-hand-heart"/></svg> Ordenanças</button>
   <button class="tab-btn" data-tab="manual"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-book-open"/></svg> Manual</button>
@@ -115,6 +116,7 @@
     <optgroup label="Ala">
       <option value="membros">👥 Membros</option>
       <option value="chamados">🤝 Chamados</option>
+      <option value="crescimento">🌱 Vamos crescer a Ala</option>
       <option value="notas">📝 Notas</option>
     </optgroup>
     <optgroup label="Consulta">
@@ -174,6 +176,12 @@
     <div id="inicio-atencao"><div class="loading">Carregando…</div></div>
   </div>
 
+  <!-- os números da aba Vamos crescer a Ala (inicio.js, renderRumo) -->
+  <div class="nova-card">
+    <h2 class="nova-card-title"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-sprout"/></svg> Rumo a duas alas</h2>
+    <div id="inicio-rumo"><div class="loading">Carregando…</div></div>
+  </div>
+
   <div class="nova-card">
     <h2 class="nova-card-title"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-calendar-days"/></svg> Nesta semana</h2>
     <div id="inicio-semana"><div class="loading">Carregando…</div></div>
@@ -190,6 +198,7 @@
       <button type="button" class="link-card" style="--lc:#e8d080" data-act="ir" data-aba="sacramental"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-church"/></svg></span><span class="lc-txt"><span class="lc-title">Sacramental</span><span class="lc-sub">Oradores, convites e ata de cada domingo</span></span></button>
       <button type="button" class="link-card" style="--lc:#2dd4bf" data-act="ir" data-aba="membros"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-users"/></svg></span><span class="lc-txt"><span class="lc-title">Membros</span><span class="lc-sub">Quadro do LCR, entradas e saídas</span></span></button>
       <button type="button" class="link-card" style="--lc:#fb923c" data-act="ir" data-aba="chamados"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-badge-check"/></svg></span><span class="lc-txt"><span class="lc-title">Chamados</span><span class="lc-sub">Quem ocupa cada chamado, vagos e a designar</span></span></button>
+      <button type="button" class="link-card" style="--lc:#a3e635" data-act="ir" data-aba="crescimento"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-sprout"/></svg></span><span class="lc-txt"><span class="lc-title">Vamos crescer a Ala</span><span class="lc-sub">Os indicadores da ala e o caminho para duas</span></span></button>
       <button type="button" class="link-card" style="--lc:#60a5fa" data-act="ir" data-aba="notas"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-notebook-pen"/></svg></span><span class="lc-txt"><span class="lc-title">Notas</span><span class="lc-sub">Privadas neste aparelho ou compartilhadas</span></span></button>
       <button type="button" class="link-card" style="--lc:#a78bfa" data-act="ir" data-aba="ordenancas"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-hand-heart"/></svg></span><span class="lc-txt"><span class="lc-title">Ordenanças</span><span class="lc-sub">Palavras das ordenanças e roteiros de entrevista</span></span></button>
       <button type="button" class="link-card" style="--lc:#c9a84c" data-act="ir" data-aba="manual"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-book-open"/></svg></span><span class="lc-txt"><span class="lc-title">Manual</span><span class="lc-sub">Manual Geral e links oficiais</span></span></button>
@@ -371,6 +380,60 @@
   </div>
 
   <div id="lista-chamados"><div class="loading">Carregando…</div></div>
+</div>
+
+<!-- ========== VAMOS CRESCER A ALA ==========
+     O momento da ala diante dos mínimos de uma ala do Manual Geral 36.2 (e o
+     dobro, para dividir), com os relatórios do LCR importados em PDF e a
+     frequência das atas. Preenchido por js/crescimento.js: cada bloco é
+     recriado a cada desenho (só o que mudou). Os títulos ficam aqui. -->
+<div class="panel" id="panel-crescimento">
+  <div class="cresc-topo">
+    <h2 style="font-size:18px;--c:#a3e635"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-sprout"/></svg> Vamos crescer a Ala</h2>
+    <p class="cresc-topo-sub">Onde a ala está nos indicadores de uma ala qualificada (Manual Geral 36.2) — e o caminho para dividir em duas</p>
+  </div>
+
+  <div class="cresc-importar" id="cresc-importar">
+    <button type="button" class="btn-primary cresc-importar-btn" data-act="importar">📄 Importar PDF do LCR</button>
+    <input type="file" id="pdf-crescimento" accept="application/pdf,.pdf" hidden>
+    <div class="cresc-importar-dica" id="cresc-importar-dica"></div>
+  </div>
+  <div class="cresc-fontes" id="cresc-fontes"></div>
+  <nav class="cresc-indice" id="cresc-indice" aria-label="Ir para uma parte desta aba"></nav>
+
+  <section class="nova-card cresc-secao" id="cresc-rumo" aria-labelledby="cresc-rumo-titulo">
+    <h2 class="nova-card-title" id="cresc-rumo-titulo"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-sprout"/></svg> Rumo a duas alas</h2>
+    <div id="cresc-rumo-corpo"><div class="loading">Carregando…</div></div>
+  </section>
+  <section class="nova-card cresc-secao" id="cresc-sacramental" aria-labelledby="cresc-sacramental-titulo">
+    <h2 class="nova-card-title" id="cresc-sacramental-titulo"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-church"/></svg> Frequência da reunião sacramental</h2>
+    <div id="cresc-sacramental-corpo"><div class="loading">Carregando…</div></div>
+    <div class="cresc-sac-grade" id="cresc-sac-grade"></div>
+  </section>
+  <section class="nova-card cresc-secao" id="cresc-trimestral" aria-labelledby="cresc-trimestral-titulo">
+    <h2 class="nova-card-title" id="cresc-trimestral-titulo"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-chart-column"/></svg> Relatório trimestral</h2>
+    <div id="cresc-trimestral-corpo"><div class="loading">Carregando…</div></div>
+  </section>
+  <section class="nova-card cresc-secao" id="cresc-recomendacoes" aria-labelledby="cresc-recomendacoes-titulo">
+    <h2 class="nova-card-title" id="cresc-recomendacoes-titulo"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-calendar-clock"/></svg> Recomendações para o templo</h2>
+    <div id="cresc-recomendacoes-corpo"><div class="loading">Carregando…</div></div>
+  </section>
+  <section class="nova-card cresc-secao" id="cresc-classes" aria-labelledby="cresc-classes-titulo">
+    <h2 class="nova-card-title" id="cresc-classes-titulo"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-users"/></svg> Frequência às classes e aos quóruns</h2>
+    <div id="cresc-classes-corpo"><div class="loading">Carregando…</div></div>
+  </section>
+  <section class="nova-card cresc-secao" id="cresc-familias" aria-labelledby="cresc-familias-titulo">
+    <h2 class="nova-card-title" id="cresc-familias-titulo"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-house"/></svg> Famílias e idades</h2>
+    <div id="cresc-familias-corpo"><div class="loading">Carregando…</div></div>
+  </section>
+  <section class="nova-card cresc-secao" id="cresc-chamados" aria-labelledby="cresc-chamados-titulo">
+    <h2 class="nova-card-title" id="cresc-chamados-titulo"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-badge-check"/></svg> Chamados preenchidos</h2>
+    <div id="cresc-chamados-corpo"><div class="loading">Carregando…</div></div>
+  </section>
+  <section class="nova-card cresc-secao" id="cresc-passos" aria-labelledby="cresc-passos-titulo">
+    <h2 class="nova-card-title" id="cresc-passos-titulo"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-list-checks"/></svg> Próximos passos</h2>
+    <div id="cresc-passos-corpo"><div class="loading">Carregando…</div></div>
+  </section>
 </div>
 
 <!-- ========== NOTAS ========== -->
@@ -865,7 +928,8 @@
   <div class="como-usar-section">
     <div class="como-usar-titulo" style="color:var(--text1)">🏠 Início</div>
     <div class="como-usar-item">É a tela que abre ao entrar no app: a saudação, o que está com você, as próximas entrevistas, o que precisa de atenção e a semana — a reunião sacramental do domingo e os eventos do calendário.</div>
-    <div class="como-usar-item"><strong>Precisa de atenção</strong> junta o que ficou para trás: membro que pediu outra data, convite a reenviar depois de um reagendamento, entrevista que passou da data sem resultado, designação com prazo vencido, designação que vence hoje ou amanhã e <strong>chamados apoiados aguardando designação</strong> (do relatório da aba Chamados — o toque abre a aba já no filtro "A designar").</div>
+    <div class="como-usar-item"><strong>Precisa de atenção</strong> junta o que ficou para trás: membro que pediu outra data, convite a reenviar depois de um reagendamento, entrevista que passou da data sem resultado, designação com prazo vencido, designação que vence hoje ou amanhã, <strong>chamados apoiados aguardando designação</strong> (do relatório da aba Chamados — o toque abre a aba já no filtro "A designar") e, para quem entrou como Bispo ou ADM, as <strong>recomendações para o templo a renovar</strong> (só o número — o toque abre a lista na aba Vamos crescer a Ala).</div>
+    <div class="como-usar-item">O cartão <strong>Rumo a duas alas</strong> traz o resumo da aba Vamos crescer a Ala: quantos mínimos de uma ala (Manual Geral 36.2) já estão cumpridos e a barra dos membros até uma e até duas alas.</div>
     <div class="como-usar-item">Toque em qualquer item ou atalho para abrir a aba correspondente. As contas seguem as mesmas regras das abas.</div>
     <div class="como-usar-item">Entrevistas sigilosas só aparecem para quem entrou como Bispo (com senha) — e, mesmo para ele, aparecem aqui como <strong>🔒 Entrevista sigilosa</strong>, sem nome nem tipo, porque esta é a tela que fica aberta. O detalhe está na aba Agenda.</div>
     <div class="como-usar-item">O Início não tem o botão <strong>+</strong>: para marcar uma entrevista ou criar outro registro, abra a aba correspondente (a Agenda, para entrevistas).</div>
@@ -961,7 +1025,7 @@
     <div class="como-usar-item"><strong>Como gerar um PDF que o app lê:</strong> no LCR, abra a <strong>Lista de Membros</strong>, toque em <strong>Imprimir</strong> e, na janela de impressão, escolha o destino <strong>Salvar como PDF</strong>.</div>
     <div class="como-usar-item">Não use a impressora <strong>Microsoft Print to PDF</strong> do Windows: ela grava as letras como desenho, sem texto, e nada consegue ler o arquivo — o app avisa e explica como gerar de novo. O mesmo vale para um PDF escaneado ou uma foto da lista.</div>
     <div class="como-usar-item">A Lista de Membros que o LCR imprime hoje traz também a coluna <strong>Endereço</strong>. Pode importar assim mesmo: o app lê essa coluna só para não misturá-la com idade, telefone e e-mail, e a descarta — <strong>o endereço não é guardado</strong>. A lista sem essa coluna também funciona. Se o app disser que o cabeçalho da lista não foi reconhecido, gere o PDF com o LCR em <strong>português</strong>: sem os nomes das colunas, ele não lê, para o endereço não ir parar no e-mail.</div>
-    <div class="como-usar-item">Escolheu o relatório <strong>Organizações e Chamados</strong> por engano? O app avisa, com um botão para a aba Chamados, onde ele se importa.</div>
+    <div class="como-usar-item">Escolheu o relatório <strong>Organizações e Chamados</strong> por engano, ou um dos relatórios da aba Vamos crescer a Ala (a situação das recomendações e a frequência às classes também têm "Nome | Sexo" no cabeçalho)? O app avisa, com um botão para a aba onde ele se importa — e o quadro de membros não é tocado.</div>
     <div class="como-usar-item">Antes de gravar, a prévia mostra os membros novos, os dados atualizados e os ausentes no PDF, e confere o total com a <strong>Contagem</strong> que o LCR escreve no fim da lista — se faltar alguém, ela avisa. Movimentações (entradas e saídas) e o histórico são preservados.</div>
     <div class="como-usar-item">O cartão de cada membro mostra os chamados dele, do relatório da aba Chamados — com <strong>(a designar)</strong> em quem ainda espera a imposição de mãos.</div>
   </div>
@@ -976,6 +1040,27 @@
     <div class="como-usar-item"><strong>Nomes do bispado:</strong> a prévia compara Bispo, conselheiros e secretários do relatório com os nomes do app — os da entrada, dos convites e da presença nas atas. Se algo mudou, a caixa <strong>Atualizar os nomes do bispado</strong> já vem marcada; desmarque para manter os atuais. Um nome escrito mais curto (só o primeiro nome e o sobrenome, por exemplo) conta como a mesma pessoa e fica como está.</div>
     <div class="como-usar-item"><strong>O que não é guardado:</strong> o relatório traz também a lista de membros de cada organização, com idade, data de nascimento, telefone e e-mail. Essa parte não é lida nem gravada — do PDF ficam só os chamados, quem os ocupa, a data do apoio e a designação.</div>
     <div class="como-usar-item">Os chamados também aparecem no cartão de cada membro (aba Membros) e no <strong>Precisa de atenção</strong> do Início. Na demonstração, a aba vem com chamados fictícios e a importação fica desligada.</div>
+  </div>
+
+  <div class="como-usar-section">
+    <div class="como-usar-titulo" style="--c:#a3e635">🌱 Vamos crescer a Ala</div>
+    <div class="como-usar-item">Mostra de relance onde a ala está diante dos mínimos de uma ala do <strong>Manual Geral 36.2</strong> — e do dobro, que é o que cada metade precisa para a ala ser dividida em duas —, para o bispado ver o que falta e se animar a trabalhar nisso. <strong>Cada número é uma pessoa</strong> (33.5.1.3): os números mostram onde ministrar, não medem ninguém.</div>
+    <div class="como-usar-item"><strong>A regra (36.2, em vigor desde 1º/1/2024):</strong> uma ala precisa de <strong>250 membros</strong>, <strong>20 portadores do Sacerdócio de Melquisedeque</strong> ativos, dizimistas integrais e capazes de liderar, <strong>100 adultos participantes</strong> e <strong>20 jovens participantes</strong> (recomendado); uma estaca, de 2.000 membros, 150 portadores, 500 adultos, 100 jovens e 5 alas. <strong>Participante</strong> (carta da Primeira Presidência de 30/11/2023) é quem paga o dízimo (integral ou parcial), tem recomendação para o templo válida, tem um chamado, é membro novo que frequenta no 1º ano, ou é jovem matriculado no seminário. Dividir em duas alas pede que cada metade cumpra os mínimos — perto de 500 membros, 40 portadores, 200 adultos e 40 jovens — e liderança para dois bispados. Quem propõe a divisão é o <strong>presidente da estaca</strong>: a aba mostra o caminho, não faz o pedido.</div>
+    <div class="como-usar-item"><strong>Rumo a duas alas:</strong> um cartão por critério, com a barra até o mínimo de uma ala e o de duas. O selo de cada número diz de onde ele vem: <strong>mínimo: Manual Geral 36.2</strong> (a regra publicada), <strong>número do LCR</strong>, <strong>contado no quadro</strong>, <strong>estimativa · mínimo comprovado</strong> ou <strong>informado pelo bispo</strong>. Embaixo, a liderança: as presidências da ala (da aba Chamados), com o que falta em cada uma.</div>
+    <div class="como-usar-item"><strong>O que é estimativa:</strong> os <strong>participantes</strong>. O app só consegue provar quem tem chamado (aba Chamados), quem tem recomendação válida (os relatórios de recomendação) e o converso recente — cada pessoa conta uma vez. O dízimo, que só o bispo sabe (34.4), e o seminário não entram: o número de verdade é maior, e o cartão diz "faltam comprovar". Sem a senha do bispo, sem os nomes das recomendações, vale o maior dos dois grupos.</div>
+    <div class="como-usar-item"><strong>Portadores ativos e dizimistas integrais:</strong> só o Bispo ou o ADM informa e vê esse número, que fica na parte protegida do servidor. O app nunca guarda o dízimo de ninguém — só esse total.</div>
+    <div class="como-usar-item"><strong>Frequência da reunião sacramental:</strong> 12 cartões, um por mês, como na página de frequência do LCR — o anel é a média do mês sobre o total de membros e, embaixo, cada domingo —, a linha de cada domingo com a média do mês e as colunas ano a ano. A contagem é a <strong>frequência da ata de cada domingo</strong> (aba Sacramental). Em <strong>Anotar a frequência</strong>, digite os domingos que faltam: grava só a frequência na ata, sem mexer no resto dela. O % dos anos anteriores (do LCR) o Bispo ou o ADM informa uma vez; o do ano corrente sai das atas.</div>
+    <div class="como-usar-item"><strong>Relatório trimestral:</strong> as linhas 1 a 9 (indicadores de conversão e de crescimento) em cartões, com o real, o potencial e o %; as outras, compactas, por seção. As setas comparam o % de agora com o de 1 e o de 5 anos antes (<strong>▲</strong> melhor, <strong>▼</strong> pior, também escrito). Com mais de um trimestre importado, cada cartão ganha o histórico.</div>
+    <div class="como-usar-item"><strong>Recomendações para o templo:</strong> adultos e jovens por situação (ativa, para vencer, vencida, sem recomendação), por faixa de idade, e quantas vencem em cada um dos próximos 12 meses — a agenda de renovações do secretário executivo. Com a senha do bispo, <strong>Renovações a agendar</strong> lista quem vence nos próximos 2 meses e quem já venceu; <strong>📅 Agendar renovação</strong> abre uma entrevista nova na Agenda já com a pessoa, o tipo (<strong>Renovação de Recomendação para o Templo</strong> ou <strong>Recomendação de Uso Limitado (Jovens)</strong>) e o motivo na observação. Marcada, a linha mostra a data (toque para abrir a Agenda); feita depois do relatório, a linha avisa que ela sai da lista na próxima importação.</div>
+    <div class="como-usar-item"><strong>Frequência às classes e aos quóruns:</strong> um quadro por grupo (Quórum de Élderes, Sociedade de Socorro, Escola Dominical dos adultos e dos jovens, Rapazes, Moças, Primária), todos na mesma escala, com a seta das 4 últimas semanas contra as 4 anteriores. Grupo grande com quase ninguém marcado ganha o aviso: provavelmente a frequência não está sendo registrada no LCR.</div>
+    <div class="como-usar-item"><strong>Famílias e idades:</strong> os números das Estatísticas da Unidade (famílias, famílias sem portador do Sacerdócio de Melquisedeque, adultos casados e solteiros, jovens adultos solteiros, sacerdócio, Moças e crianças) e a pirâmide de idades do quadro de membros. <strong>Chamados preenchidos</strong> mostra cada organização, com atalhos para a aba Chamados.</div>
+    <div class="como-usar-item"><strong>Próximos passos:</strong> uma lista curta, em ordem, do que dá para fazer agora — recomendações a renovar, chamados a designar, lugares vagos nas presidências, domingos sem a frequência, um grupo cuja frequência caiu, indicadores abaixo do ano anterior. Só números, nenhum nome; o toque leva à parte certa.</div>
+    <div class="como-usar-item"><strong>No Início:</strong> o cartão <strong>Rumo a duas alas</strong> mostra quantos mínimos de uma ala já estão cumpridos e a barra dos membros até uma e duas alas. Com a senha do bispo, <strong>Precisa de atenção</strong> mostra quantas recomendações vencem nos próximos 2 meses ou já venceram (só o número) — o toque abre a lista.</div>
+    <div class="como-usar-item"><strong>Como importar:</strong> no LCR, abra o relatório (menu Relatórios), toque em <strong>Imprimir</strong> e, na janela de impressão, escolha o destino <strong>Salvar como PDF</strong> — não "Microsoft Print to PDF". Depois, aqui, toque em <strong>📄 Importar PDF do LCR</strong>: o app reconhece o relatório pelo título. Entram cinco: <strong>Relatório Trimestral</strong>, <strong>Estatísticas da Unidade</strong>, <strong>Situação de Recomendação para o Templo</strong> (adultos), <strong>Situação da Recomendação do Jovem</strong> e <strong>Frequência à classe e ao quórum</strong> (um mês por PDF: importe cada mês; os outros ficam). Escolheu a Lista de Membros ou o Organizações e Chamados? O app avisa e leva à aba certa — e as abas Membros e Chamados fazem o mesmo com estes cinco.</div>
+    <div class="como-usar-item">Antes de gravar, a prévia mostra o que foi lido, confere a <strong>"Contagem"</strong> do LCR, avisa se o PDF é de outra ala ou mais antigo que o já importado, e diz o que não é guardado. Importar pede a <strong>senha do Bispo ou do ADM</strong>; sem ela, o app explica e oferece entrar.</div>
+    <div class="como-usar-item"><strong>O que fica guardado:</strong> para todos que abrem o app, só contagens — as linhas do Trimestral, os totais das Estatísticas, quantas recomendações há em cada situação e mês de validade e, por domingo, quantos vieram e quantos estão matriculados em cada grupo. <strong>Só com a senha do Bispo ou do ADM:</strong> a lista das recomendações por pessoa (nome, sexo, idade, situação e validade), de onde sai a lista de renovações, e o número de portadores dizimistas.</div>
+    <div class="como-usar-item"><strong>O que NÃO é guardado:</strong> a frequência de cada pessoa (o app conta os ícones de presença do PDF sem ler nomes), a página <strong>Detalhes sobre o Converso</strong> do Trimestral, o tipo de recomendação e o dízimo de qualquer pessoa — nunca. Os relatórios do LCR são "Somente para uso da Igreja": esta aba é para o bispado e o conselho, não para projetar em público.</div>
+    <div class="como-usar-item">Na demonstração, a aba vem com uma ala fictícia — três trimestres, as estatísticas, as recomendações, quatro meses de classes e um ano de frequência — e a importação fica desligada; o Bispo da demonstração (senha <strong>demo</strong>) vê a lista de renovações.</div>
   </div>
 
   <div class="como-usar-section">
@@ -1014,6 +1099,7 @@
     <div class="como-usar-titulo" style="--c:#c9a84c">🔒 Bispo com senha</div>
     <div class="como-usar-item">No <strong>“Quem está usando?”</strong> (toque no crachá do topo), os conselheiros e secretários se escolhem direto. O <strong>Bispo</strong> pede senha.</div>
     <div class="como-usar-item">Só com a senha o servidor entrega as entrevistas e os acompanhamentos <strong>sigilosos</strong>: nos outros cargos eles nem chegam ao aparelho, nem podem ser alterados.</div>
+    <div class="como-usar-item">Na aba <strong>Vamos crescer a Ala</strong>, a senha também é o que traz a lista das recomendações com os nomes (as renovações a agendar) e o número de portadores dizimistas, e só ela importa relatórios do LCR e muda os números do bispo. Ao sair, os nomes saem da tela na hora.</div>
     <div class="como-usar-item">O aparelho fica conectado por <strong>30 dias</strong>. Para encerrar antes — num aparelho emprestado, por exemplo —, toque no crachá e em <strong>Sair da conta</strong>. Escolher outro cargo também encerra.</div>
     <div class="como-usar-item">Entrar pede internet. Errar a senha 5 vezes bloqueia novas tentativas daquele aparelho por 15 minutos.</div>
     <div class="como-usar-item">A senha fica guardada no servidor (Netlify), não no app — quem cuida do app a troca lá. Na <strong>demonstração</strong>, a senha do Bispo é <strong>demo</strong>.</div>
@@ -1029,7 +1115,7 @@
   <div class="como-usar-section">
     <div class="como-usar-titulo" style="--c:#c9a84c">🎭 Modo demonstração</div>
     <div class="como-usar-item">Para apresentar o painel sem mostrar ninguém da ala, abra o endereço do app com <strong>?demo</strong> no fim (por exemplo, <strong>…netlify.app/?demo</strong>). Uma faixa no topo avisa que os dados são fictícios.</div>
-    <div class="como-usar-item">Todas as abas vêm preenchidas com uma ala inventada: entrevistas em todos os estados, convites respondidos, acompanhamentos, designações, reuniões, a programação sacramental com o rodízio, o quadro de membros e os chamados da ala (com vagos e a designar). Dá para mexer à vontade.</div>
+    <div class="como-usar-item">Todas as abas vêm preenchidas com uma ala inventada: entrevistas em todos os estados, convites respondidos, acompanhamentos, designações, reuniões, a programação sacramental com o rodízio, o quadro de membros, os chamados da ala (com vagos e a designar) e os relatórios da aba Vamos crescer a Ala. Dá para mexer à vontade.</div>
     <div class="como-usar-item">Nada da demonstração chega aos dados da ala, e nada da ala aparece nela: tudo fica só neste navegador, separado até das suas notas privadas. A importação do LCR fica desligada.</div>
     <div class="como-usar-item">Para mostrar a resposta do membro chegando ao painel, abra o link do convite <strong>neste mesmo navegador</strong>: no convite, toque em <strong>Copiar link do convite</strong>, cole numa aba nova e responda; depois toque em Sincronizar. Aberto em outro aparelho (pelo WhatsApp, por exemplo), o link mostra a tela do membro com uma cópia própria dos dados, e a resposta fica só lá.</div>
     <div class="como-usar-item">Funciona sem internet, desde que o app já tenha sido aberto uma vez com sinal neste aparelho.</div>
@@ -1071,6 +1157,8 @@
 <!-- Modal Importação de Chamados (js/chamados-ala.js): separado do de membros,
      cada um com o seu "Aplicar" -->
 <div class="modal-overlay" id="modal-chamados"><div class="modal-box" id="modal-chamados-content"></div></div>
+<!-- importação dos relatórios do LCR da aba Vamos crescer a Ala (crescimento.js) -->
+<div class="modal-overlay" id="modal-crescimento"><div class="modal-box" id="modal-crescimento-content"></div></div>
 
 <!-- Diálogo genérico (confirmar / pedir texto) -->
 <div class="modal-overlay" id="modal-dialogo"><div class="modal-box" id="modal-dialogo-content"></div></div>
