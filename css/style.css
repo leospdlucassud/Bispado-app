@@ -1246,3 +1246,25 @@
 /* a prévia da importação (o resto vem de .cham-prev-*) */
 .cresc-lista-pdfs { margin:6px 0 6px 18px; }
 .cresc-prev-chaves { max-height:none; display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:0 12px; margin-bottom:10px; }
+
+/* =============================================
+   PROGRESSO DA LEITURA DE PDF (pdf-progresso.js) — as importações do LCR
+   ============================================= */
+.pdf-progresso { text-align:center; padding:26px 10px 18px; color:var(--text2); font-size:13px; }
+.pdf-progresso-anim { display:flex; justify-content:center; gap:7px; margin-bottom:14px; }
+.pdf-progresso-anim span { width:10px; height:10px; border-radius:50%; background:var(--gold); animation:pdf-pulo 1s ease-in-out infinite; }
+.pdf-progresso-anim span:nth-child(2) { animation-delay:.15s; }
+.pdf-progresso-anim span:nth-child(3) { animation-delay:.3s; }
+@keyframes pdf-pulo { 0%,80%,100% { transform:translateY(0); opacity:.45; } 40% { transform:translateY(-9px); opacity:1; } }
+.pdf-progresso-etapa { color:var(--text-corpo); font-weight:600; margin-bottom:10px; }
+.pdf-progresso-barra { height:6px; border-radius:3px; background:rgba(127,127,127,.25); overflow:hidden; max-width:260px; margin:0 auto; }
+.pdf-progresso-feito { height:100%; width:0; background:var(--gold); border-radius:3px; transition:width .25s ease; }
+.pdf-progresso-pagina { font-size:11px; color:var(--text3); margin-top:6px; min-height:14px; }
+.pdf-progresso-mini { display:inline-block; width:12px; height:12px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; vertical-align:-2px; animation:pdf-giro .8s linear infinite; }
+@keyframes pdf-giro { to { transform:rotate(360deg); } }
+button[data-act="aplicar"]:disabled { opacity:.55; cursor:progress; }
+@media (prefers-reduced-motion: reduce) {
+  .pdf-progresso-anim span, .pdf-progresso-mini { animation:none; }
+  .pdf-progresso-anim span { opacity:.8; }
+  .pdf-progresso-feito { transition:none; }
+}

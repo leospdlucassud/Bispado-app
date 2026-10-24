@@ -26,6 +26,7 @@ import './chamados-lcr.js';
 import './membros-lcr.js';
 import './crescimento-lcr.js';
 import './pdf-icones.js';
+import './pdf-progresso.js';
 import './graficos.js';
 import './ui.js';
 import './dialogo.js';

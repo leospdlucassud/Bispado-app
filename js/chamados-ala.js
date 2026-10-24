@@ -27,6 +27,7 @@ import { renderInicio } from './inicio.js';
 import { carregarPdfJs } from './membros-import.js';
 import { MEMBROS_SAIDOS, renderMembros } from './membros.js';
 import { lerFila } from './offline-pwa.js';
+import { iniciarProgresso, liberarAplicar, textoDasPaginas, travarAplicar } from './pdf-progresso.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { podeVer, toast } from './usuario.js';
 import { dataParaExibir, esc, norm } from './utils.js';
@@ -326,14 +327,15 @@ export async function importarPdfChamados(input) {
   // semConfirmacao: a prévia tem uma caixa de marcar, e fechar com ela mexida
   // não é "perder o que foi digitado"
   abrirModal('modal-chamados', { semConfirmacao: true });
-  conteudo('<div class="loading">Lendo o PDF…</div>');
+  const progresso = iniciarProgresso(document.getElementById('modal-chamados-content'), 'Abrindo o PDF…');
 
   try {
     const pdfjs = await carregarPdfJs();
     const doc = await pdfjs.getDocument({ data: await arquivo.arrayBuffer() }).promise;
-    const paginas = [];
-    for (let i = 1; i <= doc.numPages; i++) paginas.push((await (await doc.getPage(i)).getTextContent()).items);
+    progresso.etapa('Lendo os chamados…');
+    const paginas = await textoDasPaginas(doc, progresso);
     if (!modalAberto()) return;   // fechou enquanto lia
+    progresso.etapa('Conferindo as organizações…');
     // o PDF de outra aba (abaDoPdf) recebe o aviso de onde ele se importa
     const tipo = tipoDePdfLcr(paginas);
     const aba = abaDoPdf(tipo);
@@ -345,7 +347,7 @@ export async function importarPdfChamados(input) {
     // aberto sem sinal, carga que falhou) tenta de novo agora; se não vier, a
     // prévia diz que não comparou (e não "sem nome → …" nos 5 cargos).
     if (!nomesCarregados || !chamadosAlaCarregados) {
-      conteudo('<div class="loading">Buscando no servidor os chamados e nomes atuais…</div>');
+      progresso.etapa('Buscando no servidor os chamados e nomes atuais…');
       await Promise.allSettled([nomesCarregados || carregarChamados(), chamadosAlaCarregados || carregarChamadosAla()]);
       if (!modalAberto()) return;
     }
@@ -435,16 +437,18 @@ function mostrarPrevia({ relatorio, chamados, tabelas }, nPaginas) {
     ${nomes}
     <p class="cham-prev-nota cham-prev-rodape">Os chamados da aba serão substituídos pelos deste PDF. As listas de membros que o relatório traz (com telefone, e-mail e nascimento) não são lidas nem guardadas.</p>
     <div class="cham-prev-botoes">
-      <button type="button" class="btn-primary" data-act="aplicar">Aplicar</button>
+      <button type="button" class="btn-primary" data-act="aplicar" disabled aria-disabled="true">Aplicar</button>
       <button type="button" class="btn-secondary" data-act="fechar">Cancelar</button>
     </div>`);
   // o mesmo modal com conteúdo novo: renova o retrato (ui.js)
   abrirModal('modal-chamados', { semConfirmacao: true });
+  // a prévia está inteira na tela: só agora o Aplicar liga (pdf-progresso.js)
+  liberarAplicar(document.getElementById('modal-chamados-content'));
 }
 
 export async function aplicarImportacaoChamados() {
   const imp = IMPORT_CHAMADOS;
-  if (!imp) return;
+  if (!imp || !travarAplicar(document.getElementById('modal-chamados-content'))) return;
   IMPORT_CHAMADOS = null;
   // a caixa só existe quando os nomes atuais vieram do servidor (imp.bispado)
   const atualizarNomes = !!imp.bispado && !!document.getElementById('cham-atualizar-bispado')?.checked;

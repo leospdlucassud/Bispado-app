@@ -40,6 +40,7 @@ import { carregarPdfJs } from './membros-import.js';
 import { MEMBROS_SAIDOS } from './membros.js';
 import { lerFila } from './offline-pwa.js';
 import { caixasDaPagina, lerPaginas } from './pdf-icones.js';
+import { iniciarProgresso, liberarAplicar, travarAplicar } from './pdf-progresso.js';
 import { carregarSacramentais, gravarCamposDomingo, sacCarregado, sacDoServidor } from './sacramental.js';
 import { aoTerminarSessao, papelDaSessao } from './sessao.js';
 import { abrirModal, fecharModal } from './ui.js';
@@ -980,12 +981,14 @@ export async function importarPdfCrescimento(input) {
   if (!temSessao()) { pedirImportacao(); return; }
   IMPORTACAO = null;
   abrirModal('modal-crescimento', { semConfirmacao: true });
-  conteudo('<div class="loading">Lendo o PDF…</div>');
+  const progresso = iniciarProgresso(document.getElementById('modal-crescimento-content'), 'Abrindo o PDF…');
   try {
     const pdfjs = await carregarPdfJs();
     const doc = await pdfjs.getDocument({ data: await arquivo.arrayBuffer() }).promise;
-    const { paginas } = await lerPaginas(doc, { OPS: pdfjs.OPS });
+    progresso.etapa('Lendo o relatório…');
+    const { paginas } = await lerPaginas(doc, { OPS: pdfjs.OPS, progresso });
     if (!modalAberto()) return;   // fechou enquanto lia
+    progresso.etapa('Conferindo os números…');
     // a Lista de Membros e os chamados são de outra aba (abaDoPdf): o aviso diz onde
     const tipo = tipoDePdfLcr(paginas);
     if (abaDoPdf(tipo) !== 'crescimento') (AVISO_TIPO[tipo] || AVISO_TIPO.outro)();
@@ -994,9 +997,13 @@ export async function importarPdfCrescimento(input) {
     else if (tipo === 'recomendacoes-adultos' || tipo === 'recomendacoes-jovens') previaRecomendacoes(lerRecomendacoes(paginas), doc.numPages);
     else if (tipo === 'frequencia-classes') {
       // a presença não é texto: são ícones desenhados (pdf-icones.js), lidos página a página
-      conteudo('<div class="loading">Lendo os ícones de presença…</div>');
+      progresso.etapa('Lendo as presenças marcadas em cada domingo…');
       const icones = [];
-      for (let i = 1; i <= doc.numPages; i++) icones.push(await caixasDaPagina(await doc.getPage(i), pdfjs.OPS));
+      for (let i = 1; i <= doc.numPages; i++) {
+        icones.push(await caixasDaPagina(await doc.getPage(i), pdfjs.OPS));
+        progresso.pagina(i, doc.numPages);
+      }
+      progresso.etapa('Somando as presenças por organização…');
       if (!modalAberto()) return;
       previaFrequencia(lerFrequenciaClasses(paginas, icones), doc.numPages);
     }
@@ -1023,11 +1030,13 @@ function mostrarPrevia({ titulo, avisos = [], resumo, corpo = '', rodape, dados,
     ${corpo}
     ${rodape}
     <div class="cham-prev-botoes">
-      <button type="button" class="btn-primary" data-act="aplicar">Aplicar</button>
+      <button type="button" class="btn-primary" data-act="aplicar" disabled aria-disabled="true">Aplicar</button>
       <button type="button" class="btn-secondary" data-act="fechar">Cancelar</button>
     </div>`);
   // o mesmo modal com conteúdo novo: renova o retrato (ui.js)
   abrirModal('modal-crescimento', { semConfirmacao: true });
+  // a prévia está inteira na tela: só agora o Aplicar liga (pdf-progresso.js)
+  liberarAplicar(document.getElementById('modal-crescimento-content'));
 }
 
 function previaTrimestral(t, nPaginas) {
@@ -1126,7 +1135,7 @@ function previaFrequencia(f, nPaginas) {
 
 async function aplicarImportacao() {
   const imp = IMPORTACAO;
-  if (!imp) return;
+  if (!imp || !travarAplicar(document.getElementById('modal-crescimento-content'))) return;
   // a sessão pode ter terminado com a prévia aberta: sem ela o servidor recusa
   if (!temSessao()) { pedirImportacao(); return; }
   IMPORTACAO = null;

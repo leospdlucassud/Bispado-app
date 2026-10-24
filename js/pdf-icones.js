@@ -128,13 +128,15 @@ export async function caixasDaPagina(pagina, OPS = OPS_PDFJS_3) {
 
 // O documento inteiro: por página, os trechos de texto (o que os leitores de
 // crescimento-lcr.js recebem) e, com `icones`, as caixas. O operator list custa
-// mais que o texto: só a frequência às classes precisa dele.
-export async function lerPaginas(doc, { icones = false, OPS = OPS_PDFJS_3 } = {}) {
+// mais que o texto: só a frequência às classes precisa dele. `progresso`
+// (pdf-progresso.js, opcional) é avisado a cada página lida.
+export async function lerPaginas(doc, { icones = false, OPS = OPS_PDFJS_3, progresso = null } = {}) {
   const paginas = [], caixas = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const pg = await doc.getPage(i);
     paginas.push((await pg.getTextContent()).items);
     if (icones) caixas.push(await caixasDaPagina(pg, OPS));
+    progresso?.pagina(i, doc.numPages);
   }
   return { paginas, icones: caixas };
 }

@@ -5,6 +5,7 @@ import { switchTab } from './app.js';
 import { ALA } from './config.js';
 import { NOMES_DOS_PDFS, abaDoPdf, tipoDePdfLcr } from './crescimento-lcr.js';
 import { MEMBROS, setMembros } from './dados-membros.js';
+import { iniciarProgresso, liberarAplicar, textoDasPaginas, travarAplicar } from './pdf-progresso.js';
 import { EM_DEMO } from './demo.js';
 import { detectarAlaNoPdf, lerPdfMembros } from './membros-lcr.js';
 import { API_MEMBROS, MEMBROS_SAIDOS, MOVIMENTACOES, movimentacoesCarregadas, renderMembros, setMembrosSaidos, setRosterAtualizado } from './membros.js';
@@ -81,19 +82,15 @@ export async function importarPdfMembros(input) {
   if (EM_DEMO) { toast('Na demonstração, a importação do LCR fica desligada — o quadro de membros é fictício'); return; }
 
   abrirModal('modal-import');
-  document.getElementById('modal-import-content').innerHTML =
-    '<div class="loading">Lendo o PDF…</div>';
+  const progresso = iniciarProgresso(document.getElementById('modal-import-content'), 'Abrindo o PDF…');
 
   try {
     const pdfjs = await carregarPdfJs();
     const buf = await arquivo.arrayBuffer();
     const doc = await pdfjs.getDocument({ data: buf }).promise;
-
-    const paginas = [];
-    for (let i = 1; i <= doc.numPages; i++) {
-      const pg = await doc.getPage(i);
-      paginas.push((await pg.getTextContent()).items);
-    }
+    progresso.etapa('Lendo a lista de membros…');
+    const paginas = await textoDasPaginas(doc, progresso);
+    progresso.etapa('Conferindo os membros…');
 
     // PDF sem texto ou de outra aba (abaDoPdf: os chamados, os relatórios da
     // aba Vamos crescer a Ala): diz o que fazer, em vez do "nenhum membro
@@ -184,13 +181,17 @@ export function mostrarPreviaImportacao(lidos, ala, nPaginas, { contagem = null,
       ${ausentes.length ? '<br><strong style="--c:#e8b040">Os ausentes serão removidos da lista ativa</strong> — registre a saída antes se quiser manter o histórico.' : ''}
     </div>
     <div style="display:flex;gap:8px">
-      <button data-act="aplicar" style="flex:1;background:#c9a84c;color:#0d1b2a;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;font-size:13px">Aplicar</button>
+      <button data-act="aplicar" disabled aria-disabled="true" style="flex:1;background:#c9a84c;color:#0d1b2a;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;font-size:13px">Aplicar</button>
       <button data-act="fechar" style="background:rgba(74,106,138,.25);color:var(--text2);border:none;border-radius:10px;padding:11px 18px;cursor:pointer;font-size:13px">Cancelar</button>
     </div>`;
+  // a prévia está inteira na tela: só agora o Aplicar liga (pdf-progresso.js)
+  liberarAplicar(document.getElementById('modal-import-content'));
 }
 
 export async function aplicarImportacao() {
-  if (!IMPORT_PENDENTE) return;
+  // o botão desliga ao tocar: o segundo toque, com a gravação em andamento,
+  // mandava o quadro duas vezes
+  if (!IMPORT_PENDENTE || !travarAplicar(document.getElementById('modal-import-content'))) return;
   const { lidos } = IMPORT_PENDENTE;
 
   // conserva os ids já existentes para não quebrar movimentações e agenda
