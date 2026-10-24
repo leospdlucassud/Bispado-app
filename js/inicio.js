@@ -381,7 +381,9 @@ function renderRumo(cr) {
   if (!cargaTerminou) return preencher('inicio-rumo', CARREGANDO);
   const r = destaqueDoRumo(cr.progresso);
   const abrir = verMais('Ver o caminho até duas alas', 'crescimento');
-  if (!r.conhecidos) {
+  // os jovens participantes são recomendados (36.2), não exigidos: fora da conta dos mínimos
+  const jov = r.recomendados.find(x => x.chave === 'jovensParticipantes');
+  if (!r.conhecidos && jov?.atual == null) {
     return preencher('inicio-rumo', (cr.carregado
       ? vazio('📄 Importe os relatórios do LCR na aba Vamos crescer a Ala para ver onde a ala está')
       : semServidor('Os relatórios do LCR ainda não vieram do servidor')) + abrir);
@@ -403,7 +405,7 @@ function renderRumo(cr) {
   preencher('inicio-rumo', `<div class="inicio-rumo">
       <div class="inicio-rumo-num" aria-hidden="true"><strong>${r.umaAla}</strong> de ${r.total}</div>
       <div class="inicio-rumo-txt"><span class="so-leitor">${r.umaAla} de ${r.total} </span>mínimos de uma ala já cumpridos${ressalva}
-        <span class="inicio-rumo-duas">Para dividir em duas alas: ${r.duasAlas} de ${r.total}</span></div>
+        <span class="inicio-rumo-duas">Para dividir em duas alas: ${r.duasAlas} de ${r.total}${jov?.atual != null ? ` · jovens participantes (recomendado): ${jov.umaAla ? '✓' : `${fmt(jov.atual)} de ${fmt(jov.meta)}`}` : ''}</span></div>
     </div>${barra}${abrir}`);
 }
 

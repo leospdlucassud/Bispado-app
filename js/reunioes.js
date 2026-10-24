@@ -8,7 +8,7 @@ import { API_REUNIOES, CARGOS, DADOS } from './config.js';
 import { confirmar } from './dialogo.js';
 import { imprimirAtaPDF } from './pdf.js';
 import {
-  montarPresenca, paragrafos, presencaParaFormulario, presentes, rotuloPresenca, textoDeBusca,
+  ataResolvida, montarPresenca, paragrafos, presencaParaFormulario, presentes, rotuloPresenca, textoDeBusca,
 } from './reunioes-regras.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
@@ -51,32 +51,47 @@ export function renderReunioes() {
       <div class="membros-stat"><div class="stat-num" style="--c:${pendentes ? '#e8b040' : '#34d399'}">${pendentes}</div><div class="stat-label">Itens em aberto</div></div>`;
   }
 
-  // Filtros por tipo, com contagem — só aparecem os tipos que existem
+  // A tela mostra o que ainda pede algo: a ata que já passou com todos os
+  // itens resolvidos vira histórico (ataResolvida). Ela continua na busca — da
+  // aba e a geral — e no filtro "Histórico"; nada é apagado.
+  const hoje = dataLocal();
+  const historico = todas.filter(r => ataResolvida(r, hoje));
+  const ativas = todas.filter(r => !ataResolvida(r, hoje));
+  // o filtro de um tipo que sumiu da tela (ou do histórico já vazio) volta para "Todas"
+  if (filReuniao === 'historico' ? !historico.length : (filReuniao && !ativas.some(r => r.tipo === filReuniao))) filReuniao = '';
+  const noHistorico = filReuniao === 'historico';
+
+  // Filtros por tipo, com contagem das que estão na tela — só os tipos que existem
   const filtros = document.getElementById('filtros-reuniao');
   if (filtros) {
-    const usados = TIPOS_REUNIAO.filter(t => todas.some(r => r.tipo === t.k));
+    const usados = TIPOS_REUNIAO.filter(t => ativas.some(r => r.tipo === t.k));
     filtros.innerHTML = [
-      `<button class="filtro-btn ${filReuniao===''?'active':''}" data-fil="">Todas (${todas.length})</button>`,
+      `<button class="filtro-btn ${filReuniao===''?'active':''}" data-fil="">Todas (${ativas.length})</button>`,
       ...usados.map(t => {
-        const n = todas.filter(r => r.tipo === t.k).length;
+        const n = ativas.filter(r => r.tipo === t.k).length;
         return `<button class="filtro-btn ${filReuniao===t.k?'active':''}" style="${filReuniao===t.k?'':`border-color:${t.c};--c:${t.c}`}" data-fil="${t.k}">${t.r} (${n})</button>`;
       }),
+      historico.length ? `<button class="filtro-btn ${noHistorico?'active':''}" data-fil="historico" title="Atas de reuniões que já passaram, com todos os itens resolvidos">📚 Histórico (${historico.length})</button>` : '',
     ].join('');
   }
 
-  let lista = todas
-    .filter(r => !filReuniao || r.tipo === filReuniao)
+  // com algo digitado na busca, procura em todas (histórico incluído)
+  const base = busca ? todas : (noHistorico ? historico : ativas);
+  let lista = base
+    .filter(r => !filReuniao || noHistorico || r.tipo === filReuniao)
     .filter(r => !busca || textoDeBusca(r, tipoReuniao(r.tipo).r).includes(busca))
     .sort((a,b) => (b.data||'').localeCompare(a.data||''));
 
   if (!lista.length) {
-    el.innerHTML = todas.length
-      ? `<div class="vazia">🔍 Nenhuma reunião com esse filtro</div>`
-      : `<div class="vazia">📭 Nenhuma reunião registrada<br><span style="font-size:12px;opacity:.7">Toque no + para registrar a primeira</span></div>`;
+    el.innerHTML = !todas.length
+      ? `<div class="vazia">📭 Nenhuma reunião registrada<br><span style="font-size:12px;opacity:.7">Toque no + para registrar a primeira</span></div>`
+      : !busca && !filReuniao && historico.length
+        ? `<div class="vazia">✅ Tudo resolvido — nenhuma ata com item em aberto<br><span style="font-size:12px;opacity:.7">As ${historico.length} atas resolvidas estão no 📚 Histórico e na busca</span></div>`
+        : `<div class="vazia">🔍 Nenhuma reunião com esse filtro</div>`;
     return;
   }
 
-  el.innerHTML = lista.map(cardReuniao).join('');
+  el.innerHTML = lista.map(r => cardReuniao(r, { arquivada: busca && ataResolvida(r, hoje) })).join('');
 }
 
 const textoDe = v => (typeof v === 'string' ? v.trim() : '');
@@ -97,7 +112,9 @@ function presencaCard(presenca) {
 // Card na MESMA ordem do formulário e do PDF: presença, participantes, oração
 // inicial, pauta, itens de ação, oração de encerramento. Ata antiga, sem os
 // campos novos, mostra só o que tem — nada a migrar.
-function cardReuniao(r) {
+// `arquivada`: achada pela busca entre as do histórico — o selo diz por que ela
+// não aparece na tela normal
+function cardReuniao(r, { arquivada = false } = {}) {
   const t = tipoReuniao(r.tipo);
   const id = esc(r.id);
   const itens = Array.isArray(r.itens) ? r.itens : [];
@@ -115,6 +132,7 @@ function cardReuniao(r) {
           <span class="reuniao-data">📅 ${esc(formatarData(r.data))}</span>
           <span class="reuniao-tipo" style="--c:${t.c}">${esc(t.r)}</span>
           ${abertos ? `<span class="reuniao-abertos" style="--c:#e8b040">• ${abertos} em aberto</span>` : ''}
+          ${arquivada ? '<span class="reuniao-abertos" style="--c:var(--text3)">📚 histórico</span>' : ''}
         </div>
         <div class="reuniao-acoes">
           <button type="button" class="btn-secondary" data-act="pdf" data-id="${id}" aria-label="Baixar a ata em PDF">📄 PDF</button>

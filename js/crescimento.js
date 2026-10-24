@@ -21,7 +21,7 @@ import { dadosDosChamados, setFiltroChamados } from './chamados-ala.js';
 import { agruparPorOrganizacao, membroDoQuadro, membrosSemChamado, ordemNatural, resumoChamados } from './chamados-lcr.js';
 import { ALA, API_CRESCIMENTO, DADOS } from './config.js';
 import {
-  METAS_ALA, NOMES_DOS_PDFS, SECOES_TRIMESTRAL, SITUACOES, TIPO_RENOVACAO, abaDoPdf, chaveTrimestre, comparacaoIndicador,
+  METAS_ALA, MIN_SEMANAS_ANO, NOMES_DOS_PDFS, SECOES_TRIMESTRAL, SITUACOES, TIPO_RENOVACAO, abaDoPdf, chaveTrimestre, comparacaoIndicador,
   docCrescimentoVazio, domingosSemFrequencia, frequenciaSacramental, fundirCrescimento, gradeFrequencia, gruposSemMarcacao,
   historicoDigitado, historicoDoIndicador, historicoSacramental, lerEstatisticas, lerFrequenciaClasses, lerRecomendacoes,
   lerTrimestral, liderancaChave, limparCorpoCrescimento, mesCurto, mudancasDaGrade, normalizarDocCrescimento,
@@ -120,12 +120,27 @@ export async function carregarCrescimento() {
 }
 
 // Fim da sessão (Sair, troca de cargo, token recusado): os nomes das
-// recomendações e o número dos dizimistas saem da memória e da tela na hora
-aoTerminarSessao(() => {
-  if (!DOC.privado) return;
+// recomendações e o número dos dizimistas saem da memória e da tela na hora.
+// Com a aba fechada o renderCrescimento não desenha — e o painel escondido
+// guardava a lista de renovações (os nomes) e o campo dos dizimistas no DOM
+// até alguém abrir a aba. Por isso as seções que mostram o privado são
+// esvaziadas aqui (e esquecidas no ultimoHtml): o switchTab as redesenha sem ele.
+// A prévia de importação aberta (com a lista de nomes) também vai embora.
+const SECOES_COM_PRIVADO = ['cresc-rumo-corpo', 'cresc-sacramental-corpo', 'cresc-recomendacoes-corpo', 'cresc-passos-corpo'];
+function esquecerPrivado() {
   DOC = { ...DOC, privado: null };
+  if (IMPORTACAO?.corpo?.privado) { IMPORTACAO = null; if (modalAberto()) fecharModal('modal-crescimento'); }
+  // esvazia sempre (mesmo com a aba aberta: a seção com o campo em foco seria
+  // "adiada" pelo preencher, e o número ficava); aberta, redesenha na hora
+  for (const id of SECOES_COM_PRIVADO) {
+    ultimoHtml.delete(id);
+    adiados.delete(id);
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  }
   renderCrescimento();
-});
+}
+aoTerminarSessao(esquecerPrivado);
 
 // ---------- as contas de um desenho ----------
 // Os adultos e jovens participantes que dá para provar. Com a sessão (as listas
@@ -175,7 +190,9 @@ function contexto() {
     adultosParticipantes: participantes.adultos?.total ?? null, jovensParticipantes: participantes.jovens?.total ?? null,
   });
   const atas = DADOS.sacramentais || [];
-  const semContagem = sacCarregado ? domingosSemFrequencia(atas, { hoje }) : [];
+  // sacDoServidor, não sacCarregado: este fica true mesmo quando a carga falha
+  // (sem sinal), e aí TODO domingo parecia sem contagem (como em inicio.js)
+  const semContagem = sacDoServidor ? domingosSemFrequencia(atas, { hoje }) : [];
   const passos = proximosPassos({
     hoje, publico: pub, privado: pri, chamados, chamadosCarregados: ch.carregados || ch.pendente,
     domingosSemContagem: semContagem, sessao: !!pri,
@@ -279,6 +296,8 @@ function indice(ctx) {
 // ---------- 1. Rumo a duas alas ----------
 const SELO = {
   regra: '<span class="cresc-selo cresc-selo-regra" title="O mínimo é a regra publicada no Manual Geral 36.2">mínimo: Manual Geral 36.2</span>',
+  // os jovens participantes: a tabela de 36.2 os marca como recomendados, não exigidos
+  recomendado: '<span class="cresc-selo cresc-selo-regra" title="O Manual Geral 36.2 recomenda este número, mas não o exige">recomendado: Manual Geral 36.2</span>',
   lcr: '<span class="cresc-selo cresc-selo-lcr">número do LCR</span>',
   quadro: '<span class="cresc-selo cresc-selo-lcr">contado no quadro</span>',
   est: '<span class="cresc-selo cresc-selo-est" title="O que dá para provar com os dados do app: o número de verdade é maior">estimativa · mínimo comprovado</span>',
@@ -288,16 +307,17 @@ const SELO = {
 const barraCriterio = c => barraDeMeta({
   atual: c.atual,
   metas: [{ valor: c.meta, rotulo: `1 ala · ${fmt(c.meta)}` }, { valor: c.metaDuas, rotulo: `2 alas · ${fmt(c.metaDuas)}` }],
-  rotulo: `${c.rotulo}: ${c.atual == null ? 'número não informado' : fmt(c.atual)} — o mínimo é ${fmt(c.meta)} para uma ala e ${fmt(c.metaDuas)} para duas`,
+  rotulo: `${c.rotulo}: ${c.atual == null ? 'número não informado' : fmt(c.atual)} — o ${c.recomendado ? 'recomendado' : 'mínimo'} é ${fmt(c.meta)} para uma ala e ${fmt(c.metaDuas)} para duas`,
 });
 // Na estimativa (um mínimo), o que falta é o que falta COMPROVAR: o número de
 // verdade pode já ter passado — o dízimo não entra na conta
 function situacao(c) {
   if (c.atual == null) return '';
   const faltam = c.estimativa ? 'faltam comprovar' : 'faltam';
-  if (c.atual >= c.metaDuas) return `<div class="cresc-crit-sit ok">✓ Já chega ao mínimo de duas alas (${fmt(c.metaDuas)})</div>`;
-  if (c.atual >= c.meta) return `<div class="cresc-crit-sit ok">✓ Passa do mínimo de uma ala · ${faltam} ${fmt(c.faltaDuas)} para duas</div>`;
-  return `<div class="cresc-crit-sit">${faltam[0].toUpperCase() + faltam.slice(1)} ${fmt(c.falta)} para o mínimo de uma ala (${fmt(c.meta)})</div>`;
+  const alvo = c.recomendado ? 'recomendado' : 'mínimo';
+  if (c.atual >= c.metaDuas) return `<div class="cresc-crit-sit ok">✓ Já chega ao ${alvo} de duas alas (${fmt(c.metaDuas)})</div>`;
+  if (c.atual >= c.meta) return `<div class="cresc-crit-sit ok">✓ Passa do ${alvo} de uma ala · ${faltam} ${fmt(c.faltaDuas)} para duas</div>`;
+  return `<div class="cresc-crit-sit">${faltam[0].toUpperCase() + faltam.slice(1)} ${fmt(c.falta)} para o ${alvo} de uma ala (${fmt(c.meta)})</div>`;
 }
 // o nome curto de cada critério, para a manchete
 const CURTO = {
@@ -306,7 +326,7 @@ const CURTO = {
 };
 const cartao = ({ c, numero, selo, fonte = '', extra = '' }) => `
   <article class="cresc-crit">
-    <div class="cresc-crit-cab"><h3 class="cresc-crit-rot">${esc(c.rotulo)}</h3>${SELO.regra}</div>
+    <div class="cresc-crit-cab"><h3 class="cresc-crit-rot">${esc(c.rotulo)}</h3>${c.recomendado ? SELO.recomendado : SELO.regra}</div>
     <div class="cresc-crit-num">${numero}</div>
     <div class="cresc-crit-barra">${barraCriterio(c)}</div>
     ${situacao(c)}
@@ -321,16 +341,21 @@ function secaoRumo(ctx) {
   const v = ctx.pub.estatisticas?.valores || {};
 
   // a manchete: o que já está cumprido e o que mais falta para dividir. A
-  // estimativa (participantes) é um mínimo: abaixo da meta ela não prova que falta
+  // estimativa (participantes) é um mínimo: abaixo da meta ela não prova que falta.
+  // Os jovens são recomendados, não exigidos: contam à parte, numa frase só deles
   const semNumero = r.total - r.conhecidos;
+  const algum = r.conhecidos || r.recomendados.some(x => x.atual != null);
   const falta = ctx.progresso.filter(c => c.atual != null && !c.estimativa && c.atual < c.metaDuas).sort((a, b) => a.pctDuas - b.pctDuas)[0];
   const estimativaAbaixo = ctx.progresso.some(c => c.estimativa && c.atual != null && c.atual < c.meta);
-  const manchete = !r.conhecidos
+  const manchete = !algum
     ? (crescimentoCarregado ? 'Importe os relatórios do LCR para ver onde a ala está.' : '📡 Os relatórios do LCR ainda não vieram do servidor.')
     : r.umaAla === r.total ? `🎉 A ala cumpre os ${r.total} mínimos de uma ala.`
     : `A ala já cumpre, comprovadamente, <strong>${r.umaAla} de ${r.total}</strong> mínimos de uma ala${semNumero ? ` (${semNumero === 1 ? 'um ainda sem número' : `${semNumero} ainda sem número`})` : ''}.`;
-  const duas = r.conhecidos ? ` Para dividir, cada metade precisa dos mínimos — o dobro de tudo: <strong>${r.duasAlas} de ${r.total}</strong> já chegariam lá.` : '';
+  const duas = algum ? ` Para dividir, cada metade precisa dos mínimos — o dobro de tudo: <strong>${r.duasAlas} de ${r.total}</strong> já chegariam lá.` : '';
   const foco = falta ? ` O que mais falta: <strong>${esc(CURTO[falta.chave] || falta.rotulo)}</strong> — ${fmt(falta.faltaDuas)} para duas alas.` : '';
+  const jov = r.recomendados.find(x => x.chave === 'jovensParticipantes');
+  const recomendado = jov?.atual == null ? ''
+    : ` Os jovens participantes são recomendados, não exigidos: ${jov.umaAla ? `✓ já passam dos ${fmt(jov.meta)} de uma ala` : `${plural(jov.atual, 'comprovado', 'comprovados')}, de ${fmt(jov.meta)}`}.`;
   const ressalva = estimativaAbaixo ? ' Os participantes contados aqui são um mínimo (o dízimo, que só o bispo sabe, não entra): o número de verdade pode já ter passado.' : '';
 
   // membros
@@ -362,7 +387,7 @@ function secaoRumo(ctx) {
   });
 
   return `
-    <p class="cresc-lead">${manchete}${duas}${foco}${ressalva}</p>
+    <p class="cresc-lead">${manchete}${duas}${foco}${recomendado}${ressalva}</p>
     <div class="cresc-criterios">${cMembros}${cSM}${cartaoParticipantes(por.adultosParticipantes, ctx.participantes.adultos, 'adultos')}${cartaoParticipantes(por.jovensParticipantes, ctx.participantes.jovens, 'jovens')}</div>
     ${blocoLideranca(ctx, v, totalSM)}
     <p class="cresc-nota">📖 Manual Geral 36.2 (em vigor desde 1º/1/2024): uma ala precisa de ${METAS_ALA.membros} membros, ${METAS_ALA.portadoresSM} portadores do Sacerdócio de Melquisedeque ativos, dizimistas integrais e capazes de liderar, ${METAS_ALA.adultosParticipantes} adultos participantes e ${METAS_ALA.jovensParticipantes} jovens participantes (recomendado). “Participante” é quem paga o dízimo (integral ou parcial), tem recomendação para o templo válida, tem um chamado, é membro novo que frequenta no 1º ano, ou é jovem no seminário. A divisão é proposta pelo presidente da estaca: aqui está o caminho, não o pedido.</p>`;
@@ -454,9 +479,9 @@ function secaoSacramental(ctx) {
   const primeiro = conhecidos.length ? Math.min(conhecidos[0].ano, anoAtual) : anoAtual;
   const anos = !conhecidos.length ? [] : Array.from({ length: anoAtual - primeiro + 1 }, (_, i) => primeiro + i)
     .map(ano => conhecidos.find(a => a.ano === ano) || { ano, pct: null, fonte: '' });
-  const fonteAno = a => (a.fonte === 'calculado' ? 'calculado das atas' : a.fonte === 'informado' ? 'informado do LCR' : 'não informado');
+  const fonteAno = a => (a.fonte === 'calculado' ? `calculado das atas (${plural(a.semanas, 'domingo', 'domingos')})` : a.fonte === 'informado' ? 'informado do LCR' : 'não informado');
   const figAnos = !anos.length ? '' : figura({
-    titulo: 'Ano a ano', sub: `% da média de cada ano sobre o total de membros. Os anos passados vêm do LCR; ${anoAtual} sai das atas.`,
+    titulo: 'Ano a ano', sub: `% da média de cada ano sobre o total de membros. Os anos passados vêm do LCR (sem o % do LCR, das atas, se tiverem ao menos ${MIN_SEMANAS_ANO} domingos); ${anoAtual} sai das atas.`,
     conteudo: colunas({
       categorias: anos.map(a => String(a.ano)), series: [{ nome: 'Frequência', classe: 'acento', valores: anos.map(a => a.pct) }],
       formato: fmtPct, destaque: anos.findIndex(a => a.ano === anoAtual), altura: 140,
@@ -494,7 +519,12 @@ function gradeSacramental(ctx) {
   if (!sacCarregado) return '';
   const g = gradeFrequencia(ctx.atas, mesGrade, ctx.hoje);
   const faltam = ctx.semContagem;
-  const status = faltam.length
+  // sem as atas do servidor, "sem contagem" não é sabido, e o campo vazio
+  // gravado (o POST que o servidor junta pela data) trocaria a contagem de lá:
+  // a grade fica à vista, mas travada, até as atas virem
+  const travada = !sacDoServidor;
+  const status = travada ? '📡 As atas ainda não vieram do servidor (sem conexão): a grade abre quando elas chegarem.'
+    : faltam.length
     ? `${plural(faltam.length, 'domingo recente sem contagem', 'domingos recentes sem contagem')}: ${esc(faltam.map(ddmm).join(', '))}.${faltam[0].slice(0, 7) !== mesGrade ? ` <button type="button" class="inicio-link" data-act="grade-mes-ir" data-mes="${esc(faltam[0].slice(0, 7))}">Ir para ${esc(mesCurto(faltam[0].slice(0, 7)))}</button>` : ''}`
     : '✓ As últimas 8 semanas estão com a contagem.';
   return `<h3 class="cresc-sub">Anotar a frequência</h3>
@@ -508,9 +538,9 @@ function gradeSacramental(ctx) {
       ${g.map(d => `<label class="cresc-grade-dia${d.semReuniao ? ' sem' : ''}">
         <span class="cresc-grade-data">${esc(ddmm(d.data))}</span>
         ${d.semReuniao ? '<span class="cresc-grade-sem">conferência</span>'
-          : `<input type="text" inputmode="numeric" maxlength="5" class="form-input" name="${d.data}" value="${esc(d.frequencia)}" placeholder="${d.futuro ? '—' : 'pessoas'}"${d.futuro ? ' disabled' : ''} aria-label="Frequência de ${esc(dataParaExibir(d.data))}" autocomplete="off">`}
+          : `<input type="text" inputmode="numeric" maxlength="5" class="form-input" name="${d.data}" value="${esc(d.frequencia)}" placeholder="${d.futuro ? '—' : 'pessoas'}"${d.futuro || travada ? ' disabled' : ''} aria-label="Frequência de ${esc(dataParaExibir(d.data))}" autocomplete="off">`}
       </label>`).join('')}
-      <button type="submit" class="btn-secondary cresc-grade-salvar">Salvar</button>
+      <button type="submit" class="btn-secondary cresc-grade-salvar"${travada ? ' disabled' : ''}>Salvar</button>
     </form>`;
 }
 
@@ -523,10 +553,26 @@ async function mudarMesGrade(mes) {
 }
 
 async function salvarGrade(form) {
+  // sem as atas do servidor, a grade é de campos vazios: gravar mandaria POSTs
+  // que, juntados pela data, trocariam a contagem que já está lá
+  if (!sacDoServidor) { toast('As atas ainda não vieram do servidor: anote quando a conexão voltar'); return; }
   const g = gradeFrequencia(DADOS.sacramentais || [], mesGrade, dataLocal());
-  const digitado = Object.fromEntries([...form.querySelectorAll('input[name]')].filter(i => !i.disabled).map(i => [i.name, i.value]));
-  const { mudancas, invalidos } = mudancasDaGrade(g, digitado);
+  // o que estava no campo quando a grade foi desenhada (defaultValue): só vai o
+  // que a pessoa mexeu — o resto pode ter mudado depois, em outra tela
+  const campos = [...form.querySelectorAll('input[name]')].filter(i => !i.disabled);
+  const digitado = Object.fromEntries(campos.map(i => [i.name, i.value]));
+  const desenhado = Object.fromEntries(campos.map(i => [i.name, i.defaultValue]));
+  const membros = contexto().membros.valor;
+  const { mudancas, invalidos, zeros, acima, conflitos } = mudancasDaGrade(g, digitado, { desenhado, teto: membros });
   if (invalidos.length) { toast(`Use só números: ${invalidos.map(ddmm).join(', ')}`); return; }
+  if (zeros.length) { toast(`0 não é contagem (${zeros.map(ddmm).join(', ')}): para domingo sem reunião, marque o tipo na ata (aba Sacramental)`); return; }
+  for (const c of conflitos) {
+    if (!await confirmar(`A frequência de ${ddmm(c.data)} mudou em outra tela ou aparelho (agora: ${c.atual || 'vazia'}). Gravar ${c.novo || 'vazio'} por cima?`, { okLabel: 'Gravar' })) return;
+  }
+  if (acima.length) {
+    const maior = Math.max(...mudancas.filter(m => acima.includes(m.data)).map(m => +m.frequencia));
+    if (!await confirmar(`${fmt(maior)} pessoas é mais que os ${fmt(membros)} membros da ala. Salvar assim?`, { okLabel: 'Salvar' })) return;
+  }
   gradeSuja = false;
   if (!mudancas.length) { toast('Nada foi alterado'); renderCrescimento(); return; }
   // uma gravação por domingo, pelo caminho das atas: só o campo frequencia vai
@@ -713,17 +759,19 @@ function agendarRenovacaoDe(ds) {
 
 // ---------- 5. Frequência às classes e aos quóruns ----------
 const DIRECAO = { sobe: 'melhor', desce: 'pior', estavel: 'igual' };
+// (a série é só dos domingos em que o grupo teve presença — tendenciaPorGrupo)
 function cartaoGrupo(t, datas, semMarca) {
-  const rec = t.serie.slice(-4), ult = t.serie.at(-1);
+  const rec = t.serie.slice(-4);
   const dir = DIRECAO[t.direcao];
   const variacao = t.variacao == null ? ''
-    : `<span class="cresc-comp cresc-comp-${dir}"><span aria-hidden="true">${SETA[dir]}</span> ${t.direcao === 'estavel' ? 'estável' : `${Math.abs(t.variacao)} pontos`}<span class="so-leitor">${t.direcao === 'sobe' ? ' a mais que' : t.direcao === 'desce' ? ' a menos que' : ' em relação'} nas 4 semanas anteriores</span></span>`;
+    : `<span class="cresc-comp cresc-comp-${dir}"><span aria-hidden="true">${SETA[dir]}</span> ${t.direcao === 'estavel' ? 'estável' : `${Math.abs(t.variacao)} pontos`}<span class="so-leitor">${t.direcao === 'sobe' ? ' a mais que' : t.direcao === 'desce' ? ' a menos que' : ' em relação'} nos 4 domingos com reunião anteriores</span></span>`;
+  const janela = rec.length ? `${rec.length === 1 ? 'último domingo' : `últimos ${rec.length} domingos`} com reunião` : 'nenhum domingo com presença';
   return `<div class="cresc-grupo">
     <div class="cresc-grupo-cab"><span class="cresc-grupo-nome">${esc(t.rotulo)}</span><span class="cresc-grupo-pct">${fmtPct(t.taxaRecente * 100)}</span></div>
-    <div class="cresc-grupo-sub">${plural(ult.matriculados, 'matriculado', 'matriculados')} · últimas ${rec.length} semanas ${variacao}</div>
+    <div class="cresc-grupo-sub">${plural(t.matriculados, 'matriculado', 'matriculados')} · ${janela} ${variacao}</div>
     ${mini({
       serie: t.serie.map(s => ({ data: s.data, taxa: s.taxa, dica: `${ddmm(s.data)}: ${s.presentes} de ${s.matriculados} (${Math.round(s.taxa * 100)}%)` })),
-      datas, rotulo: `${t.rotulo}: presença por domingo, ${fmtPct(t.taxaRecente * 100)} nas últimas ${rec.length} semanas`,
+      datas, rotulo: `${t.rotulo}: presença por domingo com reunião, ${fmtPct(t.taxaRecente * 100)} (${janela})`,
     })}
     ${semMarca ? '<div class="cresc-grupo-alerta">📝 Quase ninguém marcado — confira se a frequência está sendo registrada no LCR</div>' : ''}
   </div>`;
@@ -740,7 +788,7 @@ function secaoClasses(ctx) {
     const s = semanas.find(x => x.data === d);
     return [dataParaExibir(d), ...tend.map(t => { const g = s.porGrupo?.[t.grupo]; return g ? `${g.presentes} de ${g.matriculados}` : '—'; })];
   });
-  return `<p class="cresc-texto">${plural(datas.length, 'domingo registrado', 'domingos registrados')}, de ${esc(dataParaExibir(datas[0]))} a ${esc(dataParaExibir(datas.at(-1)))}. Todos os quadros na mesma escala — de 0 a 100% dos matriculados — para comparar. As setas comparam as 4 últimas semanas com as 4 anteriores.</p>
+  return `<p class="cresc-texto">${plural(datas.length, 'domingo registrado', 'domingos registrados')}, de ${esc(dataParaExibir(datas[0]))} a ${esc(dataParaExibir(datas.at(-1)))}. Todos os quadros na mesma escala — de 0 a 100% dos matriculados — para comparar. O domingo em que o grupo não tem ninguém marcado (sem reunião, como a Escola Dominical em domingos alternados, ou sem a marcação) fica fora da conta. As setas comparam os 4 últimos domingos com reunião com os 4 anteriores.</p>
     <div class="cresc-grupos">${tend.map(t => cartaoGrupo(t, datas, semMarca.has(t.grupo))).join('')}</div>
     ${tabela({ cab: ['Domingo', ...tend.map(t => t.rotulo)], linhas, resumo: 'Ver os números de cada domingo' })}`;
 }
@@ -820,21 +868,33 @@ function seguirPasso(ds) {
 // ---------- gravar (o que só a sessão grava) ----------
 // Otimista: a tela muda na hora, juntando com a MESMA conta do servidor; sem
 // sinal, a gravação fica na fila (apiFetch) e sai na próxima sincronização.
+// A importação das recomendações leva a lista de NOMES: ela não vai para a fila
+// (no IndexedDB, sobrevivia ao "Sair" até alguém entrar de novo como Bispo/ADM).
+// Sem conexão, falha às claras e a tela volta ao que era — importar de novo
+// com sinal (o PDF continua no aparelho).
 async function gravar(corpo, { ok, acao }) {
   const r = limparCorpoCrescimento(corpo);
   if (r.erro) { toast('Não foi possível gravar: ' + r.erro); return false; }
+  const comNomes = Object.values(r.parcial.privado?.recomendacoesPessoas || {}).some(l => l?.length);
+  const antes = DOC;
   const base = { publico: DOC.publico, privado: DOC.privado || docCrescimentoVazio().privado };
   const novo = fundirCrescimento(base, r.parcial, new Date().toISOString());
   DOC = { publico: novo.publico, privado: temSessao() ? novo.privado : null };
   carregando = false;
   renderCrescimento();
   try {
-    aplicarDoServidor(await apiFetch(API_CRESCIMENTO, 'POST', corpo));
+    aplicarDoServidor(await apiFetch(API_CRESCIMENTO, 'POST', corpo, { semFila: comNomes }));
     crescimentoCarregado = true;
     atualizarUltimaSinc(); setSyncStatus('ok');
     if (ok) toast(ok);
     return true;
   } catch (e) {
+    if (e?.semFila) {
+      DOC = { publico: antes.publico, privado: temSessao() ? antes.privado : null };
+      const porque = /^HTTP /.test(e.message || '') ? `o servidor recusou (${e.message})` : 'sem conexão com o servidor';
+      toast(`Não foi gravado: ${porque}. Importe de novo com conexão — a lista tem nomes e não fica guardada no aparelho`);
+      return false;
+    }
     gravacaoPendente = true;
     avisarPendente(acao);
     return false;

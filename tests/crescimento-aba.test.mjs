@@ -74,16 +74,25 @@ test('participantes sem os nomes: o maior dos dois grupos, só na faixa de idade
   assert.ok(limparCorpoCrescimento({ publico: { recomendacoes: { adultos: { ...RESUMO, validasNaFaixa: -1 } } } }).erro);
 });
 
-test('qualificação: o que se sabe cumprido, para uma e duas alas', () => {
+test('qualificação: o que se sabe cumprido, para uma e duas alas; os jovens à parte (recomendado)', () => {
   const p = progressoQualificacao({ membros: 520, portadoresSM: null, adultosParticipantes: 120, jovensParticipantes: 15 });
-  assert.deepEqual(resumoQualificacao(p), { total: 4, conhecidos: 3, umaAla: 2, duasAlas: 1 });
-  assert.deepEqual(resumoQualificacao([]), { total: 0, conhecidos: 0, umaAla: 0, duasAlas: 0 });
+  // 3 mínimos exigidos (membros, portadores, adultos); os jovens são recomendados, não exigidos
+  assert.deepEqual(resumoQualificacao(p), {
+    total: 3, conhecidos: 2, umaAla: 2, duasAlas: 1,
+    recomendados: [{ chave: 'jovensParticipantes', atual: 15, meta: 20, metaDuas: 40, umaAla: false, duasAlas: false }],
+  });
+  // os três exigidos cumpridos e os jovens abaixo: a ala cumpre os mínimos
+  const r = resumoQualificacao(progressoQualificacao({ membros: 300, portadoresSM: 22, adultosParticipantes: 110, jovensParticipantes: 8 }));
+  assert.deepEqual([r.total, r.umaAla, r.recomendados[0].umaAla], [3, 3, false]);
+  assert.equal(progressoQualificacao().find(c => c.chave === 'jovensParticipantes').recomendado, true);
+  assert.deepEqual(resumoQualificacao([]), { total: 0, conhecidos: 0, umaAla: 0, duasAlas: 0, recomendados: [] });
 });
 
 test('o cartão do Início: os mínimos cumpridos e a barra dos membros (nunca a de uma estimativa)', () => {
   const p = progressoQualificacao({ membros: 300, portadoresSM: null, adultosParticipantes: 60, jovensParticipantes: 25 });
   const d = destaqueDoRumo(p);
-  assert.deepEqual([d.total, d.conhecidos, d.umaAla, d.duasAlas], [4, 3, 2, 0]);
+  assert.deepEqual([d.total, d.conhecidos, d.umaAla, d.duasAlas], [3, 2, 1, 0]);
+  assert.deepEqual([d.recomendados[0].atual, d.recomendados[0].umaAla], [25, true]);
   assert.equal(d.barra.chave, 'membros');
   assert.deepEqual([d.barra.atual, d.barra.meta, d.barra.metaDuas, d.barra.faltaDuas], [300, 250, 500, 200]);
   // sem o total de membros, nenhuma barra: nem a dos participantes (um mínimo),
@@ -92,7 +101,10 @@ test('o cartão do Início: os mínimos cumpridos e a barra dos membros (nunca a
   assert.equal(semMembros.barra, null);
   assert.deepEqual([semMembros.conhecidos, semMembros.umaAla], [2, 1]);
   assert.equal(destaqueDoRumo(progressoQualificacao({ adultosParticipantes: 60 })).barra, null);
-  assert.deepEqual(destaqueDoRumo(progressoQualificacao({})), { total: 4, conhecidos: 0, umaAla: 0, duasAlas: 0, barra: null });
+  assert.deepEqual(destaqueDoRumo(progressoQualificacao({})), {
+    total: 3, conhecidos: 0, umaAla: 0, duasAlas: 0, barra: null,
+    recomendados: [{ chave: 'jovensParticipantes', atual: null, meta: 20, metaDuas: 40, umaAla: null, duasAlas: null }],
+  });
 });
 
 // ---------- a renovação na Agenda ----------
@@ -177,10 +189,33 @@ test('grade: os domingos do mês, a conferência sem campo e o domingo que ainda
 test('grade: grava só o que mudou, número inteiro ou vazio (apaga)', () => {
   const g = gradeFrequencia(ATAS, '2026-10', HOJE);
   const r = mudancasDaGrade(g, { '2026-10-04': ' 98 ', '2026-10-18': '0105', '2026-10-25': '50', '2026-10-11': '40' });
-  assert.deepEqual(r, { mudancas: [{ data: '2026-10-18', frequencia: '105' }], invalidos: [] });
+  assert.deepEqual(r, { mudancas: [{ data: '2026-10-18', frequencia: '105' }], invalidos: [], zeros: [], acima: [], conflitos: [] });
   assert.deepEqual(mudancasDaGrade(g, { '2026-10-04': '' }).mudancas, [{ data: '2026-10-04', frequencia: '' }]);
   assert.deepEqual(mudancasDaGrade(g, { '2026-10-04': '9a', '2026-10-18': '-3' }).invalidos, ['2026-10-04', '2026-10-18']);
-  assert.deepEqual(mudancasDaGrade(g, {}), { mudancas: [], invalidos: [] });
+  assert.deepEqual(mudancasDaGrade(g, {}), { mudancas: [], invalidos: [], zeros: [], acima: [], conflitos: [] });
+  // o "0" não é contagem (o domingo continuaria "sem contagem"): recusado à parte
+  const z = mudancasDaGrade(g, { '2026-10-18': '0', '2026-10-04': '00' });
+  assert.deepEqual([z.mudancas, z.zeros], [[], ['2026-10-04', '2026-10-18']]);
+  // acima do total de membros: grava, mas a tela pergunta antes ("1500" em vez de "150")
+  const a = mudancasDaGrade(g, { '2026-10-18': '1500', '2026-10-04': '120' }, { teto: 380 });
+  assert.deepEqual([a.mudancas.length, a.acima], [2, ['2026-10-18']]);
+});
+
+// A grade congela enquanto alguém digita. Desenhada sem a contagem de 11/10 (que
+// chegou depois, gravada em outra tela ou aparelho), só o 18/10 foi digitado: o
+// 11/10 não pode ir com o vazio da tela — apagaria a contagem.
+test('grade: compara com o que foi DESENHADO, não com as atas de agora', () => {
+  const desenhadas = [{ data: '2026-10-04', frequencia: '98' }];
+  const agora = [...desenhadas, { data: '2026-10-11', frequencia: '120' }, { data: '2026-10-18', frequencia: '90' }];
+  const g = gradeFrequencia(agora, '2026-10', HOJE);
+  const desenhado = Object.fromEntries(gradeFrequencia(desenhadas, '2026-10', HOJE).filter(d => !d.semReuniao && !d.futuro).map(d => [d.data, d.frequencia]));
+  const digitado = { ...desenhado, '2026-10-18': '95' };
+  const r = mudancasDaGrade(g, digitado, { desenhado });
+  assert.deepEqual(r.mudancas, [{ data: '2026-10-18', frequencia: '95' }]);   // o 11/10 (120) fica
+  // o 18/10 também mudou lá (90): vai, mas como conflito, para a tela confirmar
+  assert.deepEqual(r.conflitos, [{ data: '2026-10-18', atual: '90', novo: '95' }]);
+  // sem `desenhado` (o jeito antigo), o 11/10 seria apagado
+  assert.ok(mudancasDaGrade(g, digitado).mudancas.some(m => m.data === '2026-10-11' && m.frequencia === ''));
 });
 
 test('domingos sem contagem: os que já passaram, sem o de hoje e sem as conferências', () => {
@@ -191,8 +226,8 @@ test('domingos sem contagem: os que já passaram, sem o de hoje e sem as confer�
 });
 
 test('histórico digitado: % de 0 a 100, com vírgula ou %, e o vazio que apaga', () => {
-  assert.deepEqual(historicoDigitado({ 2022: '37', 2023: '33,5%', 2024: ' ', 2025: '120', 1890: '3', abc: '1' }),
-    { valores: { 2022: 37, 2023: 33.5, 2024: null }, invalidos: ['2025'] });
+  assert.deepEqual(historicoDigitado({ 2022: '41', 2023: '36,5%', 2024: ' ', 2025: '120', 1890: '3', abc: '1' }),
+    { valores: { 2022: 41, 2023: 36.5, 2024: null }, invalidos: ['2025'] });
   assert.deepEqual(historicoDigitado({ 2022: '-1', 2023: '1e2' }).invalidos, ['2022', '2023']);
 });
 
@@ -261,16 +296,16 @@ test('próximos passos: o que fazer agora, em ordem, sem nome nenhum', () => {
 // ---------- o POST do servidor ----------
 test('POST: junta por seção; vazio é 400; guardado estranho é 500 (não grava por cima)', () => {
   const agora = '2026-10-18T12:00:00.000Z';
-  const a = aplicarPostCrescimento(null, { publico: { historicoSacramental: { 2022: 37 } } }, agora);
+  const a = aplicarPostCrescimento(null, { publico: { historicoSacramental: { 2022: 41 } } }, agora);
   assert.equal(a.status, 200);
-  assert.equal(a.doc.publico.historicoSacramental[2022], 37);
+  assert.equal(a.doc.publico.historicoSacramental[2022], 41);
   const b = aplicarPostCrescimento(a.doc, { privado: { portadoresAtivosDizimistas: 21 } }, agora);
-  assert.equal(b.doc.publico.historicoSacramental[2022], 37);   // o resto ficou
+  assert.equal(b.doc.publico.historicoSacramental[2022], 41);   // o resto ficou
   assert.equal(b.doc.privado.portadoresAtivosDizimistas, 21);
   assert.deepEqual(aplicarPostCrescimento(b.doc, {}, agora), { status: 400, erro: 'nenhuma seção para gravar' });
   assert.deepEqual(aplicarPostCrescimento(b.doc, { inventado: 1 }, agora).status, 400);
   assert.equal(aplicarPostCrescimento(b.doc, { privado: { portadoresAtivosDizimistas: -2 } }, agora).status, 400);
-  assert.equal(aplicarPostCrescimento('estragado', { publico: { historicoSacramental: { 2022: 37 } } }, agora).status, 500);
+  assert.equal(aplicarPostCrescimento('estragado', { publico: { historicoSacramental: { 2022: 41 } } }, agora).status, 500);
   assert.ok(MAX_CORPO_CRESCIMENTO > JSON.stringify({ privado: { recomendacoesPessoas: { adultos: Array.from({ length: 2000 }, () => ({ nome: 'X'.repeat(150), sexo: 'F', idade: 99, situacao: 'para-vencer', validade: '2027-01' })) } } }).length);
 });
 
@@ -310,5 +345,5 @@ test('demonstração: o privado só com a sessão, e só a sessão grava', async
   // guardado estragado: erro, não "nada importado"
   const torto = criarServidor(armazem({ crescimento: 'texto' }));
   assert.equal((await pedir(torto, 'GET')).status, 500);
-  assert.equal((await pedir(torto, 'POST', { publico: { historicoSacramental: { 2022: 37 } } }, true)).status, 500);
+  assert.equal((await pedir(torto, 'POST', { publico: { historicoSacramental: { 2022: 41 } } }, true)).status, 500);
 });

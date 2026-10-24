@@ -695,10 +695,13 @@ export const grupoDaClasse = rotulo => {
 // A forma de um ícone (as caixas de js/pdf-icones.js): 'presente' (círculo com o
 // ✓ recortado: curvas E retas), 'ausente' (anel: só curvas — dois círculos,
 // muitas curvas; ou um círculo só contornado), ou null (outra coisa: o glifo de
-// tendência, um chevron, um botão).
+// tendência, um chevron, um botão). Os ícones de verdade são quadrados exatos
+// (12,5 × 12,5; 10,5 × 10,5 em agosto): a folga é de 3%. O glifo de tendência
+// (10,6 × 11,3; 9,0 × 9,5) difere uns 6% e já sai pela forma — com 10% de
+// folga ele passava por "presente".
 export function formaDoIcone(c) {
   if (!c || !(c.w > 0) || !(c.h > 0)) return null;
-  if (Math.abs(c.w - c.h) > Math.max(c.w, c.h) * 0.1) return null;
+  if (Math.abs(c.w - c.h) > Math.max(c.w, c.h) * 0.03) return null;
   const pinta = c.pintura === 'fill' || c.pintura === 'eoFill';
   if (pinta && c.curvas >= 4 && c.retas >= 2) return 'presente';
   if (c.retas === 0 && ((pinta && c.curvas >= 8) || (c.pintura === 'stroke' && c.curvas >= 4))) return 'ausente';
@@ -753,11 +756,20 @@ export function lerFrequenciaClasses(paginas, icones = [], { hoje = dataLocal() 
 
   // 1. os ícones: forma e tamanho. O anel, o mais comum, dá a medida (o glifo de
   //    tendência tem forma de ✓ — curvas e retas —, mas nunca de anel); fica o
-  //    que tem a medida dele com folga de 8% (o glifo tem 15% a menos)
+  //    que tem a medida dele com folga de 8% (o glifo tem 15% a menos).
+  //    Sem nenhum anel, não há medida: a de "todas as formas" era a do glifo
+  //    (um por pessoa), e os glifos viravam presenças — um mês de lixo
+  //    plausível que, gravado, trocava os domingos já guardados. Sem anel, nada.
   const porPagina = (icones || []).map(lista => (lista || []).map(c => ({ ...c, forma: formaDoIcone(c) })));
   const aneis = porPagina.flat().filter(c => c.forma === 'ausente');
-  const lados = (aneis.length ? aneis : porPagina.flat().filter(c => c.forma)).map(c => c.w).sort((a, b) => a - b);
-  const lado = lados.length ? lados[Math.floor(lados.length / 2)] : 0;
+  if (!aneis.length) {
+    out.avisos.push(porPagina.flat().length
+      ? 'Não reconheci os ícones de ausência (o anel): o desenho do relatório pode ter mudado. Nada foi contado.'
+      : 'Nenhum ícone de presença foi encontrado.');
+    return out;
+  }
+  const lados = aneis.map(c => c.w).sort((a, b) => a - b);
+  const lado = lados[Math.floor(lados.length / 2)];
   const doTamanho = c => c.forma && Math.abs(c.w - lado) <= lado * 0.08 && Math.abs(c.h - lado) <= lado * 0.08;
   const validos = porPagina.map((lista, p) => lista.filter(c => {
     if (!doTamanho(c) || !ehConteudo(p, { y: c.y + c.h }, rodapes[p] ?? -Infinity)) { if (c.forma) out.icones.ignorados++; return false; }
@@ -843,18 +855,21 @@ export function lerFrequenciaClasses(paginas, icones = [], { hoje = dataLocal() 
 // membro novo (1º ano) que frequenta, ou é jovem matriculado no seminário. O
 // dízimo é sigiloso (só o bispo, 34.4) — por isso o app só PROVA uma parte:
 // chamado, recomendação e converso dos últimos 12 meses. É um mínimo, nunca o número.
+// Os jovens participantes são RECOMENDADOS, não exigidos (a tabela de 36.2 —
+// e a de 36.1, da estaca — marca só essa linha assim): `recomendado` os tira
+// da conta dos mínimos (resumoQualificacao) e muda o selo do cartão.
 export const METAS_ALA = Object.freeze({ membros: 250, portadoresSM: 20, adultosParticipantes: 100, jovensParticipantes: 20 });
 export const METAS_ESTACA = Object.freeze({ membros: 2000, portadoresSM: 150, adultosParticipantes: 500, jovensParticipantes: 100, alas: 5 });
 export const CRITERIOS = [
   { chave: 'membros', rotulo: 'Membros', meta: METAS_ALA.membros },
   { chave: 'portadoresSM', rotulo: 'Portadores do Sacerdócio de Melquisedeque ativos e dizimistas integrais', meta: METAS_ALA.portadoresSM, sigiloso: true },
   { chave: 'adultosParticipantes', rotulo: 'Adultos participantes', meta: METAS_ALA.adultosParticipantes, estimativa: true },
-  { chave: 'jovensParticipantes', rotulo: 'Jovens participantes', meta: METAS_ALA.jovensParticipantes, estimativa: true },
+  { chave: 'jovensParticipantes', rotulo: 'Jovens participantes', meta: METAS_ALA.jovensParticipantes, estimativa: true, recomendado: true },
 ];
 
 // atual: { membros, portadoresSM, adultosParticipantes, jovensParticipantes } (null = não se sabe).
 // Dividir em DUAS alas pede que cada metade cumpra o mínimo: o dobro de tudo.
-// → [{ chave, rotulo, atual, meta, metaDuas, pct, pctDuas, falta, faltaDuas, sigiloso, estimativa }]
+// → [{ chave, rotulo, atual, meta, metaDuas, pct, pctDuas, falta, faltaDuas, sigiloso, estimativa, recomendado }]
 export function progressoQualificacao(atual = {}) {
   const pct = (a, m) => (a == null ? null : Math.round(a / m * 100));
   return CRITERIOS.map(c => {
@@ -864,7 +879,7 @@ export function progressoQualificacao(atual = {}) {
       chave: c.chave, rotulo: c.rotulo, atual: a, meta: c.meta, metaDuas,
       pct: pct(a, c.meta), pctDuas: pct(a, metaDuas),
       falta: a == null ? null : Math.max(0, c.meta - a), faltaDuas: a == null ? null : Math.max(0, metaDuas - a),
-      sigiloso: !!c.sigiloso, estimativa: !!c.estimativa,
+      sigiloso: !!c.sigiloso, estimativa: !!c.estimativa, recomendado: !!c.recomendado,
     };
   });
 }
@@ -1007,22 +1022,38 @@ export function frequenciaSacramental(atas, { membros = null, hoje = dataLocal()
 
 // A linha dos anos: o % informado de cada ano (historicoSacramental, digitado uma
 // vez a partir do LCR) e, no ano corrente, o calculado das atas — que é o que se
-// está construindo agora. → [{ ano, pct, fonte: 'informado'|'calculado' }]
+// está construindo agora. Um ano passado sem o % informado só sai das atas com
+// meio ano de domingos contados (MIN_SEMANAS_ANO): a média de 2 domingos de
+// dezembro sobre o total de membros de hoje, ao lado de anos inteiros do LCR,
+// parecia o ano. → [{ ano, pct, fonte: 'informado'|'calculado', semanas? (no calculado) }]
+export const MIN_SEMANAS_ANO = 26;
 export function historicoSacramental(informado, porAno, anoAtual = +dataLocal().slice(0, 4)) {
   const anos = new Set([...Object.keys(informado || {}), ...Object.keys(porAno || {})]);
   return [...anos].sort().map(ano => {
-    const calc = porAno?.[ano]?.pct;
+    const calc = porAno?.[ano]?.pct, semanas = porAno?.[ano]?.semanas || 0;
     const inf = informado?.[ano];
-    if ((+ano === anoAtual || !Number.isFinite(inf)) && Number.isFinite(calc)) return { ano: +ano, pct: calc, fonte: 'calculado' };
+    const vale = +ano === anoAtual || (!Number.isFinite(inf) && semanas >= MIN_SEMANAS_ANO);
+    if (vale && Number.isFinite(calc)) return { ano: +ano, pct: calc, fonte: 'calculado', semanas };
     return Number.isFinite(inf) ? { ano: +ano, pct: inf, fonte: 'informado' } : null;
   }).filter(Boolean);
 }
 
 // ---------- frequência às classes: a tendência de cada grupo ----------
 // semanas: as guardadas (frequenciaClasses.semanas), de vários meses. Compara a
-// taxa das `janela` últimas semanas registradas com a das `janela` anteriores.
-// → [{ grupo, rotulo, serie: [{ data, presentes, matriculados, taxa }], taxaRecente,
-//      taxaAnterior, variacao (pontos percentuais), direcao: 'sobe'|'desce'|'estavel'|null }]
+// taxa dos `janela` últimos domingos COM REUNIÃO do grupo com a dos `janela`
+// anteriores. No horário de duas horas, a Escola Dominical se reúne num domingo
+// e os quóruns, a Sociedade de Socorro, as Moças e os Rapazes no outro — e o
+// LCR desenha o anel de ausente para todo matriculado em TODOS os domingos. O
+// domingo em que o grupo inteiro tem 0 presenças é "sem reunião (ou não
+// marcado)": fica fora da série e das taxas — com ele, a manchete mostrava
+// metade da frequência, e a seta virava conforme a janela pegava um domingo
+// com aula a mais.
+// → [{ grupo, rotulo, serie: [{ data, presentes, matriculados, taxa }] (só os com
+//      presença), matriculados (o do último domingo), semReuniao (os domingos de
+//      0 presenças), taxaRecente, taxaAnterior, variacao (pontos percentuais),
+//      direcao: 'sobe'|'desce'|'estavel'|null }]
+// O grupo com matriculados e NENHUMA presença em domingo nenhum continua na
+// lista (serie vazia, taxaRecente 0): é o "quase ninguém marcado" de gruposSemMarcacao.
 export function tendenciaPorGrupo(semanas, { janela = 4, limiar = 3 } = {}) {
   const regs = (semanas || []).filter(s => s && s.registrada && RE_DIA.test(s.data || '')).sort((a, b) => a.data.localeCompare(b.data));
   const taxa = l => {
@@ -1030,16 +1061,19 @@ export function tendenciaPorGrupo(semanas, { janela = 4, limiar = 3 } = {}) {
     return m ? l.reduce((s, x) => s + x.presentes, 0) / m : null;
   };
   return GRUPOS_CLASSE.map(({ chave, rotulo }) => {
-    const serie = regs.map(s => {
+    const todos = regs.map(s => {
       const g = s.porGrupo?.[chave];
       return g && g.matriculados > 0 ? { data: s.data, presentes: g.presentes, matriculados: g.matriculados, taxa: g.presentes / g.matriculados } : null;
     }).filter(Boolean);
-    if (!serie.length) return null;
+    if (!todos.length) return null;
+    const serie = todos.filter(s => s.presentes > 0);
+    const base = { grupo: chave, rotulo, serie, matriculados: todos.at(-1).matriculados, semReuniao: todos.length - serie.length };
+    if (!serie.length) return { ...base, taxaRecente: 0, taxaAnterior: null, variacao: null, direcao: null };
     const rec = serie.slice(-janela), ant = serie.slice(-2 * janela, -janela);
     const taxaRecente = taxa(rec), taxaAnterior = ant.length ? taxa(ant) : null;
     const variacao = taxaAnterior == null ? null : Math.round((taxaRecente - taxaAnterior) * 100);
     const direcao = variacao == null ? null : variacao >= limiar ? 'sobe' : variacao <= -limiar ? 'desce' : 'estavel';
-    return { grupo: chave, rotulo, serie, taxaRecente, taxaAnterior, variacao, direcao };
+    return { ...base, taxaRecente, taxaAnterior, variacao, direcao };
   }).filter(Boolean);
 }
 
@@ -1456,14 +1490,22 @@ export function participantesSemNomes({ membros = [], chamados = [], resumo = nu
   return { total: Math.max(p.porMotivo.chamado, validas), chamado: p.porMotivo.chamado, recomendacao: validas };
 }
 
-// Quantos critérios de 36.2 se sabe que estão cumpridos, para 1 e 2 alas
-// (o que não se sabe não conta nem como cumprido nem como faltando)
+// Quantos MÍNIMOS de 36.2 se sabe que estão cumpridos, para 1 e 2 alas (o que
+// não se sabe não conta nem como cumprido nem como faltando). O recomendado (os
+// jovens) fica fora da conta, à parte: recomendados: [{ chave, atual, meta,
+// metaDuas, umaAla, duasAlas }] (umaAla/duasAlas null quando não se sabe).
 export function resumoQualificacao(progresso) {
-  const conhecidos = (progresso || []).filter(c => c.atual != null);
+  const lista = progresso || [];
+  const exigidos = lista.filter(c => !c.recomendado);
+  const conhecidos = exigidos.filter(c => c.atual != null);
   return {
-    total: (progresso || []).length, conhecidos: conhecidos.length,
+    total: exigidos.length, conhecidos: conhecidos.length,
     umaAla: conhecidos.filter(c => c.atual >= c.meta).length,
     duasAlas: conhecidos.filter(c => c.atual >= c.metaDuas).length,
+    recomendados: lista.filter(c => c.recomendado).map(c => ({
+      chave: c.chave, atual: c.atual, meta: c.meta, metaDuas: c.metaDuas,
+      umaAla: c.atual == null ? null : c.atual >= c.meta, duasAlas: c.atual == null ? null : c.atual >= c.metaDuas,
+    })),
   };
 }
 
@@ -1472,7 +1514,7 @@ export function resumoQualificacao(progresso) {
 // é o número firme do LCR; sem ele, o primeiro conhecido que não é estimativa
 // (a estimativa é um mínimo: a barra dela diria "falta" sem provar) nem o
 // número do bispo (o Início é a tela que fica aberta: ele fica na aba).
-// → { total, conhecidos, umaAla, duasAlas, barra: critério de progressoQualificacao | null }
+// → { total, conhecidos, umaAla, duasAlas, recomendados, barra: critério de progressoQualificacao | null }
 export function destaqueDoRumo(progresso) {
   const conhecidos = (progresso || []).filter(c => c.atual != null);
   const barra = conhecidos.find(c => c.chave === 'membros') || conhecidos.find(c => !c.estimativa && !c.sigiloso) || null;
@@ -1501,18 +1543,36 @@ export function gradeFrequencia(atas, mes, hoje = dataLocal()) {
 }
 
 // O que a grade grava: só o que mudou, e só número inteiro (ou vazio, que apaga).
-// digitado: { data: texto }. → { mudancas: [{ data, frequencia }], invalidos: [data] }
-export function mudancasDaGrade(grade, digitado) {
-  const mudancas = [], invalidos = [];
+// digitado: { data: texto }. desenhado: { data: texto } — o valor de cada campo
+// quando a grade foi DESENHADA (o defaultValue). A grade congela enquanto alguém
+// digita: comparar com as atas de agora fazia o domingo gravado depois (em outra
+// aba ou em outro aparelho) parecer "mudado aqui", e o valor velho da tela ia
+// por cima — apagava a contagem. Com `desenhado`, só vai o campo que a pessoa
+// mexeu; e se a ata também mudou desde o desenho, ele vem em `conflitos`.
+// O "0" não é contagem (contagemDe só aceita > 0: o domingo continuava "sem
+// contagem"): vai em `zeros` — o domingo sem reunião se marca no tipo da ata.
+// teto: o número acima do qual a contagem é suspeita (o total de membros):
+// as datas vão em `acima`, para a tela confirmar ("1500" em vez de "150").
+// → { mudancas: [{ data, frequencia }], invalidos: [data], zeros: [data],
+//     acima: [data], conflitos: [{ data, atual, novo }] }
+export function mudancasDaGrade(grade, digitado, { desenhado = null, teto = null } = {}) {
+  const mudancas = [], invalidos = [], zeros = [], acima = [], conflitos = [];
+  const tem = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
+  const igual = (a, b) => (/^\d+$/.test(a) && /^\d+$/.test(b) ? +a === +b : a === b);
   for (const g of grade || []) {
-    if (g.semReuniao || g.futuro || !Object.prototype.hasOwnProperty.call(digitado || {}, g.data)) continue;
+    if (g.semReuniao || g.futuro || !tem(digitado, g.data)) continue;
     const v = String(digitado[g.data] ?? '').trim();
-    if (v === g.frequencia) continue;
+    const antes = tem(desenhado, g.data) ? String(desenhado[g.data] ?? '').trim() : g.frequencia;
+    if (igual(v, antes)) continue;   // a pessoa não mexeu neste campo
     if (v && !/^\d{1,5}$/.test(v)) { invalidos.push(g.data); continue; }
+    if (v && +v === 0) { zeros.push(g.data); continue; }
     const novo = v ? String(+v) : '';
-    if (novo !== g.frequencia) mudancas.push({ data: g.data, frequencia: novo });
+    if (novo === g.frequencia) continue;
+    if (!igual(antes, g.frequencia)) conflitos.push({ data: g.data, atual: g.frequencia, novo });
+    if (novo && Number.isFinite(teto) && teto > 0 && +novo > teto) acima.push(g.data);
+    mudancas.push({ data: g.data, frequencia: novo });
   }
-  return { mudancas, invalidos };
+  return { mudancas, invalidos, zeros, acima, conflitos };
 }
 
 // Os domingos que já passaram (das `semanas` mais recentes, sem o de hoje — a
@@ -1551,8 +1611,8 @@ export function historicoDigitado(digitado) {
 // que a frequência não esteja sendo registrada no LCR do que a classe estar vazia.
 export function gruposSemMarcacao(tendencias, { minimo = 15, taxa = 0.05 } = {}) {
   return (tendencias || []).filter(t => {
-    const ult = t.serie.at(-1);
-    return ult && ult.matriculados >= minimo && t.taxaRecente != null && t.taxaRecente < taxa;
+    const m = t.matriculados ?? t.serie.at(-1)?.matriculados;
+    return m >= minimo && t.taxaRecente != null && t.taxaRecente < taxa;
   }).map(t => t.grupo);
 }
 

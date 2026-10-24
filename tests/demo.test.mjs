@@ -16,7 +16,8 @@ import {
 } from '../js/discursos-regras.js';
 
 const HOJE = '2026-10-12';
-const DATAS = ['2026-10-12', '2026-10-11', '2026-12-28', '2027-01-01', '2026-03-31', '2026-07-05'];
+// 2027-05-02: a menor janela de frequência às classes da demonstração (11 domingos)
+const DATAS = ['2026-10-12', '2026-10-11', '2026-12-28', '2027-01-01', '2026-03-31', '2026-07-05', '2027-05-02'];
 
 test('a carga é a mesma para o mesmo dia (dá para ensaiar)', () => {
   assert.deepEqual(gerar(HOJE), gerar(HOJE));
@@ -211,9 +212,11 @@ test('Vamos crescer a Ala: um ano de frequência nas atas e os meses de classes'
     const ano = +d.slice(0, 4);
     const anos = historicoSacramental(pub.historicoSacramental, f.porAno, ano);
     assert.deepEqual(anos.filter(a => a.fonte === 'informado').map(a => a.ano), [ano - 4, ano - 3, ano - 2, ano - 1]);
-    // classes: de 3 a 4 meses de domingos (sem os de conferência), cada grupo só nos dele
+    // classes: de 3 a 4 meses de domingos (sem os de conferência), cada grupo só nos
+    // dele. O mínimo é 11: em 2/5/2027, fevereiro, março e abril têm 4 domingos
+    // cada, o 1º de abril é a conferência geral e o de maio ainda não passou
     const s = pub.frequenciaClasses.semanas;
-    assert.ok(s.length >= 12 && s.every(x => ehDomingo(x.data) && x.data < d && x.registrada), d);
+    assert.ok(s.length >= 11 && s.every(x => ehDomingo(x.data) && x.data < d && x.registrada), d);
     assert.ok(new Set(s.map(x => x.data.slice(0, 7))).size >= 3, d);
     assert.ok(s.every(x => !('escolaDominicalAdultos' in x.porGrupo && 'sociedadeSocorro' in x.porGrupo)), 'Escola Dominical e Sociedade de Socorro no mesmo domingo');
     const tend = tendenciaPorGrupo(s);
@@ -223,7 +226,9 @@ test('Vamos crescer a Ala: um ano de frequência nas atas e os meses de classes'
     // o caminho até duas alas: dois mínimos cumpridos, nenhum ainda para duas
     const pri = doc.privado;
     const prog = progressoQualificacao({ membros, portadoresSM: pri.portadoresAtivosDizimistas, adultosParticipantes: pri.participantes.adultos, jovensParticipantes: pri.participantes.jovens });
-    assert.deepEqual(resumoQualificacao(prog), { total: 4, conhecidos: 4, umaAla: 2, duasAlas: 0 }, d);
+    const { recomendados, ...exigidos } = resumoQualificacao(prog);
+    assert.deepEqual(exigidos, { total: 3, conhecidos: 3, umaAla: 2, duasAlas: 0 }, d);
+    assert.deepEqual(recomendados.map(x => [x.chave, x.atual != null]), [['jovensParticipantes', true]], d);   // os jovens, à parte
   }
 });
 

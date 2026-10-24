@@ -6,12 +6,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  CHAVES_ESTATISTICAS, CHAVES_GRUPO, CRITERIOS, METAS_ALA, METAS_ESTACA, MAX_PESSOAS, NOMES_DOS_PDFS, SECOES_TRIMESTRAL,
+  CHAVES_ESTATISTICAS, CHAVES_GRUPO, CRITERIOS, METAS_ALA, METAS_ESTACA, MAX_PESSOAS, MIN_SEMANAS_ANO, NOMES_DOS_PDFS, SECOES_TRIMESTRAL,
   anoDasSemanas, chaveTrimestre, comparacaoIndicador, dataDoLcr, docCrescimentoVazio, formaDoIcone, frequenciaSacramental,
   fundirCrescimento, grupoDaClasse, historicoDoIndicador, historicoSacramental, lerEstatisticas, lerFrequenciaClasses,
   lerRecomendacoes, lerTrimestral, liderancaChave, limparCorpoCrescimento, mesDoLcr, normalizarDocCrescimento,
   participantesAdultos, participantesJovens, progressoQualificacao, recomendacaoValida, renovacoesAgendar,
-  respostaCrescimento, resumoRecomendacoes, situacaoChave, tendenciaPorGrupo, tipoDePdfLcr, totalDeMembros,
+  gruposSemMarcacao, respostaCrescimento, resumoRecomendacoes, situacaoChave, tendenciaPorGrupo, tipoDePdfLcr, totalDeMembros,
 } from '../js/crescimento-lcr.js';
 import { MAX_LADO_ICONE, OPS_PDFJS_3, caixasDaPagina, caixasDoOperatorList, lerPaginas } from '../js/pdf-icones.js';
 
@@ -487,7 +487,7 @@ test('frequência às classes: 4 domingos, conta por grupo pelos ícones, sem no
   assert.deepEqual(f.semanas[0].total, { presentes: 4, matriculados: 10 });
   assert.equal(f.icones.presentes + f.icones.ausentes, 40);
   assert.equal(f.icones.presentes, 14);
-  assert.equal(f.icones.ignorados, 8);   // os 7 glifos de tendência e o botão do filtro
+  assert.equal(f.icones.ignorados, 1);   // o botão do filtro (os 7 glifos de tendência nem têm forma de ícone)
   assert.equal(f.icones.semRotulo, 0);
   assert.deepEqual(f.rotulosOutros, {});
   assert.deepEqual(f.avisos, []);
@@ -540,8 +540,32 @@ test('frequência às classes: sem cabeçalho ou sem ícones, avisa', () => {
   const { paginas } = frequencia(['4 Out', '11 Out'], pessoasDeExemplo().slice(0, 2));
   const f = lerFrequenciaClasses(paginas, [], { hoje: HOJE });
   assert.ok(f.avisos.some(a => /ícone/.test(a)));
-  assert.equal(f.semanas.length, 2);
+  assert.deepEqual(f.semanas, []);   // nada a gravar: a prévia recusa
+});
+
+// O anel que mudou de desenho (aqui, com uma reta): sem nenhum anel reconhecido
+// não há a medida dos ícones. Antes, a medida vinha de "todas as formas" — a do
+// glifo de tendência, um por pessoa —, e os glifos viravam presenças (100% num
+// domingo) que, gravadas, trocavam os domingos já guardados.
+test('frequência às classes: sem nenhum anel reconhecido, não conta nada (nem o glifo)', () => {
+  const pessoas = pessoasDeExemplo();
+  const { paginas, icones } = frequencia(['4 Out', '11 Out', '18 Out', '25 Out'], pessoas);
+  const torto = icones.map(l => l.map(c => (c.retas === 0 && c.curvas >= 8 ? { ...c, retas: 1 } : c)));
+  // sobra o círculo do filtro (9 × 9): a medida vira a dele, e nenhum ícone de
+  // verdade passa — nada contado, nenhum domingo registrado, nenhuma classe (a prévia recusa)
+  const f = lerFrequenciaClasses(paginas, torto, { hoje: HOJE });
+  assert.equal(f.icones.presentes + f.icones.ausentes, 0);
   assert.ok(f.semanas.every(s => !s.registrada));
+  assert.deepEqual(f.classes, []);
+  // sem o filtro: nenhum anel — o aviso, e nenhuma semana
+  const semFiltro = torto.map(l => l.filter(c => c.pintura !== 'stroke'));
+  const g = lerFrequenciaClasses(paginas, semFiltro, { hoje: HOJE });
+  assert.deepEqual(g.semanas, []);
+  assert.ok(g.avisos.some(a => /ausência/.test(a)), g.avisos.join(' '));
+  // o glifo (10,6 × 11,3, curvas e retas) não passa mais pela forma, nem sozinho
+  assert.equal(formaDoIcone({ w: 10.6, h: 11.3, curvas: 8, retas: 12, subcaminhos: 3, pintura: 'fill' }), null);
+  assert.equal(formaDoIcone({ w: 9.0, h: 9.5, curvas: 8, retas: 12, subcaminhos: 3, pintura: 'fill' }), null);
+  assert.equal(formaDoIcone({ w: 10.5, h: 10.5, ...ICONE_PRESENTE }), 'presente');
 });
 
 test('forma do ícone: ✓, anel, anel de um subcaminho, contorno e o que não é', () => {
@@ -744,21 +768,27 @@ test('frequência sacramental: média e % por mês e por ano, meses vazios inclu
     { data: '2026-10-18', frequencia: 'cento' }, { data: '2026-10-25', frequencia: '0' }, { data: 'ontem', frequencia: '50' },
     { data: '2025-10-05', frequencia: '120' },
   ];
-  const f = frequenciaSacramental(atas, { membros: 400, hoje: HOJE, meses: 3 });
+  const f = frequenciaSacramental(atas, { membros: 380, hoje: HOJE, meses: 3 });
   assert.deepEqual(f.porMes.map(m => m.mes), ['2026-08', '2026-09', '2026-10']);
-  assert.deepEqual(f.porMes.map(m => [m.semanas.length, m.media, m.pct]), [[0, null, null], [2, 105, 26], [2, 93, 23]]);
-  assert.deepEqual(f.porAno, { 2025: { media: 120, pct: 30, semanas: 1 }, 2026: { media: 99, pct: 25, semanas: 4 } });
+  assert.deepEqual(f.porMes.map(m => [m.semanas.length, m.media, m.pct]), [[0, null, null], [2, 105, 28], [2, 93, 24]]);
+  assert.deepEqual(f.porAno, { 2025: { media: 120, pct: 32, semanas: 1 }, 2026: { media: 99, pct: 26, semanas: 4 } });
   assert.equal(frequenciaSacramental(atas, { hoje: HOJE }).porMes.length, 12);
   assert.equal(frequenciaSacramental(atas, { hoje: HOJE }).porAno['2026'].pct, null);   // sem total de membros, sem %
 });
 
 test('histórico da sacramental: informado nos anos passados, calculado no corrente', () => {
-  const h = historicoSacramental({ 2022: 37, 2023: 33, 2026: 20 }, { 2025: { pct: 29 }, 2026: { pct: 25 } }, 2026);
+  const h = historicoSacramental({ 2022: 41, 2023: 36, 2026: 20 }, {
+    2024: { pct: 35, semanas: MIN_SEMANAS_ANO }, 2025: { pct: 31, semanas: 2 }, 2026: { pct: 22, semanas: 5 },
+  }, 2026);
   assert.deepEqual(h, [
-    { ano: 2022, pct: 37, fonte: 'informado' }, { ano: 2023, pct: 33, fonte: 'informado' },
-    { ano: 2025, pct: 29, fonte: 'calculado' }, { ano: 2026, pct: 25, fonte: 'calculado' },
+    { ano: 2022, pct: 41, fonte: 'informado' }, { ano: 2023, pct: 36, fonte: 'informado' },
+    { ano: 2024, pct: 35, fonte: 'calculado', semanas: MIN_SEMANAS_ANO },   // meio ano de atas: vale
+    // 2025: 2 domingos de dezembro e nenhum % do LCR — não é o ano, e fica sem coluna
+    { ano: 2026, pct: 22, fonte: 'calculado', semanas: 5 },                 // o corrente sai das atas
   ]);
-  assert.deepEqual(historicoSacramental({ 2024: 30 }, {}, 2026), [{ ano: 2024, pct: 30, fonte: 'informado' }]);
+  // ano passado com o % do LCR: vale o informado, mesmo com o ano inteiro nas atas
+  assert.deepEqual(historicoSacramental({ 2025: 31 }, { 2025: { pct: 28, semanas: 50 } }, 2026), [{ ano: 2025, pct: 31, fonte: 'informado' }]);
+  assert.deepEqual(historicoSacramental({ 2024: 34 }, {}, 2026), [{ ano: 2024, pct: 34, fonte: 'informado' }]);
 });
 
 test('tendência por grupo: as 4 semanas mais recentes contra as 4 anteriores', () => {
@@ -782,6 +812,31 @@ test('tendência por grupo: as 4 semanas mais recentes contra as 4 anteriores', 
   assert.deepEqual([curta[0].variacao, curta[0].direcao], [null, null]);
 });
 
+// No horário de duas horas, as Moças se reúnem num domingo e a Escola Dominical
+// no outro — e o LCR desenha o anel de ausente de todas em todos os domingos
+test('tendência por grupo: o domingo sem reunião do grupo (0 presenças) fica fora', () => {
+  const semanas = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(2026, 6, 5 + 7 * i);
+    return {
+      data: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+      registrada: true,
+      porGrupo: {
+        mocas: { presentes: i % 2 ? 0 : 10, matriculados: 40 },
+        escolaDominicalAdultos: { presentes: i % 2 ? 30 : 0, matriculados: 100 },
+        quorumElderes: { presentes: 0, matriculados: 30 },   // nunca marcado
+      },
+    };
+  });
+  const t = tendenciaPorGrupo(semanas);
+  const m = t.find(g => g.grupo === 'mocas'), ed = t.find(g => g.grupo === 'escolaDominicalAdultos'), q = t.find(g => g.grupo === 'quorumElderes');
+  assert.deepEqual([m.serie.length, m.semReuniao, m.taxaRecente, m.matriculados], [4, 3, 0.25, 40]);   // 25%, não 13%
+  assert.deepEqual([m.variacao, m.direcao], [null, null]);   // 4 domingos com reunião: nada antes para comparar
+  assert.deepEqual([ed.serie.length, ed.taxaRecente], [3, 0.3]);
+  // o grupo sem presença nenhuma continua na lista — é o "quase ninguém marcado"
+  assert.deepEqual([q.serie, q.taxaRecente, q.matriculados, q.direcao], [[], 0, 30, null]);
+  assert.deepEqual(gruposSemMarcacao(t), ['quorumElderes']);
+});
+
 // ---------- o documento do servidor ----------
 const resumoAdultos = () => resumoRecomendacoes(
   [{ sexo: 'F', idade: 30, situacao: 'ativa', validade: '2027-01' }, { sexo: 'M', idade: 50, situacao: 'vencida', validade: '2025-02' }],
@@ -794,7 +849,7 @@ test('corpo do POST: só as seções e chaves conhecidas, do tipo certo', () => 
       trimestral: { ...t, extra: 'x' },
       recomendacoes: { adultos: resumoAdultos() },
       frequenciaClasses: { semanas: [{ data: '2026-10-04', porGrupo: { sociedadeSocorro: { presentes: 3, matriculados: 10 } }, total: {}, nome: 'x' }] },
-      historicoSacramental: { 2022: 37, 2023: null },
+      historicoSacramental: { 2022: 41, 2023: null },
       inventado: { a: 1 },
     },
     privado: {
@@ -809,7 +864,7 @@ test('corpo do POST: só as seções e chaves conhecidas, do tipo certo', () => 
   assert.equal(p.publico.trimestral.extra, undefined);
   assert.equal(p.publico.trimestral.linhas.length, 9);
   assert.deepEqual(p.publico.frequenciaClasses.semanas[0], { data: '2026-10-04', porGrupo: { sociedadeSocorro: { presentes: 3, matriculados: 10 } }, registrada: true });
-  assert.deepEqual(p.publico.historicoSacramental, { 2022: 37, 2023: null });
+  assert.deepEqual(p.publico.historicoSacramental, { 2022: 41, 2023: null });
   assert.deepEqual(p.privado.recomendacoesPessoas.adultos[0], { nome: 'Exemplo, Ana', sexo: 'F', idade: 30, situacao: 'ativa', validade: '2027-01' });
   assert.equal(p.privado.portadoresAtivosDizimistas, 18);
   assert.deepEqual(p.privado.participantes, { adultos: 70 });
@@ -850,7 +905,7 @@ test('fundir: cada seção troca só a si mesma', () => {
         { data: '2026-10-11', porGrupo: { primaria: { presentes: 5, matriculados: 10 } } },
         { data: '2026-10-25', porGrupo: { primaria: { presentes: 0, matriculados: 10 } } },
       ] },
-      historicoSacramental: { 2022: 37, 2023: 33 },
+      historicoSacramental: { 2022: 41, 2023: 36 },
     },
     privado: { recomendacoesPessoas: { adultos: [{ nome: 'Exemplo, Ana', situacao: 'ativa' }] }, portadoresAtivosDizimistas: 18 },
   }).parcial;
@@ -864,12 +919,12 @@ test('fundir: cada seção troca só a si mesma', () => {
     publico: { frequenciaClasses: { semanas: [
       { data: '2026-10-11', porGrupo: { primaria: { presentes: 0, matriculados: 10 } }, registrada: false },
       { data: '2026-10-25', porGrupo: { primaria: { presentes: 7, matriculados: 10 } } },
-    ] }, historicoSacramental: { 2023: null, 2024: 30 } },
+    ] }, historicoSacramental: { 2023: null, 2024: 34 } },
     privado: { participantes: { jovens: 12 } },
   }).parcial;
   doc = fundirCrescimento(doc, p3, depois);
   assert.deepEqual(doc.publico.frequenciaClasses.semanas.map(s => [s.data, s.porGrupo.primaria.presentes]), [['2026-10-11', 5], ['2026-10-25', 7]]);
-  assert.deepEqual(doc.publico.historicoSacramental, { 2022: 37, 2024: 30 });
+  assert.deepEqual(doc.publico.historicoSacramental, { 2022: 41, 2024: 34 });
   assert.equal(doc.publico.recomendacoes.adultos.lidos, 2);   // importar outra coisa não apagou
   assert.equal(doc.privado.recomendacoesPessoas.adultos.length, 1);
   assert.equal(doc.privado.portadoresAtivosDizimistas, 18);
@@ -883,7 +938,7 @@ test('fundir: cada seção troca só a si mesma', () => {
 
 test('resposta do GET: o privado só com a sessão; documento estranho é erro, não "vazio"', () => {
   const doc = fundirCrescimento(null, limparCorpoCrescimento({
-    publico: { historicoSacramental: { 2022: 37 } },
+    publico: { historicoSacramental: { 2022: 41 } },
     privado: { recomendacoesPessoas: { adultos: [{ nome: 'Exemplo, Ana', situacao: 'ativa' }] } },
   }).parcial);
   const semSessao = respostaCrescimento(doc, false);
@@ -893,7 +948,7 @@ test('resposta do GET: o privado só com a sessão; documento estranho é erro, 
   assert.deepEqual(normalizarDocCrescimento(null), docCrescimentoVazio());
   assert.equal(normalizarDocCrescimento('texto'), null);
   assert.equal(normalizarDocCrescimento({ publico: [] }), null);
-  const velho = normalizarDocCrescimento({ publico: { historicoSacramental: { 2022: 37 } } });
+  const velho = normalizarDocCrescimento({ publico: { historicoSacramental: { 2022: 41 } } });
   assert.deepEqual(velho.publico.frequenciaClasses, { semanas: [] });
   assert.deepEqual(velho.privado.participantes, { adultos: null, jovens: null });
   assert.deepEqual(respostaCrescimento(undefined, false), { publico: docCrescimentoVazio().publico });

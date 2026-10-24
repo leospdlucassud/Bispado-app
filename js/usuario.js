@@ -95,7 +95,11 @@ function pedirSenha(cargo) {
 
 const MENSAGEM_ERRO = {
   senha: () => 'Senha incorreta.',
-  'nao-configurado': () => 'A senha ainda não foi cadastrada no servidor. Quem cuida do app precisa criá-la nas variáveis do Netlify (ver o README).',
+  // o servidor diz QUAIS variáveis faltam (só os nomes): faltando só o segredo,
+  // "a senha não foi cadastrada" mandava procurar o que já estava lá
+  'nao-configurado': (m, falta = []) => (falta.length
+    ? `O servidor ainda não está pronto para senhas. Falta criar no Netlify: ${falta.join(' e ')} — depois, refaça o deploy (ver o README).`
+    : 'A senha ainda não foi cadastrada no servidor. Quem cuida do app precisa criá-la nas variáveis do Netlify (ver o README).'),
   'muitas-tentativas': m => `Muitas tentativas erradas. Tente de novo em ${m || 15} min.`,
   indisponivel: () => 'O servidor não conseguiu conferir a senha agora. Tente de novo em instantes.',
   rede: () => 'Sem conexão — entrar como Bispo precisa de internet.',
@@ -112,7 +116,7 @@ async function enviarSenha(form) {
   const r = await entrar(COM_SENHA[cargo], campo.value);
   botao.disabled = false;
   if (!r.ok) {
-    erro.textContent = (MENSAGEM_ERRO[r.erro] || MENSAGEM_ERRO.rede)(r.minutos);
+    erro.textContent = (MENSAGEM_ERRO[r.erro] || MENSAGEM_ERRO.rede)(r.minutos, r.falta);
     campo.select();
     return;
   }

@@ -300,10 +300,11 @@ function relatoriosDaDemo({ H, roster, saidos, chamados, lcr }) {
     i++;
   }
   // as 4 últimas reuniões dos grupos que mudam no fim (os élderes caem; a
-  // Escola Dominical dos jovens quase não é marcada)
+  // Escola Dominical dos jovens quase não é marcada: 1 ou 2 de 34 — nunca 0, que
+  // a aba lê como "sem reunião" e tira da conta)
   for (const [g, , , , recente] of CLASSES) {
     if (recente == null) continue;
-    semanas.filter(s => s.porGrupo[g]).slice(-4).forEach((s, k) => { s.porGrupo[g].presentes = Math.max(0, recente + (k % 2) - (g === 'escolaDominicalJovens' ? 1 : 0)); });
+    semanas.filter(s => s.porGrupo[g]).slice(-4).forEach((s, k) => { s.porGrupo[g].presentes = recente + (k % 2); });
   }
   for (const s of semanas) for (const g of Object.values(s.porGrupo)) g.presentes = Math.min(g.matriculados, Math.max(0, g.presentes));
   aplicar({ publico: { frequenciaClasses: { semanas } } }, em(-2));

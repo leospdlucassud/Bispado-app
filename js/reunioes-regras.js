@@ -156,3 +156,15 @@ const slug = txt => String(txt ?? '')
 export function nomeArquivoAta(rotuloTipo, data) {
   return `ata-${slug(rotuloTipo) || 'reuniao'}-${slug(data) || 'sem-data'}.pdf`;
 }
+
+// Ata resolvida = reunião que já passou e não tem item de ação em aberto (a
+// que nem teve itens também conta). Sai da tela da aba Reuniões e vira
+// histórico: a busca da aba, a busca geral e o filtro "Histórico" ainda a acham.
+// A de hoje ou futura fica na tela mesmo sem pendência — é a pauta que vem.
+// `hoje` em AAAA-MM-DD (dataLocal), por parâmetro: este módulo não tem DOM.
+export function ataResolvida(r, hoje) {
+  if (!r || typeof r !== 'object') return false;
+  const data = typeof r.data === 'string' ? r.data : '';
+  if (!data || !hoje || data >= hoje) return false;
+  return !(Array.isArray(r.itens) ? r.itens : []).some(i => i && !i.feito);
+}

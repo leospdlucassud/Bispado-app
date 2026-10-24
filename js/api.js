@@ -127,16 +127,26 @@ async function enfileirar(url, method, body, erro) {
 // O isOnline continua o de verdade para o resto (o service worker, a atualização).
 const temServidor = () => isOnline || EM_DEMO;
 
-export function apiFetch(url, method = 'GET', body = null) {
+// semFila: a gravação que NÃO pode ficar no aparelho (a importação com a lista
+// de nomes das recomendações: na fila do IndexedDB ela sobrevivia ao "Sair"
+// até alguém entrar de novo como Bispo/ADM). Sem servidor, ela falha com
+// erro.semFila = true em vez de ir para a fila.
+export function apiFetch(url, method = 'GET', body = null, { semFila = false } = {}) {
   if (method === 'GET') return enviar(url, method, body);
-  const p = enviar(url, method, body);   // registrada já no início, de forma síncrona
+  const p = enviar(url, method, body, semFila);   // registrada já no início, de forma síncrona
   gravacoes.add(p);
   p.finally(() => gravacoes.delete(p)).catch(() => {});
   return p;
 }
 
-async function enviar(url, method, body) {
+async function enviar(url, method, body, semFila = false) {
   const escrita = method !== 'GET';
+  // a que não pode ir para a fila devolve o erro, marcado (ver apiFetch)
+  const naFila = async (erro) => {
+    if (!semFila) return enfileirar(url, method, body, erro);
+    erro.semFila = true;
+    return erro;
+  };
   // Criado sem sinal e já enviado: a tela ainda tem o id provisório. Espera um
   // envio que esteja saindo AGORA — ele pode estar criando justamente este item.
   if (escrita) { await esperarEnvio(); url = comIdReal(url); }
@@ -151,7 +161,7 @@ async function enviar(url, method, body) {
   if (body) opts.body = JSON.stringify(body);
   if (!temServidor()) {
     const erro = new Error('offline');
-    throw escrita ? await enfileirar(url, method, body, erro) : erro;
+    throw escrita ? await naFila(erro) : erro;
   }
   // Com alterações esperando na fila, a nova não passa na frente delas: uma
   // edição chegaria antes da criação que ela edita, ou seria desfeita por uma
@@ -160,7 +170,7 @@ async function enviar(url, method, body) {
   const naFrente = async () => (await lerFila()).some(i => i.url && !esperaSessao(i));
   if (escrita && await naFrente()) {
     await enviarFilaPendente();
-    if (await naFrente()) throw await enfileirar(url, method, body, new Error('pendente'));
+    if (await naFrente()) throw await naFila(new Error('pendente'));
   }
   // Prazo: sem ele, uma rede que não responde deixava o "Sincronizando…" e a
   // atualização do app esperando para sempre. A gravação que estoura vai para a fila.
@@ -172,7 +182,7 @@ async function enviar(url, method, body) {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return res.status === 204 ? null : await res.json();
   } catch(e) {
-    throw escrita ? await enfileirar(url, method, body, e) : e;
+    throw escrita ? await naFila(e) : e;
   }
 }
 

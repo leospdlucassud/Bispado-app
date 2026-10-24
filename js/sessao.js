@@ -45,7 +45,7 @@ export async function entrar(papel, senha) {
   } catch (e) { return { erro: 'rede' }; }
   let corpo = null;
   try { corpo = await res.json(); } catch (e) { /* corpo vazio */ }
-  if (!res.ok) return { erro: corpo?.error || 'rede', minutos: corpo?.minutos };
+  if (!res.ok) return { erro: corpo?.error || 'rede', minutos: corpo?.minutos, falta: Array.isArray(corpo?.falta) ? corpo.falta : [] };
   const nova = valida({ papel: corpo?.papel, token: corpo?.token, exp: Number(corpo?.exp) });
   if (!nova) return { erro: 'rede' };
   sessao = nova;

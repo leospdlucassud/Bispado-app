@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  DURACAO_MS, LIMITE, assinar, bloqueado, comFalha, configurado, papelQueConfere, podeEntrar, semFalhasDo, senhaConfere, sessaoDa, verificar,
+  DURACAO_MS, LIMITE, assinar, variaveisFaltando, bloqueado, comFalha, configurado, papelQueConfere, podeEntrar, semFalhasDo, senhaConfere, sessaoDa, verificar,
 } from '../netlify/functions/_sessao.js';
 import { escondidoPorSigilo, semSigilosos } from '../js/crud-regras.js';
 import { criarServidor } from '../js/demo-servidor.js';
@@ -119,4 +119,13 @@ test('o ADM não aparece na tela: entra pelo "Bispo" com a senha do ADM', () => 
   assert.equal(papelQueConfere('bispo', 'senha-de-teste-adm', soAdm), 'adm');
   assert.equal(papelQueConfere('bispo', '', soAdm), null);
   assert.ok(!podeEntrar('bispo', { SENHA_BISPO: 'x', SENHA_ADM: 'y' }), 'sem segredo, ninguém');
+});
+
+test('sem configuração, o servidor diz quais variáveis faltam (só os nomes)', () => {
+  assert.deepEqual(variaveisFaltando('bispo', { SENHA_BISPO: 'x', SENHA_ADM: 'y' }), ['SEGREDO_SESSAO'], 'só o segredo — o caso do primeiro deploy');
+  assert.deepEqual(variaveisFaltando('bispo', { SEGREDO_SESSAO: 's' }), ['SENHA_BISPO']);
+  assert.deepEqual(variaveisFaltando('bispo', {}), ['SEGREDO_SESSAO', 'SENHA_BISPO']);
+  assert.deepEqual(variaveisFaltando('bispo', { SEGREDO_SESSAO: 's', SENHA_ADM: 'y' }), [], 'a do ADM basta para o pedido de bispo');
+  assert.deepEqual(variaveisFaltando('adm', { SEGREDO_SESSAO: 's', SENHA_BISPO: 'x' }), ['SENHA_ADM']);
+  assert.deepEqual(variaveisFaltando('bispo', ENV), []);
 });

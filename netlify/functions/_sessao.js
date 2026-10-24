@@ -38,6 +38,17 @@ export function senhaConfere(digitada, certa) {
 const ENTRADAS = { bispo: ["bispo", "adm"], adm: ["adm"] };
 export const podeEntrar = (pedido, env) => (ENTRADAS[pedido] || []).some(p => configurado(p, env));
 
+// Quais variáveis do Netlify faltam para este pedido entrar — só os NOMES, nunca
+// valores. Sem isto o app dizia "a senha não foi cadastrada" também quando só o
+// SEGREDO_SESSAO faltava, e quem cadastrou as duas senhas não sabia o que faltava.
+// (O pedido de 'bispo' fala só da SENHA_BISPO: o ADM não aparece na tela.)
+export function variaveisFaltando(pedido, env) {
+  const falta = [];
+  if (!env.SEGREDO_SESSAO) falta.push("SEGREDO_SESSAO");
+  if (!(ENTRADAS[pedido] || []).some(p => senhaDe(p, env))) falta.push(VAR_SENHA[pedido]);
+  return falta.filter(Boolean);
+}
+
 // O papel da senha digitada, ou null. Confere todas (sem atalho) — o tempo da
 // resposta não diz qual senha existe.
 export function papelQueConfere(pedido, digitada, env) {

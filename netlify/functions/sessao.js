@@ -1,7 +1,7 @@
 import { getStore } from "@netlify/blobs";
 import { ALA_ID } from "./_ala.js";
 import { H } from "./_crud.js";
-import { assinar, bloqueado, comFalha, PAPEIS, papelQueConfere, podeEntrar, semFalhasDo, sessaoDa } from "./_sessao.js";
+import { assinar, bloqueado, comFalha, PAPEIS, papelQueConfere, podeEntrar, semFalhasDo, sessaoDa, variaveisFaltando } from "./_sessao.js";
 
 // POST { papel: 'bispo' | 'adm', senha } → { papel, token, exp }
 // (o pedido de 'bispo' com a senha do ADM devolve papel 'adm': o ADM não
@@ -46,7 +46,7 @@ export default async (req, context) => {
   try { body = await req.json(); } catch { return json({ error: "Corpo inválido" }, 400); }
   const papel = body?.papel;
   if (!PAPEIS.includes(papel)) return json({ error: "papel" }, 400);
-  if (!podeEntrar(papel, env)) return json({ error: "nao-configurado" }, 503);
+  if (!podeEntrar(papel, env)) return json({ error: "nao-configurado", falta: variaveisFaltando(papel, env) }, 503);
 
   const ip = context?.ip || "desconhecido";
   // A tentativa é CONTADA antes de a senha ser conferida: quem passa do limite

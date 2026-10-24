@@ -33,6 +33,7 @@ import { esc } from './utils.js';
 const r2 = v => Math.round(v * 100) / 100;
 export const limitar = (v, a, b) => Math.min(b, Math.max(a, v));
 const finito = v => typeof v === 'number' && Number.isFinite(v);
+const diaUtc = d => { const [a, m, dd] = String(d).split('-').map(Number); return Date.UTC(a, m - 1, dd); };
 
 // 1234 → "1.234"; null → "—"
 export const fmt = v => (finito(v) ? Math.round(v).toLocaleString('pt-BR') : '—');
@@ -59,6 +60,35 @@ export function ticksLimpos(max, alvo = 4) {
 
 // Largura estimada de um texto (sem DOM para medir): ~0,56 do corpo por letra
 export const larguraTexto = (texto, corpo = 11) => String(texto ?? '').length * corpo * 0.56;
+
+// O desenho encolhe para caber na figura (o viewBox, com "meet") — e o texto
+// junto. A figura mais estreita tem ~275 px por dentro: o celular de 360 px
+// (360 − as margens de .content, da seção e da .cg-figura) e a coluna mínima da
+// .cresc-figuras (300 px) no computador. Por isso os gráficos de eixo nascem com
+// LARGURA_EIXO de largura (escala ~1 ali) e nenhum texto de eixo abaixo de
+// CORPO_EIXO: fica com ≥ 10 px na tela. (Com 340 de largura e corpo 9, o mês
+// saía com ~7 px.) O teto de largura do style.css (.cg-colunas…) acompanha.
+export const LARGURA_EIXO = 280;
+export const CORPO_EIXO = 10.5;
+
+// O caminho de uma linha que se PARTE onde faltam dados: um novo M quando dois
+// pontos seguidos estão a mais de `vaoMax` dias (sem isso, contagens só em
+// janeiro e agosto viravam uma reta "com" fevereiro a julho). Os pontos que
+// ficam sozinhos num pedaço vão em `soltos` (precisam do círculo para aparecer).
+// xy: [[x, y]]; datas: as dos pontos, na mesma ordem.
+export function caminhoComVaos(xy, datas, vaoMax = 14) {
+  let d = '';
+  const soltos = [];
+  let inicio = 0;
+  for (let i = 0; i < xy.length; i++) {
+    const quebra = i === 0 || (diaUtc(datas[i]) - diaUtc(datas[i - 1])) / 864e5 > vaoMax;
+    if (quebra && i > 0 && i - inicio === 1) soltos.push(inicio);
+    if (quebra) inicio = i;
+    d += `${quebra ? 'M' : 'L'}${xy[i][0]},${xy[i][1]}`;
+  }
+  if (xy.length && xy.length - inicio === 1) soltos.push(inicio);
+  return { d, soltos };
+}
 
 // As partes de uma barra empilhada numa largura, com `vao` entre as que têm
 // valor (as de valor 0 não ocupam nada, nem vão) → [{ x, w }] na ordem recebida
@@ -118,10 +148,12 @@ const textoDentro = c => `cg-sobre cg-sobre-${cor(c)}`;
 
 // ---------- moldura ----------
 const tip = t => (t ? ` data-tip="${esc(t)}"` : '');
-// `alvo`: a marca que responde ao toque e ao foco (a dica de crescimento.js)
-// (dentro do <svg role="img"> os filhos não falam ao leitor de tela: quem lê
-// por ele tem a tabela; o foco é para quem usa o teclado e enxerga a dica)
-const alvo = (t, foco = true) => `class="cg-alvo"${foco ? ' tabindex="0"' : ''}${tip(t)}`;
+// `alvo`: a marca que responde ao toque e ao cursor (a dica de crescimento.js).
+// Sem tabindex: dentro do <svg role="img"> os filhos são apresentação — cada
+// parada do Tab ali era um foco sem nome nem função para o leitor de tela
+// (WCAG 4.1.2), dezenas por gráfico. Quem usa o teclado (ou o leitor de tela)
+// tem o aria-label do gráfico e a tabela "Ver os números", com o mesmo dado.
+const alvo = t => `class="cg-alvo"${tip(t)}`;
 const svg = (w, h, rotulo, corpo, classe = '') =>
   `<svg class="cg${classe ? ' ' + classe : ''}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(rotulo)}" preserveAspectRatio="xMidYMid meet"><title>${esc(rotulo)}</title>${corpo}</svg>`;
 const texto = (x, y, t, { classe = 'cg-txt', corpo = 10.5, ancora = 'start', peso = '' } = {}) =>
@@ -147,7 +179,9 @@ export function anel({ pct = null, tamanho = 72, espessura = 7, rotulo = '', cla
 // marcas no trilho ("1 ala · 250", "2 alas · 500"). `dica: false`: sem a dica
 // nem o foco — onde não há quem mostre a dica (o cartão do Início), a barra é
 // só desenho: o número já está escrito na ponta e no texto ao lado.
-export function barraDeMeta({ atual = null, metas = [], rotulo = '', unidade = '', largura = 320, dica: comDica = true } = {}) {
+// Largura de 260: o cartão mais estreito (.cresc-crit, coluna de 280) tem ~250
+// por dentro, e o rótulo das marcas (11) fica com ≥ 10 px (ver LARGURA_EIXO).
+export function barraDeMeta({ atual = null, metas = [], rotulo = '', unidade = '', largura = 260, dica: comDica = true } = {}) {
   const W = largura, H = 52, y = 17, h = 12, x0 = 2, x1 = W - 2;
   const vals = metas.map(m => m.valor).filter(finito);
   const max = Math.max(...vals, finito(atual) ? atual : 0, 1) * 1.08;
@@ -164,12 +198,20 @@ export function barraDeMeta({ atual = null, metas = [], rotulo = '', unidade = '
     const ancora = xt < 24 ? 'start' : 'end';
     corpo += texto(ancora === 'start' ? xt + 2 : xt, y - 5, fmt(atual), { classe: 'cg-txt-forte', corpo: 11, ancora, peso: '700' });
   }
-  for (const m of metas) {
-    if (!finito(m.valor)) continue;
-    const x = r2(sx(m.valor));
-    const ancora = x > W - 46 ? 'end' : x < 46 ? 'start' : 'middle';
-    corpo += `<line x1="${x}" x2="${x}" y1="${y - 3}" y2="${y + h + 3}" class="cg-t-marca" stroke-width="2"/>`
-      + texto(ancora === 'end' ? x + 1 : ancora === 'start' ? x - 1 : x, y + h + 15, m.rotulo || fmt(m.valor), { classe: 'cg-txt', corpo: 10, ancora });
+  // o rótulo de cada marca, centrado nela; na beirada, encostado para dentro; e,
+  // se dois se encostam (o atual muito acima da meta junta as marcas), o 1º
+  // termina na marca dele e o 2º começa na sua
+  const marcas = metas.filter(m => finito(m.valor)).map(m => {
+    const x = r2(sx(m.valor)), t = m.rotulo || fmt(m.valor), w = larguraTexto(t, 11);
+    return { x, t, w, ancora: x + w / 2 > W ? 'end' : x - w / 2 < 0 ? 'start' : 'middle' };
+  });
+  const faixa = k => (k.ancora === 'end' ? [k.x - k.w, k.x] : k.ancora === 'start' ? [k.x, k.x + k.w] : [k.x - k.w / 2, k.x + k.w / 2]);
+  for (let i = 1; i < marcas.length; i++) {
+    if (faixa(marcas[i])[0] < faixa(marcas[i - 1])[1] + 4) { marcas[i - 1].ancora = 'end'; marcas[i].ancora = 'start'; }
+  }
+  for (const k of marcas) {
+    corpo += `<line x1="${k.x}" x2="${k.x}" y1="${y - 3}" y2="${y + h + 3}" class="cg-t-marca" stroke-width="2"/>`
+      + texto(k.ancora === 'end' ? k.x + 1 : k.ancora === 'start' ? k.x - 1 : k.x, y + h + 15, k.t, { classe: 'cg-txt', corpo: 11, ancora: k.ancora });
   }
   return svg(W, H, rotulo, corpo, 'cg-meta');
 }
@@ -201,10 +243,10 @@ export function barraEmpilhada({ segs = [], rotulo = '', largura = 320, altura =
 // cima). O total vai no topo de cada coluna (são poucas — até 12); sem grade.
 // `destaque`: o índice da categoria em negrito (o mês corrente); `formato`: o
 // número do topo e da dica (fmtPct numa série de %).
-export function colunas({ categorias = [], series = [], rotulo = '', largura = 340, altura = 150, destaque = -1, dicas = [], formato = fmt } = {}) {
+export function colunas({ categorias = [], series = [], rotulo = '', largura = LARGURA_EIXO, altura = 150, destaque = -1, dicas = [], formato = fmt } = {}) {
   const n = categorias.length;
   if (!n || !series.length) return svg(largura, 40, rotulo, texto(largura / 2, 24, 'Sem dados', { ancora: 'middle' }));
-  const top = 16, base = altura - 22, x0 = 4, x1 = largura - 4;
+  const top = 18, base = altura - 22, x0 = 4, x1 = largura - 4;
   const banda = (x1 - x0) / n, bw = r2(Math.min(24, banda * 0.62));
   const totais = categorias.map((_, i) => series.reduce((t, s) => t + (finito(s.valores?.[i]) ? Math.max(0, s.valores[i]) : 0), 0));
   const sy = escala([0, Math.max(...totais, 1)], [0, base - top]);
@@ -223,8 +265,8 @@ export function colunas({ categorias = [], series = [], rotulo = '', largura = 3
       partes += `<path d="${colunaEmPe(x, y - h + g, bw, h - g, 4, k === topo)}" class="cg-f-${cor(series[k].classe)}"/>`;
       y -= h;
     }
-    if (totais[i] > 0) partes += texto(cx, y - 4, formato(totais[i]), { classe: 'cg-txt-forte', corpo: 10, ancora: 'middle', peso: '600' });
-    if (i % passoRotulo === 0) partes += texto(cx, base + 14, cat, { classe: i === destaque ? 'cg-txt-forte' : 'cg-txt', corpo: 9.5, ancora: 'middle', peso: i === destaque ? '700' : '' });
+    if (totais[i] > 0) partes += texto(cx, y - 4, formato(totais[i]), { classe: 'cg-txt-forte', corpo: CORPO_EIXO + 0.5, ancora: 'middle', peso: '600' });
+    if (i % passoRotulo === 0) partes += texto(cx, base + 15, cat, { classe: i === destaque ? 'cg-txt-forte' : 'cg-txt', corpo: CORPO_EIXO, ancora: 'middle', peso: i === destaque ? '700' : '' });
     const dica = dicas[i] || [cat, ...series.map(s => `${s.nome}: ${formato(finito(s.valores?.[i]) ? s.valores[i] : 0)}`)].join('\n');
     corpo += `<g ${alvo(dica)}><rect x="${r2(x0 + banda * i)}" y="${top - 12}" width="${r2(banda)}" height="${r2(base - top + 12)}" fill="transparent"/>${partes}</g>`;
   });
@@ -233,38 +275,40 @@ export function colunas({ categorias = [], series = [], rotulo = '', largura = 3
 
 // ---------- linha no tempo ----------
 const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-const diaUtc = d => { const [a, m, dd] = String(d).split('-').map(Number); return Date.UTC(a, m - 1, dd); };
 const ddmm = d => `${String(d).slice(8, 10)}/${String(d).slice(5, 7)}`;
 
 // pontos: [{ data: 'AAAA-MM-DD', valor }] em ordem; medias: [{ de, ate, valor,
 // rotulo }] — os traços cinza da média do mês, por baixo da linha. A mira
 // (fio vertical) acompanha o ponto mais perto: cada ponto tem a sua faixa de toque.
-export function linhaTempo({ pontos = [], medias = [], rotulo = '', largura = 340, altura = 180, unidade = '', dicaExtra = () => '' } = {}) {
+// vaoMax: dias sem contagem a partir dos quais a linha se parte (14 tolera a
+// conferência, que pula um domingo).
+export function linhaTempo({ pontos = [], medias = [], rotulo = '', largura = LARGURA_EIXO, altura = 180, unidade = '', vaoMax = 14, dicaExtra = () => '' } = {}) {
   const ps = pontos.filter(p => p && finito(p.valor) && /^\d{4}-\d{2}-\d{2}$/.test(p.data || ''));
   if (!ps.length) return svg(largura, 40, rotulo, texto(largura / 2, 24, 'Sem dados', { ancora: 'middle' }));
-  const l = 30, r = largura - 28, t = 12, b = altura - 30;   // embaixo: o mês e, no janeiro, o ano
   let d0 = diaUtc(ps[0].data), d1 = diaUtc(ps.at(-1).data);
   if (d0 === d1) { d0 -= 3 * 864e5; d1 += 3 * 864e5; }
   for (const m of medias) { if (/^\d{4}-\d{2}-\d{2}$/.test(m.de || '')) d0 = Math.min(d0, diaUtc(m.de)); if (/^\d{4}-\d{2}-\d{2}$/.test(m.ate || '')) d1 = Math.max(d1, diaUtc(m.ate)); }
-  const sx = escala([d0, d1], [l, r]);
   const ticks = ticksLimpos(Math.max(...ps.map(p => p.valor), ...medias.map(m => (finito(m.valor) ? m.valor : 0))));
+  // à esquerda, o espaço do maior número do eixo; embaixo, o mês e, no janeiro, o ano
+  const l = Math.max(24, r2(larguraTexto(fmt(ticks.at(-1)), CORPO_EIXO) + 8)), r = largura - 28, t = 12, b = altura - 32;
+  const sx = escala([d0, d1], [l, r]);
   const sy = escala([0, ticks.at(-1)], [b, t]);
   let corpo = ticks.map(v => `<line x1="${l}" x2="${r}" y1="${r2(sy(v)) + 0.5}" y2="${r2(sy(v)) + 0.5}" class="${v ? 'cg-t-grade' : 'cg-t-eixo'}" stroke-width="1"/>`
-    + texto(l - 5, sy(v) + 3.5, fmt(v), { classe: 'cg-txt-mudo', corpo: 9.5, ancora: 'end' })).join('');
+    + texto(l - 5, sy(v) + 3.5, fmt(v), { classe: 'cg-txt-mudo', corpo: CORPO_EIXO, ancora: 'end' })).join('');
   // o 1º de cada mês dentro do intervalo. O ano vai numa 2ª linha, sob o
-  // janeiro ("jan 26" ao lado do "fev" se encostavam); com os meses apertados
-  // (mais de ~15 no eixo), um rótulo a cada dois — o janeiro sempre
+  // janeiro ("jan 26" ao lado do "fev" se encostavam); quando o nome do mês não
+  // cabe no espaço de um mês, um rótulo a cada dois: os meses ímpares do ano
+  // (jan, mar, mai…) — o janeiro sempre, e nunca dois rótulos encostados
   const ini = new Date(d0);
   const larguraMes = ((r - l) * 30.4 * 864e5) / Math.max(1, d1 - d0);
-  const cada = larguraMes < 18 ? 2 : 1;
-  let a = ini.getUTCFullYear(), m = ini.getUTCMonth(), k = 0;
+  const cada = larguraMes < larguraTexto('mmm', CORPO_EIXO) + 4 ? 2 : 1;
+  let a = ini.getUTCFullYear(), m = ini.getUTCMonth();
   while (Date.UTC(a, m, 1) <= d1) {
     const x = sx(Date.UTC(a, m, 1));
     if (x >= l - 0.5) {
       corpo += `<line x1="${r2(x)}" x2="${r2(x)}" y1="${b}" y2="${b + 3}" class="cg-t-eixo" stroke-width="1"/>`;
-      if (m === 0 || k % cada === 0) corpo += texto(x + 2, b + 13, MESES_CURTOS[m], { classe: 'cg-txt-mudo', corpo: 9 });
-      if (m === 0) corpo += texto(x + 2, b + 23, String(a), { classe: 'cg-txt-mudo', corpo: 8.5 });
-      k++;
+      if (m % cada === 0) corpo += texto(x + 2, b + 14, MESES_CURTOS[m], { classe: 'cg-txt-mudo', corpo: CORPO_EIXO });
+      if (m === 0) corpo += texto(x + 2, b + 26, String(a), { classe: 'cg-txt-mudo', corpo: CORPO_EIXO });
     }
     if (++m > 11) { m = 0; a++; }
   }
@@ -274,17 +318,20 @@ export function linhaTempo({ pontos = [], medias = [], rotulo = '', largura = 34
     corpo += `<line x1="${r2(sx(diaUtc(m.de)))}" x2="${r2(sx(diaUtc(m.ate)))}" y1="${y}" y2="${y}" class="cg-t-media" stroke-width="2" stroke-linecap="round"/>`;
   }
   const xy = ps.map(p => [r2(sx(diaUtc(p.data))), r2(sy(p.valor))]);
-  corpo += `<path d="${xy.map(([x, y], i) => `${i ? 'L' : 'M'}${x},${y}`).join('')}" class="cg-t-acento" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  const { d, soltos } = caminhoComVaos(xy, ps.map(p => p.data), vaoMax);
+  corpo += `<path d="${d}" class="cg-t-acento" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  // o domingo contado sozinho (sem vizinho a menos de vaoMax dias) é um ponto
+  for (const i of soltos) if (i < xy.length - 1) corpo += `<circle cx="${xy[i][0]}" cy="${xy[i][1]}" r="4" class="cg-f-acento cg-anel-fundo" stroke-width="2"/>`;
   const [ux, uy] = xy.at(-1);
   corpo += `<circle cx="${ux}" cy="${uy}" r="4" class="cg-f-acento cg-anel-fundo" stroke-width="2"/>`
-    + texto(ux + 6, uy + 3.5, fmt(ps.at(-1).valor), { classe: 'cg-txt-forte', corpo: 10.5, peso: '700' });
+    + texto(ux + 6, uy + 3.5, fmt(ps.at(-1).valor), { classe: 'cg-txt-forte', corpo: 11, peso: '700' });
   // faixas de toque: do meio entre um ponto e o anterior até o meio com o seguinte
   xy.forEach(([x, y], i) => {
     const xa = i ? (xy[i - 1][0] + x) / 2 : l, xd = i < xy.length - 1 ? (x + xy[i + 1][0]) / 2 : r + 4;
     const p = ps[i];
     const extra = dicaExtra(p);
     const dica = `${ddmm(p.data)}: ${fmt(p.valor)}${unidade ? ' ' + unidade : ''}${extra ? '\n' + extra : ''}`;
-    corpo += `<g ${alvo(dica, false)}><rect x="${r2(xa)}" y="${t}" width="${r2(Math.max(1, xd - xa))}" height="${r2(b - t)}" fill="transparent"/>`
+    corpo += `<g ${alvo(dica)}><rect x="${r2(xa)}" y="${t}" width="${r2(Math.max(1, xd - xa))}" height="${r2(b - t)}" fill="transparent"/>`
       + `<line x1="${x}" x2="${x}" y1="${t}" y2="${b}" class="cg-mira" stroke-width="1"/><circle cx="${x}" cy="${y}" r="4" class="cg-f-acento cg-anel-fundo cg-mira-ponto" stroke-width="2"/></g>`;
   });
   return svg(largura, altura, rotulo, corpo, 'cg-linha');
@@ -292,8 +339,10 @@ export function linhaTempo({ pontos = [], medias = [], rotulo = '', largura = 34
 
 // ---------- pequenos múltiplos (uma taxa 0–100% por grupo) ----------
 // serie: [{ data, taxa (0–1), dica }]; datas: o domínio comum a todos os quadros
-// (o mesmo eixo em todos — senão a comparação engana).
-export function mini({ serie = [], datas = [], rotulo = '', largura = 170, altura = 70 } = {}) {
+// (o mesmo eixo em todos — senão a comparação engana). vaoMax: a linha se parte
+// onde faltam domingos — 28 dias tolera o grupo de domingos alternados com uma
+// conferência no meio; um mês importado faltando, não.
+export function mini({ serie = [], datas = [], rotulo = '', largura = 170, altura = 70, vaoMax = 28 } = {}) {
   const ps = serie.filter(p => p && finito(p.taxa) && /^\d{4}-\d{2}-\d{2}$/.test(p.data || ''));
   const dom = (datas.length ? datas : ps.map(p => p.data)).filter(Boolean);
   const l = 4, r = largura - 34, t = 6, b = altura - 6;
@@ -302,15 +351,17 @@ export function mini({ serie = [], datas = [], rotulo = '', largura = 170, altur
   if (d0 === d1) { d0 -= 3 * 864e5; d1 += 3 * 864e5; }
   const sx = escala([d0, d1], [l, r]), sy = escala([0, 1], [b, t]);
   let corpo = [0, 0.5, 1].map(v => `<line x1="${l}" x2="${r}" y1="${r2(sy(v)) + 0.5}" y2="${r2(sy(v)) + 0.5}" class="${v ? 'cg-t-grade' : 'cg-t-eixo'}" stroke-width="1"/>`).join('')
-    + texto(r + 4, sy(1) + 4, '100%', { classe: 'cg-txt-mudo', corpo: 8.5 }) + texto(r + 4, sy(0.5) + 3, '50%', { classe: 'cg-txt-mudo', corpo: 8.5 });
+    + texto(r + 4, sy(1) + 4, '100%', { classe: 'cg-txt-mudo', corpo: 9.5 }) + texto(r + 4, sy(0.5) + 3.5, '50%', { classe: 'cg-txt-mudo', corpo: 9.5 });
   const xy = ps.map(p => [r2(sx(diaUtc(p.data))), r2(sy(limitar(p.taxa, 0, 1)))]);
-  corpo += `<path d="${xy.map(([x, y], i) => `${i ? 'L' : 'M'}${x},${y}`).join('')}" class="cg-t-acento" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  const { d, soltos } = caminhoComVaos(xy, ps.map(p => p.data), vaoMax);
+  corpo += `<path d="${d}" class="cg-t-acento" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  for (const i of soltos) if (i < xy.length - 1) corpo += `<circle cx="${xy[i][0]}" cy="${xy[i][1]}" r="3.5" class="cg-f-acento cg-anel-fundo" stroke-width="2"/>`;
   const [ux, uy] = xy.at(-1);
   corpo += `<circle cx="${ux}" cy="${uy}" r="4" class="cg-f-acento cg-anel-fundo" stroke-width="2"/>`;
   xy.forEach(([x, y], i) => {
     const xa = i ? (xy[i - 1][0] + x) / 2 : l, xd = i < xy.length - 1 ? (x + xy[i + 1][0]) / 2 : r;
     const p = ps[i];
-    corpo += `<g ${alvo(p.dica || `${ddmm(p.data)}: ${Math.round(p.taxa * 100)}%`, false)}><rect x="${r2(xa)}" y="${t}" width="${r2(Math.max(1, xd - xa))}" height="${b - t}" fill="transparent"/>`
+    corpo += `<g ${alvo(p.dica || `${ddmm(p.data)}: ${Math.round(p.taxa * 100)}%`)}><rect x="${r2(xa)}" y="${t}" width="${r2(Math.max(1, xd - xa))}" height="${b - t}" fill="transparent"/>`
       + `<line x1="${x}" x2="${x}" y1="${t}" y2="${b}" class="cg-mira" stroke-width="1"/><circle cx="${x}" cy="${y}" r="3.5" class="cg-f-acento cg-anel-fundo cg-mira-ponto" stroke-width="2"/></g>`;
   });
   return svg(largura, altura, rotulo, corpo, 'cg-mini');
@@ -332,24 +383,24 @@ export function faisca(valores = [], { largura = 72, altura = 22, rotulo = '' } 
 
 // ---------- pirâmide (homens à esquerda, mulheres à direita) ----------
 // faixas: [{ faixa, m, f }], da mais velha (no alto) para a mais nova
-export function piramide({ faixas = [], rotulo = '', largura = 340 } = {}) {
-  const linha = 20, vao = 5, topo = 18, meio = largura / 2, col = 26;
+export function piramide({ faixas = [], rotulo = '', largura = LARGURA_EIXO } = {}) {
+  const linha = 20, vao = 5, topo = 20, meio = largura / 2, col = 26;
   const H = topo + faixas.length * (linha + vao) + 2;
   const max = Math.max(1, ...faixas.flatMap(f => [f.m, f.f].filter(finito)));
   const larg = meio - col - 28;
   const sw = v => (finito(v) && v > 0 ? (v / max) * larg : 0);
-  let corpo = texto(meio - col, 11, '♂ Homens', { classe: 'cg-txt', corpo: 10, ancora: 'end' })
-    + texto(meio + col, 11, 'Mulheres ♀', { classe: 'cg-txt', corpo: 10 });
+  let corpo = texto(meio - col, 12, '♂ Homens', { classe: 'cg-txt', corpo: 11, ancora: 'end' })
+    + texto(meio + col, 12, 'Mulheres ♀', { classe: 'cg-txt', corpo: 11 });
   faixas.forEach((f, i) => {
     const y = topo + i * (linha + vao), h = linha - 6, yb = y + 3;
     const wm = sw(f.m), wf = sw(f.f);
-    corpo += texto(meio, y + linha / 2 + 3.5, f.faixa, { classe: 'cg-txt-forte', corpo: 10, ancora: 'middle', peso: '600' });
+    corpo += texto(meio, y + linha / 2 + 4, f.faixa, { classe: 'cg-txt-forte', corpo: 11, ancora: 'middle', peso: '600' });
     corpo += `<g ${alvo(`${f.faixa} anos — homens: ${fmt(f.m || 0)}`)}><rect x="${r2(meio - col - larg - 26)}" y="${y}" width="${r2(larg + 26)}" height="${linha}" fill="transparent"/>`
       + (wm ? `<path d="${barraDeitada(meio - col, yb, wm, h, 4, true)}" class="cg-f-s1"/>` : '')
-      + texto(meio - col - wm - 4, y + linha / 2 + 3.5, fmt(f.m || 0), { classe: 'cg-txt', corpo: 10, ancora: 'end' }) + '</g>';
+      + texto(meio - col - wm - 4, y + linha / 2 + 4, fmt(f.m || 0), { classe: 'cg-txt', corpo: 11, ancora: 'end' }) + '</g>';
     corpo += `<g ${alvo(`${f.faixa} anos — mulheres: ${fmt(f.f || 0)}`)}><rect x="${r2(meio + col)}" y="${y}" width="${r2(larg + 26)}" height="${linha}" fill="transparent"/>`
       + (wf ? `<path d="${barraDeitada(meio + col, yb, wf, h)}" class="cg-f-s2"/>` : '')
-      + texto(meio + col + wf + 4, y + linha / 2 + 3.5, fmt(f.f || 0), { classe: 'cg-txt', corpo: 10 }) + '</g>';
+      + texto(meio + col + wf + 4, y + linha / 2 + 4, fmt(f.f || 0), { classe: 'cg-txt', corpo: 11 }) + '</g>';
   });
   return svg(largura, H, rotulo, corpo, 'cg-piramide');
 }

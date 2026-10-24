@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { gerar } from '../js/demo-dados.js';
 import {
+  ataResolvida,
   montarPresenca, nomeArquivoAta, paragrafos, presencaParaFormulario, presentes, rotuloPresenca, textoDeBusca,
   textoParaPdf, valorParaPdf,
 } from '../js/reunioes-regras.js';
@@ -244,4 +245,16 @@ test('demonstração: a presença das atas usa os nomes do bispado fictício', (
     for (const p of r.presenca) assert.equal(p.nome, nomes[p.cargo], `${r.data} ${p.cargo}`);
   }
   assert.ok(colecoes.reunioes.some(r => paragrafos(r.pauta).length > 1), 'nenhuma pauta com mais de um assunto');
+});
+
+test('ata resolvida: já passou e não tem item em aberto — vai para o histórico', () => {
+  const hoje = '2026-10-24';
+  assert.equal(ataResolvida({ data: '2026-10-10', itens: [{ texto: 'a', feito: true }, { texto: 'b', feito: true }] }, hoje), true);
+  assert.equal(ataResolvida({ data: '2026-10-10', itens: [] }, hoje), true, 'sem itens e já passou');
+  assert.equal(ataResolvida({ data: '2026-10-10' }, hoje), true, 'ata antiga, sem o campo itens');
+  assert.equal(ataResolvida({ data: '2026-10-10', itens: [{ texto: 'a', feito: true }, { texto: 'b', feito: false }] }, hoje), false, 'item em aberto fica na tela');
+  assert.equal(ataResolvida({ data: hoje, itens: [{ texto: 'a', feito: true }] }, hoje), false, 'a de hoje fica na tela');
+  assert.equal(ataResolvida({ data: '2026-11-01', itens: [] }, hoje), false, 'a futura fica na tela');
+  assert.equal(ataResolvida({ itens: [] }, hoje), false, 'sem data: não some');
+  assert.equal(ataResolvida(null, hoje), false);
 });

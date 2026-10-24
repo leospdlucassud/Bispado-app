@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  CORES, anel, arcoDoAnel, barraDeMeta, barraDeitada, barraEmpilhada, colunaEmPe, colunas, cor, escala, faisca, figura,
+  CORES, anel, arcoDoAnel, barraDeMeta, barraDeitada, barraEmpilhada, caminhoComVaos, colunaEmPe, colunas, cor, escala, faisca, figura,
   fmt, fmtPct, larguraTexto, legenda, limitar, linhaTempo, medidor, mini, piramide, segmentos, tabela, ticksLimpos,
 } from '../js/graficos.js';
 
@@ -70,9 +70,9 @@ test('anel: do meio-dia, no sentido horário; cheio vira dois arcos; vazio não 
   assert.match(arcoDoAnel(0.75, 50, 50, 40), /A40,40 0 1 1 10,50$/);   // arco grande depois da metade
   assert.equal(contar(arcoDoAnel(1, 50, 50, 40), /A/g), 2);
   assert.equal(arcoDoAnel(1.5, 50, 50, 40), arcoDoAnel(1, 50, 50, 40));
-  const a = anel({ pct: 25, rotulo: 'out/2026: 25%' });
-  acessivel(a, 'out/2026: 25%');
-  assert.ok(a.includes('>25%</text>'));
+  const a = anel({ pct: 22, rotulo: 'out/2026: 22%' });
+  acessivel(a, 'out/2026: 22%');
+  assert.ok(a.includes('>22%</text>'));
   assert.ok(a.includes('cg-t-trilho') && a.includes('cg-t-acento'));
   const vazio = anel({ pct: null, rotulo: 'sem contagem' });
   assert.ok(vazio.includes('>—</text>') && !vazio.includes('<path'));
@@ -141,8 +141,8 @@ test('colunas: total no topo, empilhadas sem vão na base, formato e destaque', 
   assert.ok(s.includes('font-weight="700">out</text>'));     // o destaque
   assert.ok(s.includes('data-tip="out\nAdultos: 2\nJovens: 3"'));
   assert.equal(contar(s, /class="cg-f-s1"/g), 2);
-  const pct = colunas({ categorias: ['2022'], series: [{ nome: 'F', classe: 'acento', valores: [37] }], formato: fmtPct, rotulo: 'x' });
-  assert.ok(pct.includes('>37%</text>'));
+  const pct = colunas({ categorias: ['2022'], series: [{ nome: 'F', classe: 'acento', valores: [41] }], formato: fmtPct, rotulo: 'x' });
+  assert.ok(pct.includes('>41%</text>'));
   assert.ok(colunas({ categorias: [], series: [], rotulo: 'vazio' }).includes('Sem dados'));
   // marca fina: no máximo 24 de largura, mesmo com poucas categorias
   const larga = colunas({ categorias: ['a'], series: [{ nome: 'x', valores: [10] }], rotulo: 'a' });
@@ -163,6 +163,72 @@ test('linha no tempo: uma faixa de toque por ponto, a média por baixo, o últim
   assert.ok(linhaTempo({ pontos: [{ data: 'ontem', valor: 3 }], rotulo: 'x' }).includes('Sem dados'));
   // um ponto só não divide por zero
   assert.doesNotMatch(linhaTempo({ pontos: [pontos[0]], rotulo: 'um' }), /NaN|Infinity/);
+});
+
+// As atas antigas não têm a frequência: contagens só em janeiro e agosto não
+// podem virar uma reta que "passa" por fevereiro a julho
+test('linha no tempo: parte onde faltam domingos (mais de 14 dias), e o ponto sozinho aparece', () => {
+  const caminho = s => s.match(/<path d="([^"]*)" class="cg-t-acento"/)[1];
+  const pontos = [
+    { data: '2026-01-04', valor: 100 }, { data: '2026-01-11', valor: 104 },
+    { data: '2026-08-02', valor: 96 }, { data: '2026-08-16', valor: 98 },   // 16/8: a conferência pulou o 9/8 — 14 dias, segue
+    { data: '2026-10-04', valor: 90 },                                      // sozinho
+    { data: '2026-11-01', valor: 92 },
+  ];
+  const s = linhaTempo({ pontos, rotulo: 'Sacramental' });
+  assert.equal(caminho(s).replace(/[^ML]/g, ''), 'MLMLMM');   // jan · ago · 4/10 · 1/11 (28 dias depois)
+  assert.equal(contar(s, /<circle[^>]*class="cg-f-acento cg-anel-fundo" stroke-width="2"\/>/g), 2);   // o 4/10 sozinho e o último
+  assert.deepEqual(caminhoComVaos([[0, 0], [1, 1]], ['2026-10-04', '2026-10-11']), { d: 'M0,0L1,1', soltos: [] });
+  assert.deepEqual(caminhoComVaos([[0, 0], [1, 1]], ['2026-10-04', '2026-11-01']).soltos, [0, 1]);
+  // os pequenos múltiplos toleram mais (domingos alternados com uma conferência no meio)
+  const m = mini({ serie: [{ data: '2026-07-05', taxa: 0.2 }, { data: '2026-08-02', taxa: 0.3 }, { data: '2026-10-04', taxa: 0.4 }], rotulo: 'M' });
+  assert.equal(caminho(m).replace(/[^ML]/g, ''), 'MLM');
+});
+
+// O desenho encolhe para caber na figura, e o texto junto: no celular de 360 px a
+// figura tem ~275 px por dentro — o texto de eixo precisa de ≥ 10 px depois disso
+test('legível em 360 px: nenhum texto de eixo abaixo de 10 px na figura mais estreita', () => {
+  const FIGURA = 275;
+  const menor = s => {
+    const w = +s.match(/viewBox="0 0 ([\d.]+)/)[1];
+    return Math.min(...[...s.matchAll(/font-size="([\d.]+)"/g)].map(x => +x[1])) * Math.min(1, FIGURA / w);
+  };
+  const pontos = Array.from({ length: 50 }, (_, i) => ({ data: `2026-${String(1 + Math.floor(i / 4.3)).padStart(2, '0')}-0${1 + (i % 4)}`, valor: 900 + i }));
+  const desenhos = {
+    linha: linhaTempo({ pontos, rotulo: 'l' }),
+    colunas: colunas({ categorias: ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'], series: [{ nome: 'x', valores: Array(12).fill(12) }], rotulo: 'c' }),
+    piramide: piramide({ faixas: [{ faixa: '18–30', m: 10, f: 20 }], rotulo: 'p' }),
+    meta: barraDeMeta({ atual: 312, metas: [{ valor: 250, rotulo: '1 ala · 250' }, { valor: 500, rotulo: '2 alas · 500' }], rotulo: 'm' }),
+  };
+  for (const [nome, s] of Object.entries(desenhos)) assert.ok(menor(s) >= 10, `${nome}: ${menor(s).toFixed(1)} px`);
+  // e os meses do eixo não se encostam: um a cada dois, sempre os ímpares do ano
+  const meses = [...desenhos.linha.matchAll(/>(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)<\/text>/g)].map(x => x[1]);
+  assert.deepEqual(meses, ['jan', 'mar', 'mai', 'jul', 'set', 'nov']);
+});
+
+test('barra até a meta: com o atual muito acima, os rótulos das marcas não se encostam', () => {
+  const s = barraDeMeta({ atual: 1200, metas: [{ valor: 250, rotulo: '1 ala · 250' }, { valor: 500, rotulo: '2 alas · 500' }], rotulo: 'm' });
+  const ancoras = [...s.matchAll(/text-anchor="(\w+)">(\d alas? · \d+)</g)].map(x => x[1]);
+  assert.deepEqual(ancoras, ['end', 'start']);
+});
+
+// Dentro do <svg role="img"> os filhos são apresentação: um tabindex ali era uma
+// parada do Tab sem nome para o leitor de tela. A dica fica para o toque e o
+// cursor; o teclado tem o aria-label e a tabela. O medidor (HTML) é o foco certo.
+test('nenhuma parada de foco sem nome dentro dos gráficos', () => {
+  const desenhos = [
+    barraDeMeta({ atual: 300, metas: [{ valor: 250 }], rotulo: 'a' }),
+    barraEmpilhada({ segs: [{ rotulo: 'x', valor: 1, classe: 'bom' }], rotulo: 'b' }),
+    colunas({ categorias: ['a'], series: [{ nome: 'x', valores: [1] }], rotulo: 'c' }),
+    linhaTempo({ pontos: [{ data: '2026-10-04', valor: 1 }], rotulo: 'd' }),
+    mini({ serie: [{ data: '2026-10-04', taxa: 0.5 }], rotulo: 'e' }),
+    piramide({ faixas: [{ faixa: '0–2', m: 1, f: 1 }], rotulo: 'f' }),
+  ];
+  for (const s of desenhos) {
+    assert.ok(s.includes('data-tip='), 'a dica continua');
+    assert.ok(!s.includes('tabindex'), s.slice(0, 60));
+  }
+  assert.match(medidor({ rotulo: 'x', valor: 1, total: 2 }), /role="img" tabindex="0" aria-label="x: 1 de 2"/);
 });
 
 test('pequenos múltiplos: o mesmo domínio de datas e a escala de 0 a 100%', () => {
