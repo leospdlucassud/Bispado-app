@@ -45,8 +45,13 @@ export let importacaoPendente = false;
 let carregando = true;   // a 1ª carga ainda não terminou (nem bem, nem mal)
 
 export let filChamados = 'todos';
-// organizações recolhidas na vista completa (sem filtro nem busca)
+// Organizações recolhidas. Na vista completa (sem filtro nem busca), valem
+// até a pessoa abrir de novo; com filtro ou busca, valem enquanto o filtro e a
+// busca forem os mesmos — trocá-los abre tudo, para o achado não ficar
+// escondido numa organização recolhida.
 const orgsFechadas = new Set();
+const fechadasNaBusca = new Set();
+let vistaDaBusca = '';
 
 // Para o Início, o cartão do membro e a Agenda: o que a aba tem agora
 export function dadosDosChamados() {
@@ -147,6 +152,19 @@ function infoChamados() {
 export function renderChamadosAla() {
   const el = document.getElementById('lista-chamados');
   if (!el) return;
+  // qual vista a lista mostra agora (só a lista de organizações tem uma)
+  const naTela = el.dataset.vista;
+  delete el.dataset.vista;
+  // Antes de redesenhar, o que está na tela manda: a atualização de 30 s (e
+  // qualquer outro redesenho) recriava as organizações, e a que a pessoa tinha
+  // recolhido com filtro ou busca voltava aberta. A vista que sai guarda o seu
+  // estado (trocar de filtro não esquece o que foi recolhido na completa).
+  const daTela = naTela === 'todos' ? orgsFechadas : naTela && naTela === vistaDaBusca ? fechadasNaBusca : null;
+  if (daTela) {
+    for (const d of el.querySelectorAll('details.cham-org')) {
+      if (d.open) daTela.delete(d.dataset.org); else daTela.add(d.dataset.org);
+    }
+  }
   const busca = document.getElementById('busca-chamados')?.value || '';
   const r = resumoChamados(CHAMADOS_ALA);
 
@@ -187,14 +205,17 @@ export function renderChamadosAla() {
   const achados = filtrarChamados(CHAMADOS_ALA, { filtro: filChamados, busca });
   if (!achados.length) { el.innerHTML = vazia('🔍 Nenhum chamado com esse filtro'); return; }
 
-  // Com filtro ou busca, toda organização abre: o que foi achado não pode
-  // ficar escondido numa organização recolhida
   const livre = filChamados === 'todos' && !busca.trim();
+  const vista = livre ? 'todos' : filChamados + '|' + norm(busca);
+  if (livre) vistaDaBusca = '';
+  else if (vista !== vistaDaBusca) { fechadasNaBusca.clear(); vistaDaBusca = vista; }
+  const fechadas = livre ? orgsFechadas : fechadasNaBusca;
   const conta = achados.length === CHAMADOS_ALA.length
     ? plural(achados.length, 'chamado', 'chamados')
     : `${achados.length} de ${plural(CHAMADOS_ALA.length, 'chamado', 'chamados')}`;
   el.innerHTML = `<div class="cham-conta">${conta}</div>`
-    + agruparPorOrganizacao(achados).map(o => blocoOrganizacao(o, !livre || !orgsFechadas.has(o.org))).join('');
+    + agruparPorOrganizacao(achados).map(o => blocoOrganizacao(o, !fechadas.has(o.org))).join('');
+  el.dataset.vista = vista;
 }
 
 function blocoOrganizacao(o, aberta) {
@@ -582,15 +603,6 @@ function ligarChamadosAla() {
     else if (alvo.dataset.act === 'ver-agenda') switchTab('agenda');
     else if (alvo.dataset.act === 'editar-chamado') abrirEdicaoChamado(+alvo.dataset.i);
   });
-
-  // 'toggle' não sobe pela árvore: escuta na captura. Só a vista completa
-  // lembra o que foi recolhido (com filtro ou busca, tudo abre).
-  document.getElementById('lista-chamados')?.addEventListener('toggle', e => {
-    const d = e.target;
-    if (!d.matches?.('details.cham-org')) return;
-    if (filChamados !== 'todos' || (document.getElementById('busca-chamados')?.value || '').trim()) return;
-    if (d.open) orgsFechadas.delete(d.dataset.org); else orgsFechadas.add(d.dataset.org);
-  }, true);
 
   // o conteúdo do modal é reescrito em cada etapa (lendo / aviso / prévia);
   // o ✕ e o "Fechar"/"Cancelar" (data-act="fechar") são do ui.js

@@ -13,6 +13,7 @@ import { comNome, nomeDoCargo } from './chamados.js';
 import { ALA, API_ORADORES, DADOS, HORARIO_SACRAMENTAL, cargoInfo, nomeDoResponsavel } from './config.js';
 import { MEMBROS } from './dados-membros.js';
 import { confirmar } from './dialogo.js';
+import { abrirDiscursoBase, htmlBaseEscolhida } from './discurso-base.js';
 import {
   CORES_POSICAO, GRUPOS, LEMBRETE_DIAS, MAIS_SEMANAS, MAX_SEMANAS, MINUTOS_ALERTA, ORDEM_TIPOS, POSICOES,
   ROTULO_ESTADO, SEMANAS_PLANO, TEMPOS_OPCOES, TIPOS_DOMINGO,
@@ -88,6 +89,8 @@ function mensagemDaVaga(ctx, sac, dk, n, tipo, troca = {}) {
     tipo, nome, genero: perfil.genero, menor: perfil.menor, n, dk,
     minutos: troca.min ?? minutosDaVaga(sac, n),
     tema: troca.tema ?? String(sac?.['tema' + n] || ''),
+    base: troca.base ?? String(sac?.['base' + n] || ''),
+    baseUrl: troca.baseUrl ?? String(sac?.['base' + n + 'Url'] || ''),
     horario: HORARIO_SACRAMENTAL,
     assinatura: assinaturaConvite(codAtual(), nomeDoCargo(USUARIO), ALA),
     hojeKey: ctx.hoje,
@@ -294,6 +297,7 @@ function vagaHtml(ctx, reg, dk, n) {
     ['convidado', 'aceito', 'recusou'].includes(estado) && por ? `por ${esc(comNome(nomeDoResponsavel(por)))}` : '',
     reg['tema' + n] ? `Tema: ${esc(reg['tema' + n])}` : '',
   ].filter(Boolean).join(' · ');
+  const base = estado !== 'dispensada' ? htmlBaseEscolhida(reg['base' + n], reg['base' + n + 'Url'], '') : '';
   const sub = selo + (detalhes ? `<span>${detalhes}</span>` : '');
 
   const nomeHtml = estado === 'dispensada' ? '<span class="vaga-vazia">Sem este discurso</span>'
@@ -306,6 +310,7 @@ function vagaHtml(ctx, reg, dk, n) {
     <div class="vaga-corpo">
       <div class="vaga-nome" title="${esc(nomeNatural(nome))}">${nomeHtml}</div>
       <div class="vaga-sub">${sub}</div>
+      ${base}
     </div>
     <div class="vaga-acoes">
       ${frente.join('')}
@@ -421,7 +426,8 @@ export function abrirEscolhaOrador(dk, n, { modo = 'plano', pessoa = null } = {}
   const reg = { ...(sac || {}), data: dk };
   const estado = estadoDaVaga(reg, n, hojeK());
   escolha = { dk, n, modo, filtro: 'sugeridos', mostrar: 5, sel: null, fora: false,
-    min: minutosDaVaga(sac, n), tema: String(sac?.['tema' + n] || '') };
+    min: minutosDaVaga(sac, n), tema: String(sac?.['tema' + n] || ''),
+    base: String(sac?.['base' + n] || ''), baseUrl: String(sac?.['base' + n + 'Url'] || '') };
   const p = partesData(dk);
   const aviso = modo === 'plano' && (estado === 'convidado' || estado === 'aceito')
     ? `<div class="plano-alerta">⚠️ ${esc(nomeCurto(reg['orador' + n]))} já ${estado === 'aceito' ? 'aceitou este discurso' : 'recebeu o convite para este discurso'}. Ao trocar, avise essa pessoa.</div>`
@@ -562,7 +568,45 @@ const camposTempoTema = () => `
   <label>Tempo</label>
   <div class="filtros" id="orador-tempo">${chipsTempo(escolha.min, 'tempo')}</div>
   <label for="orador-tema">Tema (opcional)</label>
-  <input type="text" class="form-input" id="orador-tema" value="${esc(escolha.tema)}" placeholder="Ex.: A oração">`;
+  <input type="text" class="form-input" id="orador-tema" value="${esc(escolha.tema)}" placeholder="Ex.: A oração">
+  ${botaoBase('escolha', escolha)}`;
+
+// "💡 Sugerir discurso base" e o que já foi escolhido (discurso-base.js)
+const botaoBase = (ctx, st) => `
+  <div id="base-area-${ctx}">${htmlBaseEscolhida(st.base, st.baseUrl, 'tirar-base')}</div>
+  <button type="button" class="btn-secondary btn-base" data-act="sugerir-base" data-ctx="${ctx}">💡 Sugerir discurso base</button>`;
+
+const estadoDaBase = ctx => ctx === 'escolha' ? escolha : ctx === 'tt' ? tempoTema : null;
+const campoDoTema = ctx => document.getElementById(ctx === 'escolha' ? 'orador-tema' : 'tt-tema');
+
+function redesenharBase(ctx) {
+  const st = estadoDaBase(ctx);
+  const area = document.getElementById('base-area-' + ctx);
+  if (st && area) area.innerHTML = htmlBaseEscolhida(st.base, st.baseUrl, 'tirar-base');
+  if (ctx === 'escolha') atualizarLinkEscolha();
+}
+
+function pedirBase(ctx) {
+  const st = estadoDaBase(ctx);
+  if (!st) return;
+  abrirDiscursoBase({ n: st.n, tema: campoDoTema(ctx)?.value || '', aoEscolher: ({ tema, base, url }) => {
+    if (estadoDaBase(ctx) !== st) return;   // o diálogo de baixo mudou enquanto isso
+    st.base = base; st.baseUrl = url;
+    // sem tema digitado, fica o tema da busca
+    const campo = campoDoTema(ctx);
+    if (campo && !campo.value.trim()) campo.value = tema;
+    redesenharBase(ctx);
+  } });
+}
+
+const camposDaBase = (n, st) => ({ ['base' + n]: String(st.base || ''), ['base' + n + 'Url']: String(st.baseUrl || '') });
+
+function tirarBase(ctx) {
+  const st = estadoDaBase(ctx);
+  if (!st) return;
+  st.base = ''; st.baseUrl = '';
+  redesenharBase(ctx);
+}
 
 function painel(html) {
   const lista = document.getElementById('orador-escolha');
@@ -617,7 +661,7 @@ function atualizarLinkEscolha() {
   escolha.tema = document.getElementById('orador-tema')?.value || '';
   if (vagaIncerta(escolha.dk)) { a.removeAttribute('href'); a.title = 'Sincronize antes de convidar'; return; }
   const { msg, tel } = mensagemDaVaga(contexto(), getSacPorData(escolha.dk), escolha.dk, escolha.n, 'convite',
-    { nome: escolha.sel.nome, min: escolha.min, tema: escolha.tema });
+    { nome: escolha.sel.nome, min: escolha.min, tema: escolha.tema, base: escolha.base, baseUrl: escolha.baseUrl });
   a.href = hrefWhatsApp(tel, msg);
 }
 
@@ -634,7 +678,8 @@ function reservarVaga(convidar) {
   if (convidar && vagaIncerta(escolha.dk)) { toast('Sincronize antes de convidar — ou só reserve a vaga'); return; }
   const { dk, n, sel, min } = escolha;
   const tema = (document.getElementById('orador-tema')?.value || '').trim();
-  const campos = { ...camposAoTrocarOrador(n, sel.nome, { passado: false }), ['tema' + n]: tema, ['orador' + n + 'Min']: min };
+  const campos = { ...camposAoTrocarOrador(n, sel.nome, { passado: false }), ['tema' + n]: tema, ['orador' + n + 'Min']: min,
+    ...camposDaBase(n, escolha) };
   if (convidar) {
     Object.assign(campos, {
       ['orador' + n + 'Status']: 'convidado', ['orador' + n + 'ConvidadoEm']: agoraIso(), ['orador' + n + 'Por']: codAtual(),
@@ -654,7 +699,7 @@ function reservarFora() {
   const { dk, n, min } = escolha;
   const tema = (document.getElementById('orador-tema')?.value || '').trim();
   const campos = { ...camposAoTrocarOrador(n, nome, { passado: false, fora: true }), ['orador' + n + 'Status']: '',
-    ['tema' + n]: tema, ['orador' + n + 'Min']: min };
+    ['tema' + n]: tema, ['orador' + n + 'Min']: min, ...camposDaBase(n, escolha) };
   fecharModal('modal-orador');
   gravarCamposDomingo(dk, campos, { vagas: [n] }).then(r => { if (r === 'ok') toast('Vaga reservada'); });
 }
@@ -733,7 +778,8 @@ export function abrirTempoTema(dk, n) {
   const sac = getSacPorData(dk);
   if (!sac) return;
   const min = minutosDaVaga(sac, n);
-  tempoTema = { dk, n, chave: chavePessoa(sac['orador' + n] || '') };
+  tempoTema = { dk, n, chave: chavePessoa(sac['orador' + n] || ''),
+    base: String(sac['base' + n] || ''), baseUrl: String(sac['base' + n + 'Url'] || '') };
   // um <select> (e não chips): assim o "Descartar o que foi digitado?" percebe a troca
   document.getElementById('modal-orador-content').innerHTML = `
     <h3>Tempo e tema — ${n}º discurso <button class="modal-close" data-act="fechar">✕</button></h3>
@@ -747,6 +793,7 @@ export function abrirTempoTema(dk, n) {
     <div class="form-group">
       <label for="tt-tema">Tema</label>
       <input type="text" class="form-input" id="tt-tema" value="${esc(sac['tema' + n] || '')}" placeholder="Ex.: A oração">
+      ${botaoBase('tt', tempoTema)}
     </div>
     <button type="button" class="btn-primary" data-act="salvar-tempo-tema">Salvar</button>`;
   abrirModal('modal-orador', { semConfirmacao: false });
@@ -755,21 +802,23 @@ export function abrirTempoTema(dk, n) {
 function salvarTempoTema() {
   if (!tempoTema) return;
   const { dk, n, chave } = tempoTema;
+  const base = camposDaBase(n, tempoTema);
   const sac = getSacPorData(dk);
   const min = Number(document.getElementById('tt-min')?.value) || minutosDaVaga(sac, n);
   const tema = (document.getElementById('tt-tema')?.value || '').trim();
   fecharModal('modal-orador');
   if (!sac || vagaMudou(dk, n, chave)) return;
-  const mudou = min !== minutosDaVaga(sac, n) || tema !== String(sac['tema' + n] || '').trim();
+  const baseMudou = base['base' + n] !== String(sac['base' + n] || '') || base['base' + n + 'Url'] !== String(sac['base' + n + 'Url'] || '');
+  const mudou = min !== minutosDaVaga(sac, n) || tema !== String(sac['tema' + n] || '').trim() || baseMudou;
   if (!mudou) { toast('Nada foi alterado'); return; }
   const est = estadoDaVaga(sac, n, hojeK());
   const nome = nomeCurto(sac['orador' + n]);
-  gravarCamposDomingo(dk, { ['orador' + n + 'Min']: min, ['tema' + n]: tema }, { vagas: [n] }).then(r => {
+  gravarCamposDomingo(dk, { ['orador' + n + 'Min']: min, ['tema' + n]: tema, ...base }, { vagas: [n] }).then(r => {
     // 'pendente' e 'descartado' já mostraram o seu aviso, que este cobriria
     if (r !== 'ok') return;
     // o caminho para avisar depende do estado: quem aceitou não tem "Reenviar"
-    if (est === 'convidado') toast(`Tempo ou tema alterado — avise ${nome} (Mais › Reenviar convite)`);
-    else if (est === 'aceito') toast(`Tempo ou tema alterado — avise ${nome} pelo WhatsApp; na semana do discurso, o Lembrete já leva o novo`);
+    if (est === 'convidado') toast(`Vaga alterada — avise ${nome} (Mais › Reenviar convite)`);
+    else if (est === 'aceito') toast(`Vaga alterada — avise ${nome} pelo WhatsApp; na semana do discurso, o Lembrete já leva o novo`);
     else toast('Vaga atualizada');
   });
 }
@@ -810,6 +859,7 @@ async function moverVaga(destino) {
   const m = destino.n;
   const agora = agoraIso();
   const campos = { ...camposAoTrocarOrador(m, nome, { passado: false }), ['tema' + m]: sac['tema' + n] || '',
+    ['base' + m]: sac['base' + n] || '', ['base' + m + 'Url']: sac['base' + n + 'Url'] || '',
     ['orador' + m + 'Status']: combinado ? 'aceito' : 'planejado' };
   if (combinado) {
     Object.assign(campos, {
@@ -1232,6 +1282,9 @@ function aoClicarModal(e) {
     case 'reservar': reservarVaga(false); break;
     case 'reservar-convidar': reservarVaga(true); break;   // <a>: sem preventDefault
     case 'reservar-fora': reservarFora(); break;
+    // discurso base (na escolha da vaga e no "Tempo e tema")
+    case 'sugerir-base': pedirBase(d.ctx); break;
+    case 'tirar-base': tirarBase(alvo.closest('[id^="base-area-"]')?.id.slice('base-area-'.length)); break;
     // outro meio
     case 'om-enviar': if (alvo.getAttribute('href')) concluirOutroMeio(''); break;
     case 'om-copiar': copiarMensagem(); break;

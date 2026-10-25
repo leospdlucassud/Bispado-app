@@ -9,6 +9,7 @@ import { apiFetch, atualizarUltimaSinc, avisarPendente, idProvisorioDo, setSyncS
 import { API_SAC, DADOS } from './config.js';
 import { MEMBROS } from './dados-membros.js';
 import { confirmar } from './dialogo.js';
+import { abrirDiscursoBase, htmlBaseEscolhida } from './discurso-base.js';
 import {
   CORES_POSICAO, MAX_SEMANAS, ORDEM_TIPOS, POSICOES, ROTULO_ESTADO, TEMPOS_OPCOES, TIPOS_DOMINGO,
   camposAoTrocarOrador, camposDaVaga, camposVagaVazia, chaveEstrita, chavePessoa, diffCampos, ehDomingo, estadoDaVaga,
@@ -200,7 +201,7 @@ export function renderSacramentais() {
       if (!sac['orador' + n]) return '';
       const selo = estado === 'realizado' ? '' : ' ' + seloVaga(estado);
       return `<div><span style="--c:${CORES_POSICAO[n]};font-size:11px">${n}º Orador · ${minutosDaVaga(sac, n)} min</span>` +
-        `<div style="color:var(--text-corpo)">${esc(String(sac['orador'+n]).replace(/\s+/g, ' ').trim())}${sac['tema'+n] ? ` <span style="color:var(--text3)">· ${esc(sac['tema'+n])}</span>` : ''}${selo}</div></div>`;
+        `<div style="color:var(--text-corpo)">${esc(String(sac['orador'+n]).replace(/\s+/g, ' ').trim())}${sac['tema'+n] ? ` <span style="color:var(--text3)">· ${esc(sac['tema'+n])}</span>` : ''}${selo}</div>${htmlBaseEscolhida(sac['base'+n], sac['base'+n+'Url'], '')}</div>`;
     };
 
     return `
@@ -314,6 +315,10 @@ export function abrirModalSac(dataKey) {
           </select>
         </div>
       </div>
+      <input type="hidden" id="sac-base${n}" value="${esc(sac['base'+n])}">
+      <input type="hidden" id="sac-baseUrl${n}" value="${esc(sac['base'+n+'Url'])}">
+      <div id="sac-base-area${n}">${htmlBaseEscolhida(sac['base'+n], sac['base'+n+'Url'], 'tirar-base', n)}</div>
+      <button type="button" class="btn-secondary btn-base" data-act="sugerir-base" data-n="${n}" style="font-size:12px">💡 Sugerir discurso base</button>
       <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--text2)">
         <input type="checkbox" id="sac-fora${n}" ${sac['orador'+n+'Fora'] === true ? 'checked' : ''}> De fora da ala (sumo conselheiro, visitante)
       </label>
@@ -400,6 +405,26 @@ function mostrarVagasDaAta() {
   }
 }
 
+// Discurso base na ata: fica nos campos escondidos sac-base{n}/sac-baseUrl{n}
+// e só vai para o servidor no Salvar, junto com o resto
+function definirBaseNaAta(n, base, url) {
+  const b = document.getElementById('sac-base' + n), u = document.getElementById('sac-baseUrl' + n);
+  if (!b || !u) return;
+  b.value = base; u.value = url;
+  const area = document.getElementById('sac-base-area' + n);
+  if (area) area.innerHTML = htmlBaseEscolhida(base, url, 'tirar-base', n);
+}
+
+function pedirBaseNaAta(n) {
+  const dk = ataAberta;
+  const campoTema = document.getElementById('sac-tema' + n);
+  abrirDiscursoBase({ n, tema: campoTema?.value || '', aoEscolher: ({ tema, base, url }) => {
+    if (ataAberta !== dk) return;
+    if (campoTema && !campoTema.value.trim()) campoTema.value = tema;
+    definirBaseNaAta(n, base, url);
+  } });
+}
+
 export function lerFormularioAta() {
   const v = id => (document.getElementById(id)?.value || '').trim();
   const obj = { tipo: v('ata-tipo'), frequencia: v('ata-frequencia'), visitantes: v('ata-visitantes') };
@@ -416,6 +441,8 @@ export function lerFormularioAta() {
   for (const n of POSICOES) {
     obj['orador' + n] = v('sac-orador' + n);
     obj['tema' + n] = v('sac-tema' + n);
+    obj['base' + n] = v('sac-base' + n);
+    obj['base' + n + 'Url'] = v('sac-baseUrl' + n);
     obj['orador' + n + 'Min'] = Number(v('sac-min' + n)) || '';
     obj['orador' + n + 'Fora'] = !!document.getElementById('sac-fora' + n)?.checked;
   }
@@ -661,6 +688,8 @@ function ligarSacramental() {
       case 'pdf':     imprimirAtaSacramental(el.dataset.dk); break;
       case 'excluir': excluirSac(el.dataset.id); break;
       case 'sugerir': abrirEscolhaOrador(ataAberta, Number(el.dataset.n), { modo: 'ata' }); break;
+      case 'sugerir-base': pedirBaseNaAta(Number(el.dataset.n)); break;
+      case 'tirar-base': definirBaseNaAta(Number(el.dataset.n), '', ''); break;
     }
   });
   // o conteúdo do modal é recriado a cada ata aberta: a escuta fica no modal

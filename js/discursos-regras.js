@@ -10,6 +10,7 @@
 // 5/10/15 minutos e o jovem no 1º discurso são COSTUME — vêm do Manual 2 (2019)
 // —, por isso ficam aqui como padrões editáveis, nunca como regra.
 // =============================================
+import { urlSegura } from './discursos-base-regras.js';
 import { dataLocal, norm, partesDoNascimento } from './utils.js';
 
 // ---------- constantes ----------
@@ -370,8 +371,10 @@ export function docOrador(form, anterior, hojeKey) {
 export const grupoDoBancoAntigo = g => ({ quorum: 'quorum', socsoc: 'ss' })[g] || '';
 
 // ---------- vagas ----------
+// base{n}/base{n}Url: o discurso sugerido para inspirar o orador (discurso-base.js)
 export const camposDaVaga = n => ['orador' + n, 'tema' + n, 'orador' + n + 'Min', 'orador' + n + 'Status',
-  'orador' + n + 'Chave', 'orador' + n + 'ConvidadoEm', 'orador' + n + 'RespostaEm', 'orador' + n + 'Por', 'orador' + n + 'Fora'];
+  'orador' + n + 'Chave', 'orador' + n + 'ConvidadoEm', 'orador' + n + 'RespostaEm', 'orador' + n + 'Por', 'orador' + n + 'Fora',
+  'base' + n, 'base' + n + 'Url'];
 
 export function camposVagaVazia(n) {
   const c = Object.fromEntries(camposDaVaga(n).map(k => [k, '']));
@@ -412,7 +415,7 @@ export function estadoDaVaga(sac, n, hojeKey) {
 }
 
 // Toda troca de pessoa zera o convite: a resposta era de outra pessoa.
-// Tema e tempo ficam como estão.
+// Tema, tempo e discurso base ficam como estão.
 export function camposAoTrocarOrador(n, nome, { passado = false, fora = false } = {}) {
   const nm = String(nome || '').trim();
   return {
@@ -638,8 +641,21 @@ export function assinaturaConvite(cod, nome, ala) {
 
 // Texto do convite e do lembrete. Só o primeiro nome, a data, a posição, o
 // tempo, o tema e quem convida: a prévia aparece na tela bloqueada, muitas
-// vezes no celular da família. Nada de link, telefone, sobrenome ou outros oradores.
-export function mensagemDiscurso({ tipo = 'convite', nome, genero = '', menor = false, n, dk, minutos, tema = '', horario = '', assinatura, hojeKey = '' }) {
+// vezes no celular da família. Nada de telefone, sobrenome ou outros oradores.
+// O único link é o do discurso base (conteúdo público da Igreja ou da BYU), no
+// fim da mensagem (no convite, antes do pedido de resposta).
+export function mensagemDiscurso({ tipo = 'convite', nome, genero = '', menor = false, n, dk, minutos, tema = '', base = '', baseUrl = '', horario = '', assinatura, hojeKey = '' }) {
+  const b = String(base || '').trim();
+  const u = urlSegura(baseUrl);
+  const link = b && u ? `: ${u}` : '';
+  const msg = mensagemSemBase({ tipo, nome, genero, menor, n, dk, minutos, tema, horario, assinatura, hojeKey });
+  if (!b) return msg;
+  if (tipo === 'lembrete') return `${msg}\n\nO discurso base sugerido: ${b}${link}`;
+  const i = msg.lastIndexOf('\n\n');
+  return `${msg.slice(0, i)}\n\nPara inspirar a preparação, sugerimos o discurso ${b}${link}${msg.slice(i)}`;
+}
+
+function mensagemSemBase({ tipo, nome, genero, menor, n, dk, minutos, tema, horario, assinatura, hojeKey }) {
   const Nome = primeiroNomeDe(nome) || String(nome || '').trim();
   const quando = quandoPorExtenso(dk, horario, hojeKey);
   const min = minutos || TEMPO_PADRAO[n];

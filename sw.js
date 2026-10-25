@@ -1,4 +1,4 @@
-const CACHE = 'bispado-app-v5.30.0';
+const CACHE = 'bispado-app-v5.31.1';
 const ASSETS = [
   '/',
   '/index.html',
@@ -30,6 +30,8 @@ const ASSETS = [
   '/js/crescimento-lcr.js',
   '/js/crud-regras.js',
   '/js/discursos-regras.js',
+  '/js/discursos-base-regras.js',
+  '/js/discurso-base.js',
   '/js/dados-membros.js',
   '/js/designacoes.js',
   '/js/dialogo.js',
@@ -108,6 +110,10 @@ self.addEventListener('message', e => {
 
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
+
+  // A busca do "discurso base" na Biblioteca do Evangelho (discurso-base.js):
+  // nunca do cache — cada tema é uma busca nova
+  if (url.hostname === 'www.churchofjesuschrist.org') return;
 
   // API Netlify e o arquivo de versao — sempre rede, nunca cache.
   // version.json cacheado tornaria a verificacao de atualizacao inutil: o app
