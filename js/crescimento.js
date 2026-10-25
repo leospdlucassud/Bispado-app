@@ -529,18 +529,22 @@ function gradeSacramental(ctx) {
     ? `${plural(faltam.length, 'domingo recente sem contagem', 'domingos recentes sem contagem')}: ${esc(faltam.map(ddmm).join(', '))}.${faltam[0].slice(0, 7) !== mesGrade ? ` <button type="button" class="inicio-link" data-act="grade-mes-ir" data-mes="${esc(faltam[0].slice(0, 7))}">Ir para ${esc(mesCurto(faltam[0].slice(0, 7)))}</button>` : ''}`
     : '✓ As últimas 8 semanas estão com a contagem.';
   return `<h3 class="cresc-sub">Anotar a frequência</h3>
-    <p class="cresc-texto">${status} A contagem fica na ata do domingo (aba Sacramental).</p>
+    <p class="cresc-texto">${status} A contagem fica na ata do domingo (aba Sacramental). Conferência geral e de estaca não entram na conta; outro domingo que não deve contar (reunião cancelada, programa da estaca) se marca em <strong>⊘ não contar</strong>.</p>
     <div class="cresc-grade-nav">
       <button type="button" class="cal-nav" data-act="grade-mes" data-dir="-1" aria-label="Mês anterior">‹</button>
       <span class="cresc-grade-mes">${esc(mesCurto(mesGrade))}</span>
       <button type="button" class="cal-nav" data-act="grade-mes" data-dir="1" aria-label="Mês seguinte"${mesGrade >= ctx.hoje.slice(0, 7) ? ' disabled' : ''}>›</button>
     </div>
     <form class="cresc-grade" data-form="grade">
-      ${g.map(d => `<label class="cresc-grade-dia${d.semReuniao ? ' sem' : ''}">
-        <span class="cresc-grade-data">${esc(ddmm(d.data))}</span>
-        ${d.semReuniao ? '<span class="cresc-grade-sem">conferência</span>'
-          : `<input type="text" inputmode="numeric" maxlength="5" class="form-input" name="${d.data}" value="${esc(d.frequencia)}" placeholder="${d.futuro ? '—' : 'pessoas'}"${d.futuro || travada ? ' disabled' : ''} aria-label="Frequência de ${esc(dataParaExibir(d.data))}" autocomplete="off">`}
-      </label>`).join('')}
+      ${g.map(d => `<div class="cresc-grade-dia${d.semReuniao || d.naoConta ? ' sem' : ''}">
+        <label class="cresc-grade-campo">
+          <span class="cresc-grade-data">${esc(ddmm(d.data))}</span>
+          ${d.semReuniao ? '<span class="cresc-grade-sem">conferência — não conta</span>'
+            : d.naoConta ? `<span class="cresc-grade-sem">não conta${d.frequencia ? ` (${esc(d.frequencia)} anotados)` : ''}</span>`
+            : `<input type="text" inputmode="numeric" maxlength="5" class="form-input" name="${d.data}" value="${esc(d.frequencia)}" placeholder="${d.futuro ? '—' : 'pessoas'}"${d.futuro || travada ? ' disabled' : ''} aria-label="Frequência de ${esc(dataParaExibir(d.data))}" autocomplete="off">`}
+        </label>
+        ${d.semReuniao ? '' : `<button type="button" class="cresc-grade-conta" data-act="grade-conta" data-data="${d.data}" data-conta="${d.naoConta ? 'sim' : 'nao'}"${travada ? ' disabled' : ''} aria-label="${d.naoConta ? 'Voltar a contar' : 'Não contabilizar'} a frequência de ${esc(dataParaExibir(d.data))}">${d.naoConta ? '↺ contar' : '⊘ não contar'}</button>`}
+      </div>`).join('')}
       <button type="submit" class="btn-secondary cresc-grade-salvar"${travada ? ' disabled' : ''}>Salvar</button>
     </form>`;
 }
@@ -550,6 +554,17 @@ async function mudarMesGrade(mes) {
   gradeSuja = false;
   const hoje = dataLocal().slice(0, 7);
   mesGrade = mes > hoje ? hoje : mes;
+  renderCrescimento();
+}
+
+// "⊘ não contar" / "↺ contar": grava só a marca na ata do domingo (o número
+// anotado fica guardado e volta a valer se o domingo voltar a contar)
+async function marcarContagem(data, conta) {
+  if (!sacDoServidor) { toast('As atas ainda não vieram do servidor: marque quando a conexão voltar'); return; }
+  if (gradeSuja && !await confirmar('Descartar a frequência digitada e não salva?', { perigo: true, okLabel: 'Descartar' })) return;
+  gradeSuja = false;
+  const r = await gravarCamposDomingo(data, { frequenciaConta: conta === 'nao' ? 'nao' : 'sim' });
+  if (r === 'ok') toast(conta === 'nao' ? `${ddmm(data)} não entra mais na conta da frequência` : `${ddmm(data)} volta a contar na frequência`);
   renderCrescimento();
 }
 
@@ -1195,6 +1210,7 @@ function ligarCrescimento() {
     else if (ds.act === 'ir-aba') irParaAba(ds.aba, ds.filtro);
     else if (ds.act === 'grade-mes') mudarMesGrade(somarMeses(mesGrade + '-01', Number(ds.dir) || 0).slice(0, 7));
     else if (ds.act === 'grade-mes-ir') mudarMesGrade(ds.mes);
+    else if (ds.act === 'grade-conta') marcarContagem(ds.data, ds.conta);
     else if (ds.act === 'agendar-renovacao') agendarRenovacaoDe(ds);
   });
   painel.addEventListener('submit', e => {

@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   CHAVES_ESTATISTICAS, CHAVES_GRUPO, CRITERIOS, METAS_ALA, METAS_ESTACA, MAX_PESSOAS, MIN_SEMANAS_ANO, NOMES_DOS_PDFS, SECOES_TRIMESTRAL,
-  anoDasSemanas, chaveTrimestre, comparacaoIndicador, dataDoLcr, docCrescimentoVazio, formaDoIcone, frequenciaSacramental,
+  anoDasSemanas, chaveTrimestre, domingosSemFrequencia, foraDaContagem, gradeFrequencia, mudancasDaGrade, comparacaoIndicador, dataDoLcr, docCrescimentoVazio, formaDoIcone, frequenciaSacramental,
   fundirCrescimento, grupoDaClasse, historicoDoIndicador, historicoSacramental, lerEstatisticas, lerFrequenciaClasses,
   lerRecomendacoes, lerTrimestral, liderancaChave, limparCorpoCrescimento, mesDoLcr, normalizarDocCrescimento,
   participantesAdultos, participantesJovens, progressoQualificacao, recomendacaoValida, renovacoesAgendar,
@@ -953,4 +953,31 @@ test('resposta do GET: o privado só com a sessão; documento estranho é erro, 
   assert.deepEqual(velho.privado.participantes, { adultos: null, jovens: null });
   assert.deepEqual(respostaCrescimento(undefined, false), { publico: docCrescimentoVazio().publico });
   assert.equal(respostaCrescimento('texto', true), null);
+});
+
+test('domingo que não conta: conferências e o marcado "não contabilizar" ficam fora da média', () => {
+  // outubro de 2026, domingos 4, 11, 18 e 25; HOJE = 18/10
+  const atas = [
+    { data: '2026-10-04', tipo: 'conf-geral', frequencia: '40' },        // conferência geral: não conta
+    { data: '2026-10-11', frequencia: '100' },
+    { data: '2026-10-18', frequencia: '20', frequenciaConta: 'nao' },     // marcado à mão: não conta
+  ];
+  assert.equal(foraDaContagem(atas[0]), true);
+  assert.equal(foraDaContagem(atas[1]), false);
+  assert.equal(foraDaContagem(atas[2]), true);
+  assert.equal(foraDaContagem({ data: '2026-10-18', tipo: 'conf-estaca' }), true);
+  assert.equal(foraDaContagem({ data: '2026-10-18', frequenciaConta: 'sim' }), false, 'desmarcado volta a contar');
+  const out = frequenciaSacramental(atas, { membros: 400, hoje: HOJE, meses: 1 });
+  assert.deepEqual(out.porMes[0].semanas.map(s => s.data), ['2026-10-11'], 'só o domingo que conta');
+  assert.equal(out.porMes[0].media, 100);
+  assert.equal(out.porAno['2026'].semanas, 1);
+
+  const g = gradeFrequencia(atas, '2026-10', HOJE);
+  assert.deepEqual(g.map(d => [d.data.slice(8), d.semReuniao, d.naoConta]), [['04', true, false], ['11', false, false], ['18', false, true], ['25', false, false]]);
+  // a grade não grava número num domingo que não conta
+  const m = mudancasDaGrade(g, { '2026-10-18': '55', '2026-10-11': '101' }, { desenhado: { '2026-10-18': '20', '2026-10-11': '100' } });
+  assert.deepEqual(m.mudancas, [{ data: '2026-10-11', frequencia: '101' }]);
+  // e não cobra contagem dele (nem da conferência)
+  assert.deepEqual(domingosSemFrequencia([{ data: '2026-10-11', frequenciaConta: 'nao' }, { data: '2026-10-04', tipo: 'conf-geral' }], { hoje: '2026-10-12', semanas: 2 }), []);
+  assert.deepEqual(domingosSemFrequencia([], { hoje: '2026-10-12', semanas: 2 }), ['2026-10-04', '2026-10-11']);
 });

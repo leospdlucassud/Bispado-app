@@ -178,7 +178,7 @@ export function renderSacramentais() {
       : '<span style="width:6px;height:6px;border-radius:50%;background:#e05555;display:inline-block;margin-right:6px" title="Não programado"></span>';
 
     const freq = (sac.frequencia || sac.visitantes)
-      ? `<span style="color:var(--text2);font-size:11px">👥 ${esc(sac.frequencia||'—')}${sac.visitantes ? ` · ${esc(sac.visitantes)} visit.` : ''}</span>`
+      ? `<span style="color:var(--text2);font-size:11px">👥 ${esc(sac.frequencia||'—')}${sac.visitantes ? ` · ${esc(sac.visitantes)} visit.` : ''}${sac.frequenciaConta === 'nao' ? ' · não conta' : ''}</span>`
       : '';
 
     const linha = (rot, val, cor) => val
@@ -353,6 +353,10 @@ export function abrirModalSac(dataKey) {
         <label style="color:var(--text2);font-size:11px">Visitantes</label>
         <input type="number" min="0" class="form-input" id="ata-visitantes" value="${esc(sac.visitantes)}" placeholder="0" style="font-size:12px;padding:6px 10px">
       </div>
+      <label style="grid-column:1 / -1;display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text2)">
+        <input type="checkbox" id="ata-nao-conta" ${sac.frequenciaConta === 'nao' ? 'checked' : ''}>
+        Não contabilizar a frequência deste domingo (reunião cancelada, programa da estaca…). Conferência geral e de estaca já ficam fora da conta.
+      </label>
     </div>
 
     ${ATA_ORDEM.map(c => !c.orador ? campo(c) : (c.orador === 1 ? avisoGuardados : '') + blocoOrador(c.orador)).join('')}
@@ -391,6 +395,9 @@ function mostrarVagasDaAta() {
 export function lerFormularioAta() {
   const v = id => (document.getElementById(id)?.value || '').trim();
   const obj = { tipo: v('ata-tipo'), frequencia: v('ata-frequencia'), visitantes: v('ata-visitantes') };
+  // 'nao'/'sim' e não verdadeiro/falso: o servidor ignora false ao juntar o domingo (fundirDomingo)
+  const naoConta = document.getElementById('ata-nao-conta');
+  if (naoConta) obj.frequenciaConta = naoConta.checked ? 'nao' : 'sim';
   ATA_ORDEM.forEach(c => { if (c.k) obj[c.k] = v('ata-' + c.k); });
   obj.observacoes = v('sac-obs');
   for (const n of POSICOES) {

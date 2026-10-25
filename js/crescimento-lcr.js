@@ -989,6 +989,15 @@ const contagemDe = v => {
   return Number.isInteger(n) && n > 0 && n <= 100000 ? n : null;
 };
 
+// O domingo que NÃO entra na conta da frequência: a conferência geral ou de
+// estaca (não há reunião na ala — o tipo da ata) e o que a pessoa marcou "não
+// contabilizar" (frequenciaConta: 'nao' — reunião cancelada, programa da estaca,
+// feriado). Antes o número digitado num desses domingos entrava na média do mês.
+// O campo é 'nao'/'sim' e não verdadeiro/falso: ao juntar o domingo, o servidor
+// (fundirDomingo) ignora false como "vazio", e a marca nunca mais sairia.
+export const foraDaContagem = ata => !!tipoDe(ata).semReuniao || ata?.frequenciaConta === 'nao';
+export const marcadoSemContagem = ata => ata?.frequenciaConta === 'nao';
+
 // atas: [{ data, frequencia }]; membros: o total da ala (o % é a média ÷ membros,
 // como no LCR). → { porMes: [{ mes, semanas: [{ data, n }], media, pct }] (os
 // `meses` até o de hoje, com os vazios), porAno: { AAAA: { media, pct, semanas } } }
@@ -997,6 +1006,7 @@ export function frequenciaSacramental(atas, { membros = null, hoje = dataLocal()
   const vistas = new Set();
   for (const a of atas || []) {
     if (!a || !RE_DIA.test(a.data || '') || vistas.has(a.data)) continue;
+    if (foraDaContagem(a)) { vistas.add(a.data); continue; }
     const n = contagemDe(a.frequencia);
     if (n == null) continue;
     vistas.add(a.data);
@@ -1525,7 +1535,8 @@ export function destaqueDoRumo(progresso) {
 const contagemDaAta = a => contagemDe(a?.frequencia);
 // Os domingos de um mês ('AAAA-MM') para digitar a frequência:
 // [{ data, frequencia (o texto gravado), tem (há contagem válida), semReuniao
-//   (conferência geral ou de estaca: não há reunião na ala), futuro }]
+//   (conferência geral ou de estaca: não há reunião na ala), naoConta (marcado
+//   "não contabilizar"), futuro }]
 export function gradeFrequencia(atas, mes, hoje = dataLocal()) {
   if (!RE_MES.test(mes || '')) return [];
   const out = [];
@@ -1536,7 +1547,7 @@ export function gradeFrequencia(atas, mes, hoje = dataLocal()) {
     const ata = registroDoDomingo(atas, data);
     out.push({
       data, frequencia: String(ata?.frequencia ?? '').trim(), tem: contagemDaAta(ata) != null,
-      semReuniao: !!tipoDe(ata).semReuniao, futuro: data > hoje,
+      semReuniao: !!tipoDe(ata).semReuniao, naoConta: marcadoSemContagem(ata), futuro: data > hoje,
     });
   }
   return out;
@@ -1560,7 +1571,7 @@ export function mudancasDaGrade(grade, digitado, { desenhado = null, teto = null
   const tem = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
   const igual = (a, b) => (/^\d+$/.test(a) && /^\d+$/.test(b) ? +a === +b : a === b);
   for (const g of grade || []) {
-    if (g.semReuniao || g.futuro || !tem(digitado, g.data)) continue;
+    if (g.semReuniao || g.naoConta || g.futuro || !tem(digitado, g.data)) continue;
     const v = String(digitado[g.data] ?? '').trim();
     const antes = tem(desenhado, g.data) ? String(desenhado[g.data] ?? '').trim() : g.frequencia;
     if (igual(v, antes)) continue;   // a pessoa não mexeu neste campo
@@ -1585,7 +1596,7 @@ export function domingosSemFrequencia(atas, { hoje = dataLocal(), semanas = 8 } 
   for (let k = 0; k < semanas && ultimo; k++) {
     const data = somarDias(ultimo, -7 * k);
     const ata = registroDoDomingo(atas, data);
-    if (tipoDe(ata).semReuniao || contagemDaAta(ata) != null) continue;
+    if (foraDaContagem(ata) || contagemDaAta(ata) != null) continue;
     out.push(data);
   }
   return out.reverse();
