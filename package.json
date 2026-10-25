@@ -1,6 +1,6 @@
 {
   "name": "bispado-palmas-4",
-  "version": "5.27.3",
+  "version": "5.27.4",
   "type": "module",
   "dependencies": {
     "@netlify/blobs": "^8.1.0"

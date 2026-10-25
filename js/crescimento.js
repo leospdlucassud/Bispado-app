@@ -34,7 +34,7 @@ import { EM_DEMO } from './demo.js';
 import { somarDias, somarMeses } from './discursos-regras.js';
 import { confirmar } from './dialogo.js';
 import {
-  anel, barraDeMeta, barraEmpilhada, colunas, faisca, figura, fmt, fmtPct, legenda, linhaTempo, medidor, mini, piramide, tabela,
+  LARGURA_EIXO, anel, barraDeMeta, barraEmpilhada, colunas, faisca, figura, fmt, fmtPct, legenda, linhaTempo, medidor, mini, piramide, tabela,
 } from './graficos.js';
 import { carregarPdfJs } from './membros-import.js';
 import { MEMBROS_SAIDOS } from './membros.js';
@@ -462,13 +462,18 @@ function secaoSacramental(ctx) {
   const pontos = f.porMes.flatMap(m => m.semanas.map(s => ({ data: s.data, valor: s.n })));
   const medias = f.porMes.filter(m => m.media != null).map(m => ({ de: m.mes + '-01', ate: fimDoMes(m.mes), valor: m.media }));
   const mediaDe = data => f.porMes.find(x => data.startsWith(x.mes));
+  // Desenhado em duas larguras, e o CSS mostra uma: no computador a linha ocupa
+  // a largura toda do cartão (desenhada larga, o texto do eixo não incha ao
+  // esticar); no celular, a estreita — a larga, encolhida a 360 px, deixava o
+  // texto do eixo com ~6 px.
+  const opcoesLinha = {
+    pontos, medias, unidade: 'pessoas',
+    rotulo: `Frequência da sacramental por domingo nos últimos 12 meses: ${plural(pontos.length, 'domingo contado', 'domingos contados')}, o último com ${fmt(pontos.at(-1)?.valor)} pessoas`,
+    dicaExtra: p => { const m = mediaDe(p.data); return m?.media != null ? `Média de ${mesCurto(m.mes)}: ${fmt(m.media)}` : ''; },
+  };
   const figLinha = !pontos.length ? '' : figura({
     titulo: 'Cada domingo', sub: 'A linha é a contagem de cada domingo; o traço cinza, a média do mês.',
-    conteudo: linhaTempo({
-      pontos, medias, unidade: 'pessoas',
-      rotulo: `Frequência da sacramental por domingo nos últimos 12 meses: ${plural(pontos.length, 'domingo contado', 'domingos contados')}, o último com ${fmt(pontos.at(-1).valor)} pessoas`,
-      dicaExtra: p => { const m = mediaDe(p.data); return m?.media != null ? `Média de ${mesCurto(m.mes)}: ${fmt(m.media)}` : ''; },
-    }),
+    conteudo: `<div class="cg-so-estreito">${linhaTempo({ ...opcoesLinha, largura: LARGURA_EIXO })}</div><div class="cg-so-largo">${linhaTempo({ ...opcoesLinha, largura: 680, altura: 230 })}</div>`,
     legendaHtml: legenda([{ rotulo: 'Domingo', classe: 'acento', forma: 'linha' }, { rotulo: 'Média do mês', classe: 'media', forma: 'linha' }]),
     tabelaHtml: tabela({ cab: ['Domingo', 'Pessoas', 'Média do mês'], linhas: pontos.map(p => [dataParaExibir(p.data), fmt(p.valor), fmt(mediaDe(p.data)?.media)]) }),
   });
@@ -494,7 +499,8 @@ function secaoSacramental(ctx) {
 
   return `${aviso}${denominador}
     <div class="cresc-meses">${f.porMes.map(m => cartaoMes(m, m.mes === mesAtual)).join('')}</div>
-    <div class="cresc-figuras">${figLinha}${figAnos}</div>
+    ${figLinha ? `<div class="cresc-figura-larga">${figLinha}</div>` : ''}
+    <div class="cresc-figuras">${figAnos}</div>
     ${formAnos(ctx, anoAtual)}`;
 }
 
@@ -592,9 +598,19 @@ async function salvarGrade(form) {
   gradeSuja = false;
   if (!mudancas.length) { toast('Nada foi alterado'); renderCrescimento(); return; }
   // uma gravação por domingo, pelo caminho das atas: só o campo frequencia vai
-  // (PUT parcial ou o POST que o servidor junta pela data) — o resto da ata fica
-  const r = await Promise.all(mudancas.map(m => gravarCamposDomingo(m.data, { frequencia: m.frequencia })));
-  if (r.every(x => x === 'ok')) toast(plural(mudancas.length, 'domingo salvo', 'domingos salvos'));
+  // (PUT parcial ou o POST que o servidor junta pela data) — o resto da ata fica.
+  // UMA DE CADA VEZ: as atas são um documento só no servidor, e os 5 domingos
+  // do mês mandados juntos (Promise.all) disputavam a mesma gravação — os que
+  // perdiam iam para a fila com 409 e não apareciam ao recarregar.
+  const botao = form.querySelector('.cresc-grade-salvar');
+  if (botao) { botao.disabled = true; botao.textContent = 'Salvando…'; }
+  const naFila = [];
+  for (const m of mudancas) {
+    const r = await gravarCamposDomingo(m.data, { frequencia: m.frequencia });
+    if (r !== 'ok') naFila.push(m.data);
+  }
+  if (!naFila.length) toast(plural(mudancas.length, 'domingo salvo', 'domingos salvos'));
+  else toast(`${plural(mudancas.length - naFila.length, 'domingo salvo', 'domingos salvos')}; ${naFila.map(ddmm).join(', ')} ficou na fila e vai ao servidor na próxima sincronização (↻)`);
   renderCrescimento();
 }
 

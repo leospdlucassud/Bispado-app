@@ -1103,6 +1103,12 @@
 [data-theme="light"] .cresc-aviso { background:rgba(154,103,0,.08); border-color:rgba(154,103,0,.35); }
 .cresc-cadeado { font-size:12.5px; color:var(--text-corpo); background:rgba(224,85,85,.07); border:1px dashed rgba(224,85,85,.35); border-radius:10px; padding:10px 12px; margin-top:12px; line-height:1.6; }
 .cresc-botoes { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+/* "Cada domingo" na largura toda do cartão (o "Ano a ano" vem embaixo); a linha
+   larga só a partir de 640 px — no celular, a estreita (crescimento.js) */
+.cresc-figura-larga { margin-top:12px; }
+.cresc-figura-larga .cg-linha { max-width:none; }
+.cg-so-largo { display:none; }
+@media (min-width: 640px) { .cg-so-largo { display:block; } .cg-so-estreito { display:none; } }
 .cresc-figuras { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap:12px; margin-top:12px; }
 .cresc-medidores { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap:10px 16px; }
 .cresc-medidores-compactos { margin-top:12px; gap:8px 12px; }

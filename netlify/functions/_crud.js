@@ -34,8 +34,15 @@ async function gravarSeIntacto(store, key, data, etag) {
 
 // Repete ler→alterar→gravar enquanto outra escrita ganhar a corrida.
 // `mutar` recebe a lista atual e devolve { data, resposta }.
-export async function alterar(store, key, mutar, tentativas = 4) {
+// Várias escritas na MESMA coleção ao mesmo tempo (a grade da frequência gravava
+// os 5 domingos do mês juntos; dois aparelhos salvando) disputam o mesmo etag:
+// com 4 tentativas seguidas, sem pausa, as últimas desistiam com 409 e o número
+// ficava preso na fila. Agora são 8, com uma pausa crescente e um pouco de
+// sorteio entre elas — cada escritor volta num momento diferente.
+const pausa = ms => new Promise(r => setTimeout(r, ms));
+export async function alterar(store, key, mutar, tentativas = 8) {
   for (let i = 0; i < tentativas; i++) {
+    if (i) await pausa(Math.min(400, 25 * 2 ** i) * (0.5 + Math.random()));
     const { data, etag } = await lerColecao(store, key);
     const r = mutar(data);
     if (r.erro) return r.erro;
