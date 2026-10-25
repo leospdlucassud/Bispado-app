@@ -5,7 +5,7 @@
 // mãos). Daqui saem a aba Chamados (resumo, filtros, grupos, prévia da
 // importação), os chamados no cartão do membro, o aviso do Início, a designação
 // marcada na Agenda e os nomes do bispado — e a limpeza do que o servidor grava
-// (limparDocumentoChamados, usada pela function e pela demonstração). Nada de DOM
+// (limparDocumentoChamados, usada pela function). Nada de DOM
 // nem de config.js (que lê location): tests/chamados-lcr.test.mjs importa direto
 // no Node, com um relatório sintético da mesma geometria.
 //
@@ -560,8 +560,8 @@ export function compararChamados(antes, depois) {
 }
 
 // ---------- o documento do servidor (/api/chamados) ----------
-// A function (netlify/functions/chamados.js) e o servidor da demonstração
-// (demo-servidor.js) passam o corpo do POST por aqui, e nada mais é gravado:
+// A function (netlify/functions/chamados.js) passa o corpo do POST por aqui, e
+// nada mais é gravado:
 // só as chaves conhecidas, do tipo certo. O que viesse a mais — um telefone ou
 // um e-mail da lista de membros do relatório, de um cliente antigo ou torto —
 // ficaria guardado sem ninguém ver. Um campo do tipo errado recusa o corpo

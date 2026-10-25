@@ -8,7 +8,6 @@ import { carregarChamadosAla, renderChamadosAla } from './chamados-ala.js';
 import { carregarChamados } from './chamados.js';
 import { carregarCrescimento, renderCrescimento } from './crescimento.js';
 import { API_AGENDA, API_DESIG, API_EVENTOS, API_ORADORES, API_REUNIOES, API_SAC, DADOS } from './config.js';
-import { EM_DEMO } from './demo.js';
 import { cabecalhoSessao, sair } from './sessao.js';
 import { renderDesignacoes } from './designacoes.js';
 import { inicioAposCarga } from './inicio.js';
@@ -122,10 +121,7 @@ async function enfileirar(url, method, body, erro) {
   return erro;
 }
 
-// Na demonstração o servidor está no próprio navegador (demo.js): ela funciona
-// mesmo sem internet — a capela sem Wi-Fi —, em vez de abrir com as abas vazias.
-// O isOnline continua o de verdade para o resto (o service worker, a atualização).
-const temServidor = () => isOnline || EM_DEMO;
+const temServidor = () => isOnline;
 
 // semFila: a gravação que NÃO pode ficar no aparelho (a importação com a lista
 // de nomes das recomendações: na fila do IndexedDB ela sobrevivia ao "Sair"

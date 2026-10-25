@@ -8,13 +8,7 @@
 // Arquivo novo em js/ → incluir aqui E em ASSETS no sw.js. Exceções: convite.js
 // (entrada da página convite.html — importá-lo aqui abriria a tela do membro) e
 // redirecionar-convite.js (script clássico do <head>); esses só vão no ASSETS.
-//
-// demo.js PRIMEIRO: no modo demonstração (?demo) ele separa o armazenamento e
-// desvia o /api/ antes de qualquer outro módulo ler ou buscar dados.
 // =============================================
-import './demo.js';
-import './demo-dados.js';
-import './demo-servidor.js';
 import './dados-membros.js';
 import './config.js';
 import './convite-regras.js';

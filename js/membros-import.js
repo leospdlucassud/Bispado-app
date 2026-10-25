@@ -6,7 +6,6 @@ import { ALA } from './config.js';
 import { NOMES_DOS_PDFS, abaDoPdf, tipoDePdfLcr } from './crescimento-lcr.js';
 import { MEMBROS, setMembros } from './dados-membros.js';
 import { iniciarProgresso, liberarAplicar, textoDasPaginas, travarAplicar } from './pdf-progresso.js';
-import { EM_DEMO } from './demo.js';
 import { detectarAlaNoPdf, lerPdfMembros } from './membros-lcr.js';
 import { API_MEMBROS, MEMBROS_SAIDOS, MOVIMENTACOES, movimentacoesCarregadas, renderMembros, setMembrosSaidos, setRosterAtualizado } from './membros.js';
 import { abrirModal, fecharModal } from './ui.js';
@@ -78,8 +77,6 @@ export async function importarPdfMembros(input) {
   const arquivo = input.files && input.files[0];
   input.value = '';
   if (!arquivo) return;
-  // o PDF do LCR tem os nomes de verdade: não entram na demonstração
-  if (EM_DEMO) { toast('Na demonstração, a importação do LCR fica desligada — o quadro de membros é fictício'); return; }
 
   abrirModal('modal-import');
   const progresso = iniciarProgresso(document.getElementById('modal-import-content'), 'Abrindo o PDF…');

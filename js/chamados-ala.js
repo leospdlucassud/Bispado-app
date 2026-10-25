@@ -22,7 +22,6 @@ import { ALA, API_CHAMADOS, DADOS } from './config.js';
 import { TIPO_DESIGNACAO } from './convite-regras.js';
 import { NOMES_DOS_PDFS, abaDoPdf, tipoDePdfLcr } from './crescimento-lcr.js';
 import { MEMBROS } from './dados-membros.js';
-import { EM_DEMO } from './demo.js';
 import { renderInicio } from './inicio.js';
 import { carregarPdfJs } from './membros-import.js';
 import { MEMBROS_SAIDOS, renderMembros } from './membros.js';
@@ -320,8 +319,6 @@ export async function importarPdfChamados(input) {
   const arquivo = input.files && input.files[0];
   input.value = '';
   if (!arquivo) return;
-  // o PDF do LCR tem os nomes de verdade: não entram na demonstração
-  if (EM_DEMO) { toast('Na demonstração, a importação do LCR fica desligada — os chamados são fictícios'); return; }
 
   IMPORT_CHAMADOS = null;
   // semConfirmacao: a prévia tem uma caixa de marcar, e fechar com ela mexida

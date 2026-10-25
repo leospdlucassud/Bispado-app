@@ -14,7 +14,7 @@ import { MAX_CORPO_CRESCIMENTO, aplicarPostCrescimento, respostaCrescimento } fr
 // de _crud.js). O POST PEDE a sessão: tudo aqui vem do LCR ou do bispo, e quem
 // não entrou não importa relatório nem muda o número dos dizimistas. Ele manda
 // só as seções que mudaram e o servidor JUNTA (fundirCrescimento, em
-// js/crescimento-lcr.js — a mesma conta da demonstração): importar o Trimestral
+// js/crescimento-lcr.js): importar o Trimestral
 // não apaga as recomendações, e um mês de frequência não apaga os outros.
 
 const H = {

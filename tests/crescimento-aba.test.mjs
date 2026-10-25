@@ -1,6 +1,5 @@
 // Aba "Vamos crescer a Ala": as contas que a tela desenha (js/crescimento-lcr.js)
-// e o /api/crescimento — a regra do POST da function, a mesma da demonstração
-// (js/demo-servidor.js) — `npm test`. Gente e números INVENTADOS: os relatórios
+// e o /api/crescimento — a regra do POST da function — `npm test`. Gente e números INVENTADOS: os relatórios
 // de verdade do LCR são "Somente para uso da Igreja".
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -8,10 +7,9 @@ import {
   MAX_CORPO_CRESCIMENTO, TIPO_RENOVACAO, aplicarPostCrescimento, destaqueDoRumo, docCrescimentoVazio,
   domingosSemFrequencia, fundirCrescimento, gradeFrequencia, gruposSemMarcacao, historicoDigitado,
   limparCorpoCrescimento, mesCurto, mudancasDaGrade, participantesSemNomes, piramideEtaria, progressoQualificacao,
-  proximosPassos, renovacaoNaAgenda, renovacoesAgendar, renovacoesResumo, respostaCrescimento, resumoQualificacao,
+  proximosPassos, renovacaoNaAgenda, renovacoesAgendar, renovacoesResumo, resumoQualificacao,
   resumoRecomendacoes, resumoRenovacoes, tendenciaPorGrupo, vencimentosPorMes,
 } from '../js/crescimento-lcr.js';
-import { criarServidor } from '../js/demo-servidor.js';
 
 const HOJE = '2026-10-18';   // um domingo
 
@@ -307,43 +305,4 @@ test('POST: junta por seção; vazio é 400; guardado estranho é 500 (não grav
   assert.equal(aplicarPostCrescimento(b.doc, { privado: { portadoresAtivosDizimistas: -2 } }, agora).status, 400);
   assert.equal(aplicarPostCrescimento('estragado', { publico: { historicoSacramental: { 2022: 41 } } }, agora).status, 500);
   assert.ok(MAX_CORPO_CRESCIMENTO > JSON.stringify({ privado: { recomendacoesPessoas: { adultos: Array.from({ length: 2000 }, () => ({ nome: 'X'.repeat(150), sexo: 'F', idade: 99, situacao: 'para-vencer', validade: '2027-01' })) } } }).length);
-});
-
-// a demonstração: o mesmo servidor, no navegador
-const armazem = (inicial = {}) => {
-  const m = new Map(Object.entries(inicial).map(([k, v]) => [k, structuredClone(v)]));
-  return { ler: k => (m.has(k) ? structuredClone(m.get(k)) : null), gravar: (k, v) => m.set(k, structuredClone(v)) };
-};
-const pedir = (srv, metodo, corpo, sessao = false) => srv.atender(new Request('http://local/api/crescimento', {
-  method: metodo, headers: { 'Content-Type': 'application/json', ...(sessao ? { Authorization: 'Bearer demo.bispo' } : {}) },
-  body: corpo === undefined ? undefined : JSON.stringify(corpo),
-}));
-
-test('demonstração: o privado só com a sessão, e só a sessão grava', async () => {
-  const srv = criarServidor(armazem(), { agora: () => '2026-10-18T12:00:00.000Z' });
-  assert.deepEqual(await (await pedir(srv, 'GET')).json(), respostaCrescimento(null, false));
-  assert.equal((await pedir(srv, 'POST', { privado: { portadoresAtivosDizimistas: 3 } })).status, 401);
-  const r = await pedir(srv, 'POST', {
-    publico: { recomendacoes: { adultos: RESUMO } },
-    privado: { recomendacoesPessoas: { adultos: PESSOAS }, participantes: { adultos: 4 } },
-  }, true);
-  assert.equal(r.status, 200);
-  const resp = await r.json();
-  assert.equal(resp.privado.recomendacoesPessoas.adultos.length, PESSOAS.length);
-  assert.equal(resp.publico.importadoEm['recomendacoes-adultos'], '2026-10-18T12:00:00.000Z');
-  // sem a sessão: as contagens, e nenhum nome
-  const publico = await (await pedir(srv, 'GET')).json();
-  assert.deepEqual(Object.keys(publico), ['publico']);
-  assert.equal(publico.publico.recomendacoes.adultos.lidos, PESSOAS.length);
-  assert.ok(!JSON.stringify(publico).includes('Exemplo'));
-  const comSessao = await (await pedir(srv, 'GET', undefined, true)).json();
-  assert.equal(comSessao.privado.participantes.adultos, 4);
-  // um corpo errado não grava nada; o que já estava fica
-  assert.equal((await pedir(srv, 'POST', { publico: { historicoSacramental: { 2022: 140 } } }, true)).status, 400);
-  assert.equal((await (await pedir(srv, 'GET', undefined, true)).json()).publico.historicoSacramental[2022], undefined);
-  assert.equal((await pedir(srv, 'DELETE', undefined, true)).status, 405);
-  // guardado estragado: erro, não "nada importado"
-  const torto = criarServidor(armazem({ crescimento: 'texto' }));
-  assert.equal((await pedir(torto, 'GET')).status, 500);
-  assert.equal((await pedir(torto, 'POST', { publico: { historicoSacramental: { 2022: 41 } } }, true)).status, 500);
 });

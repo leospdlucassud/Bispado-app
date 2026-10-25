@@ -10,7 +10,6 @@ import { ALA, API_AGENDA, CARGOS_INFO, COR_STATUS, DADOS, corDoCargo, nomeDoResp
 import { TIPO_DESIGNACAO, comoNoConvite, primeiroNome, tipoNoConvite } from './convite-regras.js';
 import { renderCrescimento } from './crescimento.js';
 import { MEMBROS } from './dados-membros.js';
-import { EM_DEMO, comDemo } from './demo.js';
 import { confirmar, pedirTexto } from './dialogo.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { podeVer, toast } from './usuario.js';
@@ -218,9 +217,7 @@ export function abrirModalConvite(id) {
     <p style="color:var(--text3);font-size:11px;margin-top:12px;line-height:1.5">
       O telefone e o e-mail digitados ficam salvos nesta entrevista. Qualquer uma
       das três opções marca o convite como enviado.
-    </p>${EM_DEMO ? `
-    <p class="ficha-dica" style="margin-top:8px">🎭 Na demonstração, para a resposta chegar ao painel,
-      copie o link e abra numa aba nova deste navegador. Em outro aparelho, ela fica só lá.</p>` : ''}`;
+    </p>`;
 
   atualizarLinksConvite(e);
   abrirModal('modal-agenda');
@@ -358,8 +355,7 @@ export { digitosTelefone };
 export function linkConfirmacao(id) {
   // página própria e leve (convite.html). Os links antigos, ?confirmar=<id>,
   // continuam valendo: js/redirecionar-convite.js manda para cá.
-  // na demonstração, o link leva o modo junto (a tela do membro abre os dados fictícios)
-  return comDemo(location.origin + '/convite.html?id=' + encodeURIComponent(id));
+  return location.origin + '/convite.html?id=' + encodeURIComponent(id);
 }
 
 // Texto do convite — o mesmo no WhatsApp, no e-mail e no link copiado.

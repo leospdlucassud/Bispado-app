@@ -11,7 +11,7 @@
 // uma ala (e para duas, se a ala for dividida), os adultos e jovens
 // "participantes" que dá para provar, as médias da sacramental, a tendência de
 // cada classe e as recomendações a renovar. Aqui também mora a limpeza do que o
-// servidor grava (/api/crescimento), usada pela function e pela demonstração.
+// servidor grava (/api/crescimento), usada pela function.
 // Nada de DOM nem de config.js (que lê location): tests/crescimento-lcr.test.mjs
 // importa direto no Node, com PDFs SINTÉTICOS da mesma geometria e gente inventada.
 //
@@ -1421,8 +1421,7 @@ export function respostaCrescimento(doc, veSigilo) {
   return veSigilo ? { publico: d.publico, privado: d.privado } : { publico: d.publico };
 }
 
-// O POST do servidor, igual na function (netlify/functions/crescimento.js) e na
-// demonstração (demo-servidor.js): atual = o guardado (ou null); corpo = o que
+// O POST do servidor (netlify/functions/crescimento.js): atual = o guardado (ou null); corpo = o que
 // chegou. → { status: 200, doc } ou { status: 400 | 500, erro }. Corpo sem
 // nenhuma seção conhecida é recusado: "nada a gravar" não pode virar uma
 // escrita nem um atualizadoEm novo. Guardado sem a forma esperada é 500 — gravar

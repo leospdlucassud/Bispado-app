@@ -6,7 +6,6 @@ import {
   DURACAO_MS, LIMITE, assinar, variaveisFaltando, bloqueado, comFalha, configurado, papelQueConfere, podeEntrar, semFalhasDo, senhaConfere, sessaoDa, verificar,
 } from '../netlify/functions/_sessao.js';
 import { escondidoPorSigilo, semSigilosos } from '../js/crud-regras.js';
-import { criarServidor } from '../js/demo-servidor.js';
 
 const ENV = { SENHA_BISPO: 'senha-de-teste-bispo', SENHA_ADM: 'senha-de-teste-adm', SEGREDO_SESSAO: 'segredo-de-teste-com-muitos-caracteres' };
 const AGORA = 1_800_000_000_000;
@@ -72,22 +71,6 @@ test('sigilo: o item sigiloso não sai nem é alterado sem a sessão', () => {
   assert.ok(!escondidoPorSigilo(lista[1], true));
   assert.ok(!escondidoPorSigilo(lista[0], false));
   assert.ok(!escondidoPorSigilo(undefined, false));
-});
-
-test('demonstração: entrar com a senha "demo" e só então ver os sigilosos', async () => {
-  const m = new Map([['agenda', [{ id: 'a', membro: 'X' }, { id: 'b', membro: 'Y', sigiloso: true }]]]);
-  const srv = criarServidor({ ler: k => structuredClone(m.get(k) ?? null), gravar: (k, v) => m.set(k, structuredClone(v)) });
-  const pedir = (metodo, caminho, corpo, token) => srv.atender(new Request('http://local' + caminho, {
-    method: metodo, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
-    body: corpo ? JSON.stringify(corpo) : undefined,
-  }));
-  assert.equal((await pedir('POST', '/api/sessao', { papel: 'bispo', senha: 'errada' })).status, 401);
-  const { token } = await (await pedir('POST', '/api/sessao', { papel: 'adm', senha: 'demo' })).json();
-  assert.equal((await (await pedir('GET', '/api/agenda')).json()).length, 1);
-  assert.equal((await (await pedir('GET', '/api/agenda', null, token)).json()).length, 2);
-  assert.equal((await pedir('PUT', '/api/agenda?id=b', { obs: 'x' })).status, 404);
-  assert.equal((await pedir('DELETE', '/api/agenda?id=b')).status, 404);
-  assert.equal((await pedir('PUT', '/api/agenda?id=b', { obs: 'x' }, token)).status, 200);
 });
 
 test('a impressão da senha no token depende do segredo do servidor (não dá para testar chutes fora dele)', () => {

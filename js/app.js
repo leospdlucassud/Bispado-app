@@ -11,6 +11,7 @@ import { carregarChamadosAla, chamadosAlaCarregados, renderChamadosAla } from '.
 import { aplicarNomeAla } from './config.js';
 import { abrirCrescimento } from './crescimento.js';
 import { abrirModalDesig } from './designacoes.js';
+import { confirmar } from './dialogo.js';
 import { renderInicio } from './inicio.js';
 import { renderManual, renderRoteiros } from './manual.js';
 import { carregarMovimentacoes } from './membros.js';
@@ -113,7 +114,29 @@ export function switchTab(t, { historico = true } = {}) {
   }
 }
 
+// O modo demonstração (?demo) saiu do app (v5.28.0). O que ele deixou nos
+// aparelhos vai embora: as chaves "demo:" do localStorage, a marca da aba e a
+// fila de alterações dele (IndexedDB "demo:bispado-offline"). E um link antigo
+// com ?demo agora abre o app DE VERDADE, com os nomes da ala — numa apresentação
+// projetada isso exporia gente: o aviso aparece antes de qualquer coisa.
+function limparRestosDaDemonstracao() {
+  try { sessionStorage.removeItem('bispado_demo'); } catch (e) { /* sem sessionStorage */ }
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('demo:')) localStorage.removeItem(k);
+    }
+  } catch (e) { /* sem localStorage */ }
+  try { indexedDB.deleteDatabase('demo:bispado-offline'); } catch (e) { /* sem IndexedDB */ }
+  const busca = new URLSearchParams(location.search);
+  if (!busca.has('demo')) return;
+  busca.delete('demo');
+  try { history.replaceState(history.state, '', location.pathname + (busca.toString() ? '?' + busca : '') + location.hash); } catch (e) { /* segue */ }
+  confirmar('O modo demonstração foi retirado do app. Este é o app de verdade, com os dados da ala — não projete esta tela.', { okLabel: 'Entendi' });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  limparRestosDaDemonstracao();
   // Link de convite antigo (?confirmar=): vai para a página própria do convite
   const convite = new URLSearchParams(location.search).get('confirmar');
   // (o js/redirecionar-convite.js, no <head>, já faz isso antes; aqui é a reserva)

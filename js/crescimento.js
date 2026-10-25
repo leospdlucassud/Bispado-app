@@ -30,7 +30,6 @@ import {
   tipoDePdfLcr, totalDeMembros, vencimentosPorMes,
 } from './crescimento-lcr.js';
 import { MEMBROS } from './dados-membros.js';
-import { EM_DEMO } from './demo.js';
 import { somarDias, somarMeses } from './discursos-regras.js';
 import { confirmar } from './dialogo.js';
 import {
@@ -210,7 +209,7 @@ const rotuloTrimestre = k => (/^\d{4}-T[1-4]$/.test(k) ? `${k.slice(-1)}º tri/$
 const pctDe = (a, b) => (b > 0 ? Math.round((a / b) * 100) : null);
 const CARREGANDO = '<div class="loading">Carregando…</div>';
 const vazia = (titulo, dica = '') => `<div class="cresc-vazia">${titulo}${dica ? `<span class="cresc-vazia-dica">${dica}</span>` : ''}</div>`;
-const botaoEntrar = () => (EM_DEMO || temSessao() ? '' : ' <button type="button" class="inicio-link" data-act="entrar">Entrar como Bispo</button>');
+const botaoEntrar = () => (temSessao() ? '' : ' <button type="button" class="inicio-link" data-act="entrar">Entrar como Bispo</button>');
 
 // Seção que depende de um relatório que ainda não veio
 function semRelatorio(nome, oQue) {
@@ -256,7 +255,6 @@ export function renderCrescimento() {
 
 // ---------- topo: importar, fontes e o índice ----------
 function dicaImportar() {
-  if (EM_DEMO) return 'Na demonstração, a importação do LCR fica desligada: os números são fictícios.';
   const aceita = 'Aceita o Relatório Trimestral, as Estatísticas da Unidade, a Situação de Recomendação para o Templo, a Situação da Recomendação do Jovem e a Frequência à classe e ao quórum (um mês por PDF), gerados no LCR com “Salvar como PDF”.';
   return temSessao() ? esc(aceita) : `🔒 Importar e informar os números do bispo pede a sessão de Bispo ou ADM.${botaoEntrar()} <span class="cresc-mudo">${esc(aceita)}</span>`;
 }
@@ -992,7 +990,6 @@ function mensagemDeErro(e) {
 
 // O botão "Importar": sem a sessão, explica (e oferece entrar) antes de abrir o arquivo
 function pedirImportacao() {
-  if (EM_DEMO) { toast('Na demonstração, a importação do LCR fica desligada — os números são fictícios'); return; }
   if (!temSessao()) {
     abrirModal('modal-crescimento', { semConfirmacao: true });
     aviso('🔒', 'Importar pede a sessão do bispo', `
@@ -1007,8 +1004,6 @@ export async function importarPdfCrescimento(input) {
   const arquivo = input.files && input.files[0];
   input.value = '';
   if (!arquivo) return;
-  // o PDF do LCR tem os dados de verdade: não entram na demonstração
-  if (EM_DEMO) { toast('Na demonstração, a importação do LCR fica desligada — os números são fictícios'); return; }
   if (!temSessao()) { pedirImportacao(); return; }
   IMPORTACAO = null;
   abrirModal('modal-crescimento', { semConfirmacao: true });

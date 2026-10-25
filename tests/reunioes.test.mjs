@@ -2,15 +2,13 @@
 // nome do PDF) — rodar com `npm test`. Só nomes fictícios.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { gerar } from '../js/demo-dados.js';
 import {
   ataResolvida,
   montarPresenca, nomeArquivoAta, paragrafos, presencaParaFormulario, presentes, rotuloPresenca, textoDeBusca,
   textoParaPdf, valorParaPdf,
 } from '../js/reunioes-regras.js';
 
-// a mesma lista e a mesma ordem de CARGOS (js/config.js), sem o ADM — config.js
-// não é importado aqui porque carrega o demo.js, que precisa do navegador
+// a mesma lista e a mesma ordem de CARGOS (js/config.js), sem o ADM
 const CARGOS = ['Bispo', '1º Conselheiro', '2º Conselheiro', 'Secretário', 'Secretário Executivo'];
 const NOMES = { 'Bispo': 'Ana Ribeiro', '1º Conselheiro': 'Bruno Exemplo', 'Secretário Executivo': 'Carla Fictícia' };
 const nomeAtual = cargo => NOMES[cargo] || '';
@@ -232,19 +230,6 @@ test('nome do PDF: sem tipo ou sem data', () => {
   assert.equal(nomeArquivoAta('Reunião do Bispado', ''), 'ata-reuniao-do-bispado-sem-data.pdf');
   assert.equal(nomeArquivoAta('Reunião do Bispado', undefined), 'ata-reuniao-do-bispado-sem-data.pdf');
   assert.equal(nomeArquivoAta('Outro', '../2026/10'), 'ata-outro-2026-10.pdf');   // nada de barra no nome do arquivo
-});
-
-test('demonstração: a presença das atas usa os nomes do bispado fictício', () => {
-  const { colecoes } = gerar('2026-10-12');
-  const nomes = colecoes.bispado[0].nomes;
-  const comPresenca = colecoes.reunioes.filter(r => r.presenca);
-  assert.ok(comPresenca.some(r => presentes(r.presenca).length), 'nenhuma ata com presença marcada');
-  assert.ok(colecoes.reunioes.some(r => !r.presenca && !r.oracaoInicial), 'falta uma ata no formato antigo');
-  for (const r of comPresenca) {
-    assert.deepEqual(r.presenca.map(p => p.cargo), CARGOS, r.data);
-    for (const p of r.presenca) assert.equal(p.nome, nomes[p.cargo], `${r.data} ${p.cargo}`);
-  }
-  assert.ok(colecoes.reunioes.some(r => paragrafos(r.pauta).length > 1), 'nenhuma pauta com mais de um assunto');
 });
 
 test('ata resolvida: já passou e não tem item em aberto — vai para o histórico', () => {

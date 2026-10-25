@@ -4,7 +4,6 @@
 import { apiFetch, atualizarUltimaSinc, avisarPendente, idProvisorioDo, setSyncStatus } from './api.js';
 import { reativarAbaAtual } from './app.js';
 import { API_EVENTOS, DADOS, comAla } from './config.js';
-import { EM_DEMO } from './demo.js';
 import { confirmar } from './dialogo.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
@@ -116,10 +115,7 @@ const CALENDARIO_ESTACA = [
   {data:'2026-12-25',txt:'Natal',cor:'#60a5fa',tipo:'feriado'},
   {data:'2026-12-31',txt:'Véspera de Ano Novo',cor:'#60a5fa',tipo:'feriado'},
 ];
-// Na demonstração (?demo), o calendário de uma estaca de verdade contradizia
-// a programação fictícia ("Conferência da Estaca" num domingo com oradores): lá
-// só aparecem os eventos fictícios (demo-dados.js)
-export const EVENTOS_FIXOS = EM_DEMO ? [] : CALENDARIO_ESTACA;
+export const EVENTOS_FIXOS = CALENDARIO_ESTACA;
 
 export function renderCalendario() {
   const grid = document.getElementById('cal-grid');

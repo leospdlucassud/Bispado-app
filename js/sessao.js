@@ -6,7 +6,6 @@
 // os itens sigilosos. A senha nunca fica guardada no aparelho.
 // =============================================
 import { API_SESSAO } from './config.js';
-import { chaveNoArmazenamento } from './demo.js';
 
 const CHAVE = 'sessao_bispado';
 const valida = s => (s && typeof s.token === 'string' && s.token && Number(s.exp) > Date.now() ? s : null);
@@ -66,7 +65,7 @@ export function sair(motivo = 'saiu') {
 // esta acompanha. Antes, Sair numa aba deixava as outras como Bispo, recebendo
 // os sigilosos a cada 30 s até alguém recarregar.
 addEventListener('storage', e => {
-  if (e.key !== chaveNoArmazenamento(CHAVE) && e.key !== null) return;   // null: limparam tudo
+  if (e.key !== CHAVE && e.key !== null) return;   // null: limparam tudo
   const guardada = lerGuardada();
   if (!guardada) {
     if (sessao) { sessao = null; for (const fn of ouvintes) fn('saiu'); }

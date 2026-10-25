@@ -87,7 +87,7 @@ Chamados) num documento só, no store `chamados-<ALA_ID>`:
 relatorio: { ala, unidade, estaca, data } | null, atualizadoEm }`. O GET devolve
 o documento (vazio antes da 1ª importação; falha de leitura é 500, nunca "vazio" —
 a tela diria que a ala não tem chamados). O POST troca o documento inteiro depois de passar por
-`limparDocumentoChamados` (de `js/chamados-lcr.js`, a mesma da demonstração): só
+`limparDocumentoChamados` (de `js/chamados-lcr.js`): só
 as chaves conhecidas, do tipo certo — `apoiado` vazio ou `AAAA-MM-DD`, textos de
 até 300 caracteres, até 2000 chamados; uma chave a mais (um telefone, um e-mail)
 não grava, e um campo torto recusa o corpo inteiro (400). Vago não tem data nem
@@ -110,8 +110,8 @@ O GET entrega o `privado` **só com a sessão de Bispo ou ADM** (`sessaoDa`, de
 `_sessao.js`, como os sigilosos de `_crud.js`); sem ela, só `{ publico }`. O
 POST **pede** a sessão (401 sem ela; token vencido ou de senha trocada volta com
 `X-Sessao: invalida`), aceita até 1,5 milhão de caracteres (413 acima) e manda
-só as seções que mudaram: `aplicarPostCrescimento` (de `js/crescimento-lcr.js`,
-a mesma conta da demonstração) limpa o corpo — só as chaves conhecidas, do tipo
+só as seções que mudaram: `aplicarPostCrescimento` (de `js/crescimento-lcr.js`)
+limpa o corpo — só as chaves conhecidas, do tipo
 e tamanho certos; um campo torto recusa tudo (400) — e **junta por seção**:
 importar o Trimestral não apaga as recomendações, um mês de frequência não
 apaga os outros, um domingo ainda sem presença não apaga o que já tinha. A
@@ -214,9 +214,6 @@ clássico do `<head>`, manda os links antigos do convite para a página nova).
 
 | Arquivo | Responsabilidade |
 | --- | --- |
-| `demo.js` | Modo demonstração (`?demo`): o PRIMEIRO import do `main.js` e do `convite.js` — separa o localStorage e o IndexedDB e desvia o `/api/` antes de qualquer módulo ler ou buscar dados; faixa no topo |
-| `demo-dados.js` | A ala fictícia, gerada a partir de hoje, sem sorteio (sem DOM, testado) |
-| `demo-servidor.js` | O `/api/*` da demonstração dentro do navegador, com as mesmas regras do servidor (sem DOM, testado) |
 | `dados-membros.js` | Começa vazio (o arquivo é público); o quadro vem do PDF do LCR e fica no servidor |
 | `config.js` | Constantes, estado global (`DADOS`), nome da ala, a tabela única de cargos (`CARGOS_INFO`) e as cores de status |
 | `pendentes.js` | Reaplica a fila offline sobre o que veio do servidor (sem DOM, testado) |
@@ -273,15 +270,6 @@ com `data-act` e cada módulo liga os seus numa função `ligar<Área>()`.
 
 ## Pontos de atenção
 
-- **Modo demonstração (`?demo`).** Para apresentar o app sem expor a ala. Vale
-  por aba (sessionStorage); os dados fictícios valem pelo dia e ficam num
-  compartimento próprio do localStorage/IndexedDB (prefixo `demo:`). Três
-  regras para não furar o isolamento:
-  - `demo.js` tem de continuar sendo o **primeiro import** do `main.js` e do
-    `convite.js` (notas.js, usuario.js e tema.js leem o localStorage ao carregar);
-  - um endpoint novo em `netlify/functions/` precisa ganhar a sua versão em
-    `demo-servidor.js` (senão responde 404 na demonstração — nunca vai à rede);
-  - mudou o formato do que `gerar()` devolve, suba `VERSAO_DEMO` em `demo.js`.
 - **Sigilo.** Na agenda e nos acompanhamentos, o servidor só entrega,
   altera ou exclui um item sigiloso com a sessão de Bispo ou ADM
   (`crudHandler(…, { sigilo: true })`, token em `Authorization: Bearer`). O
@@ -292,8 +280,7 @@ com `data-act` e cada módulo liga os seus numa função `ligar<Área>()`.
   número de portadores dizimistas só saem com a sessão, e só a sessão grava.
 - **Dados dos relatórios do LCR ("Somente para uso da Igreja").** Nada do PDF de
   verdade entra no repositório — nem nome, nem os totais da ala: os testes usam
-  relatórios **sintéticos** (a mesma geometria, gente e números inventados), e a
-  demonstração, uma ala fictícia. Na aba Vamos crescer a Ala, os números públicos
+  relatórios **sintéticos** (a mesma geometria, gente e números inventados). Na aba Vamos crescer a Ala, os números públicos
   são contagens; nenhum texto da tela, dos próximos passos ou do Início leva
   nome, a não ser a lista das renovações (com a sessão).
 - **Ao criar uma tela que liste entrevistas ou acompanhamentos**, aplique o
