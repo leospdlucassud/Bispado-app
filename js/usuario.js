@@ -177,19 +177,26 @@ export function initUsuario() {
   if (!USUARIO) abrirEscolhaCargo();
 }
 
-// Aviso curto no rodapé da tela
+// Aviso curto no rodapé da tela. Ele fica ACIMA das janelas (z-index 9500 >
+// 8000 do .modal-overlay) e, ao sumir, só ficava transparente: a pílula
+// invisível seguia no rodapé, por cima do "Aplicar" das prévias de importação
+// (folhas presas embaixo). O centro do botão mostrava o cursor de texto e o
+// clique caía no aviso. Agora ele nunca pega o mouse, e some de verdade
+// (visibility) quando termina de desbotar.
 export function toast(msg) {
   let t = document.getElementById('app-toast');
   if (!t) {
     t = document.createElement('div');
     t.id = 'app-toast';
-    t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#c9a84c;color:#0d1b2a;padding:10px 20px;border-radius:24px;font-size:13px;font-weight:700;z-index:9500;box-shadow:0 6px 20px rgba(0,0,0,.35);transition:opacity .3s';
+    t.setAttribute('role', 'status');
+    t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#c9a84c;color:#0d1b2a;padding:10px 20px;border-radius:24px;font-size:13px;font-weight:700;z-index:9500;box-shadow:0 6px 20px rgba(0,0,0,.35);transition:opacity .3s,visibility .3s;pointer-events:none;opacity:0;visibility:hidden';
     document.body.appendChild(t);
   }
   t.textContent = msg;
+  t.style.visibility = 'visible';
   t.style.opacity = '1';
   clearTimeout(t._timer);
-  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 2200);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; t.style.visibility = 'hidden'; }, 2200);
 }
 
 function ligarUsuario() {
