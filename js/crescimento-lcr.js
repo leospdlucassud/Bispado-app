@@ -1552,6 +1552,10 @@ export function gradeFrequencia(atas, mes, hoje = dataLocal()) {
   return out;
 }
 
+// O último mês da grade: dezembro do ano de hoje — dá para lançar (ou deixar
+// marcado "não contar") os domingos até o fim do ano.
+export const ultimoMesDaGrade = (hoje = dataLocal()) => `${String(hoje).slice(0, 4)}-12`;
+
 // O que a grade grava: só o que mudou, e só número inteiro (ou vazio, que apaga).
 // digitado: { data: texto }. desenhado: { data: texto } — o valor de cada campo
 // quando a grade foi DESENHADA (o defaultValue). A grade congela enquanto alguém
@@ -1570,7 +1574,7 @@ export function mudancasDaGrade(grade, digitado, { desenhado = null, teto = null
   const tem = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
   const igual = (a, b) => (/^\d+$/.test(a) && /^\d+$/.test(b) ? +a === +b : a === b);
   for (const g of grade || []) {
-    if (g.semReuniao || g.naoConta || g.futuro || !tem(digitado, g.data)) continue;
+    if (g.semReuniao || g.naoConta || !tem(digitado, g.data)) continue;
     const v = String(digitado[g.data] ?? '').trim();
     const antes = tem(desenhado, g.data) ? String(desenhado[g.data] ?? '').trim() : g.frequencia;
     if (igual(v, antes)) continue;   // a pessoa não mexeu neste campo

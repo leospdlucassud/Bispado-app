@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import {
-  CARGOS_DO_LCR, DOC_CHAMADOS_VAZIO, FILTROS_CHAMADOS, MAX_CHAMADOS, MAX_TEXTO_CHAMADO, aDesignar, agruparPorOrganizacao,
+  CARGOS_DO_LCR, DOC_CHAMADOS_VAZIO, cargoDoChamado, editarOcupante, FILTROS_CHAMADOS, MAX_CHAMADOS, MAX_TEXTO_CHAMADO, aDesignar, agruparPorOrganizacao,
   chamadosDoMembro, compararBispado, compararChamados, dataLcr, designacaoNaAgenda, filtrarChamados, indicePorPessoa,
   limparDocumentoChamados, membroDoQuadro, membrosSemChamado, nomeCurto, nomesAposImportar, nomesDoBispado,
   obsDaDesignacao, ordemNatural, parsearPdfChamados, resumoChamados, resumoDesignacoes, tipoDePdf, tiposDePdf,
@@ -750,4 +750,33 @@ test('documento: forma errada recusa o corpo inteiro', () => {
   assert.equal(limparDocumentoChamados({ chamados: Array.from({ length: MAX_CHAMADOS }, () => ok) }).doc.chamados.length, MAX_CHAMADOS);
   assert.ok(limparDocumentoChamados({ chamados: [{ ...ok, nome: 'x'.repeat(MAX_TEXTO_CHAMADO) }] }).doc);
   assert.equal(limparDocumentoChamados({ chamados: [ok], relatorio: null }).doc.relatorio, null);
+});
+
+test('editar quem ocupa: preencher, trocar e deixar vago, sem mexer na lista de entrada', () => {
+  const lista = [
+    { org: 'Bispado', grupo: '', chamado: 'Bispo', nome: 'Exemplo, Ana', apoiado: '2025-01-05', designado: true, personalizado: false },
+    { org: 'Primária', grupo: 'Professores', chamado: 'Professor(a) da Primária', nome: '', apoiado: '', designado: false, personalizado: false },
+  ];
+  const antes = JSON.stringify(lista);
+  // preencher o vago
+  const a = editarOcupante(lista, 1, { nome: '  Teste,  Bruno ', apoiado: '2026-10-19', designado: false });
+  assert.equal(a.chamados[1].nome, 'Teste, Bruno');
+  assert.equal(a.chamados[1].apoiado, '2026-10-19');
+  assert.equal(a.chamados[1].designado, false);
+  assert.equal(a.chamados[1].chamado, 'Professor(a) da Primária', 'o título não muda');
+  assert.equal(JSON.stringify(lista), antes, 'a lista de entrada fica como estava');
+  // deixar vago: sem data nem designação
+  const b = editarOcupante(lista, 0, { nome: '', apoiado: '2025-01-05', designado: true });
+  assert.deepEqual([b.chamados[0].nome, b.chamados[0].apoiado, b.chamados[0].designado], ['', '', false]);
+  // o que o servidor aceita
+  assert.deepEqual(limparDocumentoChamados({ chamados: b.chamados }).erro, undefined);
+  // erros
+  assert.ok(editarOcupante(lista, 5, { nome: 'X' }).erro);
+  assert.ok(editarOcupante(lista, 0, { nome: 'X', apoiado: '19/10/2026' }).erro, 'data fora do formato');
+  assert.ok(editarOcupante(lista, 0, { nome: 'X'.repeat(MAX_TEXTO_CHAMADO + 1) }).erro);
+  // o chamado do bispado aponta o cargo do "Quem está usando?"
+  assert.equal(cargoDoChamado(lista[0]), 'Bispo');
+  assert.equal(cargoDoChamado({ org: 'Bispado', chamado: 'Secretário Executivo da Ala' }), 'Secretário Executivo');
+  assert.equal(cargoDoChamado(lista[1]), '');
+  assert.equal(cargoDoChamado({ org: 'Primária', chamado: 'Bispo' }), '', 'só no Bispado');
 });

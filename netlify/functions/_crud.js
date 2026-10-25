@@ -5,7 +5,12 @@ import { sessaoDa } from "./_sessao.js";
 
 // Um store por ala (ver _ala.js).
 const STORE = "bispado-" + ALA_ID;
-export const abrirStore = () => getStore(STORE);
+// consistency:'strong': com a padrão (eventual), a leitura logo depois de uma
+// gravação ainda podia devolver a versão de antes — a do domingo seguinte da
+// grade lia a lista SEM o domingo anterior, perdia o compare-and-swap até o fim
+// das tentativas (409) e o número não ficava. Toda escrita aqui é ler→mudar→
+// gravar a coleção inteira: precisa ler o que acabou de ser gravado.
+export const abrirStore = () => getStore({ name: STORE, consistency: "strong" });
 
 export const H = {
   "Content-Type": "application/json",

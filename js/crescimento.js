@@ -24,7 +24,7 @@ import {
   METAS_ALA, MIN_SEMANAS_ANO, NOMES_DOS_PDFS, SECOES_TRIMESTRAL, SITUACOES, TIPO_RENOVACAO, abaDoPdf, chaveTrimestre, comparacaoIndicador,
   docCrescimentoVazio, domingosSemFrequencia, frequenciaSacramental, fundirCrescimento, gradeFrequencia, gruposSemMarcacao,
   historicoDigitado, historicoDoIndicador, historicoSacramental, lerEstatisticas, lerFrequenciaClasses, lerRecomendacoes,
-  lerTrimestral, liderancaChave, limparCorpoCrescimento, mesCurto, mudancasDaGrade, normalizarDocCrescimento,
+  lerTrimestral, liderancaChave, limparCorpoCrescimento, mesCurto, mudancasDaGrade, ultimoMesDaGrade, normalizarDocCrescimento,
   participantesAdultos, participantesJovens, participantesSemNomes, piramideEtaria, progressoQualificacao, proximosPassos,
   recomendacaoValida, renovacaoNaAgenda, renovacoesAgendar, resumoQualificacao, resumoRenovacoes, tendenciaPorGrupo,
   tipoDePdfLcr, totalDeMembros, vencimentosPorMes,
@@ -537,15 +537,15 @@ function gradeSacramental(ctx) {
     <div class="cresc-grade-nav">
       <button type="button" class="cal-nav" data-act="grade-mes" data-dir="-1" aria-label="Mês anterior">‹</button>
       <span class="cresc-grade-mes">${esc(mesCurto(mesGrade))}</span>
-      <button type="button" class="cal-nav" data-act="grade-mes" data-dir="1" aria-label="Mês seguinte"${mesGrade >= ctx.hoje.slice(0, 7) ? ' disabled' : ''}>›</button>
+      <button type="button" class="cal-nav" data-act="grade-mes" data-dir="1" aria-label="Mês seguinte"${mesGrade >= ultimoMesDaGrade(ctx.hoje) ? ' disabled' : ''}>›</button>
     </div>
     <form class="cresc-grade" data-form="grade">
       ${g.map(d => `<div class="cresc-grade-dia${d.semReuniao || d.naoConta ? ' sem' : ''}">
         <label class="cresc-grade-campo">
-          <span class="cresc-grade-data">${esc(ddmm(d.data))}</span>
+          <span class="cresc-grade-data">${esc(ddmm(d.data))}${d.futuro ? ' <span class="cresc-grade-futuro">ainda vem</span>' : ''}</span>
           ${d.semReuniao ? '<span class="cresc-grade-sem">conferência — não conta</span>'
             : d.naoConta ? `<span class="cresc-grade-sem">não conta${d.frequencia ? ` (${esc(d.frequencia)} anotados)` : ''}</span>`
-            : `<input type="text" inputmode="numeric" maxlength="5" class="form-input" name="${d.data}" value="${esc(d.frequencia)}" placeholder="${d.futuro ? '—' : 'pessoas'}"${d.futuro || travada ? ' disabled' : ''} aria-label="Frequência de ${esc(dataParaExibir(d.data))}" autocomplete="off">`}
+            : `<input type="text" inputmode="numeric" maxlength="5" class="form-input" name="${d.data}" value="${esc(d.frequencia)}" placeholder="pessoas"${travada ? ' disabled' : ''}${d.futuro ? ' title="Domingo que ainda não chegou"' : ''} aria-label="Frequência de ${esc(dataParaExibir(d.data))}" autocomplete="off">`}
         </label>
         ${d.semReuniao ? '' : `<button type="button" class="cresc-grade-conta" data-act="grade-conta" data-data="${d.data}" data-conta="${d.naoConta ? 'sim' : 'nao'}"${travada ? ' disabled' : ''} aria-label="${d.naoConta ? 'Voltar a contar' : 'Não contabilizar'} a frequência de ${esc(dataParaExibir(d.data))}">${d.naoConta ? '↺ contar' : '⊘ não contar'}</button>`}
       </div>`).join('')}
@@ -556,8 +556,8 @@ function gradeSacramental(ctx) {
 async function mudarMesGrade(mes) {
   if (gradeSuja && !await confirmar('Descartar a frequência digitada e não salva?', { perigo: true, okLabel: 'Descartar' })) return;
   gradeSuja = false;
-  const hoje = dataLocal().slice(0, 7);
-  mesGrade = mes > hoje ? hoje : mes;
+  const ultimo = ultimoMesDaGrade();
+  mesGrade = mes > ultimo ? ultimo : mes;
   renderCrescimento();
 }
 

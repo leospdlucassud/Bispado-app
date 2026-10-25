@@ -15,13 +15,14 @@ import { switchTab } from './app.js';
 import { NOMES_CARGOS, carregarChamados, nomesCarregados, salvarChamados } from './chamados.js';
 import {
   FILTROS_CHAMADOS, aDesignar, agruparPorOrganizacao, compararBispado, compararChamados, designacaoNaAgenda,
-  filtrarChamados, membroDoQuadro, membrosSemChamado, nomesAposImportar, obsDaDesignacao, ordemNatural,
-  parsearPdfChamados, resumoChamados,
+  cargoDoChamado, editarOcupante, filtrarChamados, membroDoQuadro, membrosSemChamado, nomeCurto, nomesAposImportar,
+  obsDaDesignacao, ordemNatural, parsearPdfChamados, resumoChamados,
 } from './chamados-lcr.js';
 import { ALA, API_CHAMADOS, DADOS } from './config.js';
 import { TIPO_DESIGNACAO } from './convite-regras.js';
 import { NOMES_DOS_PDFS, abaDoPdf, tipoDePdfLcr } from './crescimento-lcr.js';
 import { MEMBROS } from './dados-membros.js';
+import { confirmar } from './dialogo.js';
 import { renderInicio } from './inicio.js';
 import { carregarPdfJs } from './membros-import.js';
 import { MEMBROS_SAIDOS, renderMembros } from './membros.js';
@@ -242,8 +243,85 @@ function linhaChamado(c) {
       <div class="cham-nome${vago ? ' vazio' : ''}">${vago ? 'Chamado em aberto' : esc(ordemNatural(c.nome))}</div>
       ${c.apoiado ? `<div class="cham-sub">Apoiado em ${esc(dataParaExibir(c.apoiado))}</div>` : ''}
     </div>
-    <div class="cham-selos">${selo}</div>
+    <div class="cham-selos">${selo}
+      <button type="button" class="cham-editar" data-act="editar-chamado" data-i="${CHAMADOS_ALA.indexOf(c)}" aria-label="${vago ? 'Preencher' : 'Editar quem ocupa'}: ${esc(c.chamado)}" title="${vago ? 'Preencher' : 'Editar ou deixar vago'}">${vago ? '＋ Preencher' : '✏️ Editar'}</button>
+    </div>
   </div>`;
+}
+
+// ---------- editar quem ocupa um chamado ----------
+// Preencher o vago, trocar a pessoa ou deixar vago, sem esperar o próximo
+// relatório do LCR (editarOcupante, de chamados-lcr.js). O nome sai do quadro de
+// membros (a lista sugere, na forma do LCR); quem não está no quadro também vale.
+let edicao = null;   // { i, chamado } aberto na janela
+function abrirEdicaoChamado(i) {
+  const c = CHAMADOS_ALA[i];
+  if (!c) return;
+  edicao = { i, c };
+  const cargo = cargoDoChamado(c);
+  const sugestoes = ativos().slice().sort((a, b) => a.name.localeCompare(b.name))
+    .map(m => `<option value="${esc(m.name)}">${esc(ordemNatural(m.name))}</option>`).join('');
+  const onde = [c.org, c.grupo].filter(Boolean).map(esc).join(' · ');
+  conteudo(`
+    <h3>${c.nome ? '✏️' : '＋'} ${esc(c.chamado)} <button type="button" class="modal-close" aria-label="Fechar">✕</button></h3>
+    ${onde ? `<p class="cham-prev-resumo">${onde}</p>` : ''}
+    <form class="cham-edicao" data-form="editar-chamado">
+      <div class="form-group">
+        <label for="cham-ed-nome">Quem ocupa</label>
+        <input type="text" class="form-input" id="cham-ed-nome" list="cham-ed-membros" value="${esc(c.nome || '')}" placeholder="Digite e escolha no quadro de membros" autocomplete="off" required>
+        <datalist id="cham-ed-membros">${sugestoes}</datalist>
+      </div>
+      <div class="form-group">
+        <label for="cham-ed-apoiado">Apoiado em</label>
+        <input type="date" class="form-input" id="cham-ed-apoiado" value="${esc(c.apoiado || '')}">
+      </div>
+      <label class="cham-ed-check"><input type="checkbox" id="cham-ed-designado"${c.designado ? ' checked' : ''}> Já foi designado (imposição de mãos)</label>
+      ${cargo ? `<label class="cham-ed-check"><input type="checkbox" id="cham-ed-bispado" checked> Atualizar também o nome do ${esc(cargo)} no “Quem está usando?”</label>` : ''}
+      <p class="cham-prev-nota">A próxima importação do relatório do LCR troca a lista inteira; a prévia dela mostra o que estiver diferente do que foi mudado aqui.</p>
+      <div class="cham-prev-botoes">
+        <button type="submit" class="btn-primary">Salvar</button>
+        ${c.nome ? '<button type="button" class="btn-secondary" data-act="vagar-chamado">Deixar vago</button>' : ''}
+        <button type="button" class="btn-secondary" data-act="fechar">Cancelar</button>
+      </div>
+    </form>`);
+  abrirModal('modal-chamados', { semConfirmacao: true });
+  document.getElementById('cham-ed-nome')?.focus();
+}
+
+async function salvarEdicaoChamado({ vagar = false } = {}) {
+  const ed = edicao;
+  if (!ed || CHAMADOS_ALA[ed.i] !== ed.c) { toast('A lista de chamados mudou enquanto a janela estava aberta — abra de novo'); fecharModal('modal-chamados'); return; }
+  const v = id => document.getElementById(id);
+  const nome = vagar ? '' : (v('cham-ed-nome')?.value || '').trim();
+  if (!vagar && !nome) { toast('Digite quem ocupa o chamado (ou use "Deixar vago")'); return; }
+  if (vagar && !await confirmar(`Deixar vago o chamado "${ed.c.chamado}"?`, { okLabel: 'Deixar vago' })) return;
+  const r = editarOcupante(CHAMADOS_ALA, ed.i, {
+    nome, apoiado: v('cham-ed-apoiado')?.value || '', designado: !!v('cham-ed-designado')?.checked,
+  });
+  if (r.erro) { toast(`Não foi possível salvar: ${r.erro}`); return; }
+  const cargo = cargoDoChamado(ed.c);
+  const trocarNome = !!cargo && !!v('cham-ed-bispado')?.checked;
+  edicao = null;
+  fecharModal('modal-chamados');
+
+  // otimista: a aba (e o cartão do membro, o Início) mostram na hora
+  const doc = { chamados: r.chamados, relatorio: RELATORIO_CHAMADOS };
+  aplicarDocumento({ ...doc, atualizadoEm: new Date().toISOString() });
+  renderChamadosAla();
+  redesenharQuemMostra();
+  let enviado = false;
+  try {
+    const resp = await apiFetch(API_CHAMADOS, 'POST', doc);
+    if (resp?.atualizadoEm) CHAMADOS_ATUALIZADO_EM = resp.atualizadoEm;
+    enviado = true;
+    atualizarUltimaSinc(); setSyncStatus('ok');
+  } catch (e) {
+    importacaoPendente = true;   // ficou na fila (apiFetch) e sai na próxima sincronização
+  }
+  renderChamadosAla();
+  const nomesOk = trocarNome ? await salvarChamados({ ...NOMES_CARGOS, [cargo]: nome ? nomeCurto(nome) : '' }) : true;
+  if (!enviado) avisarPendente('alteração do chamado');
+  else if (nomesOk) toast(vagar || !nome ? 'Chamado deixado vago' : 'Chamado atualizado');
 }
 
 // "📅 Agendar designação": a entrevista nova da Agenda já vem com a pessoa (o
@@ -502,6 +580,7 @@ function ligarChamadosAla() {
     if (!alvo) return;
     if (alvo.dataset.act === 'agendar-designacao') agendarDesignacao(CHAMADOS_ALA[+alvo.dataset.i]);
     else if (alvo.dataset.act === 'ver-agenda') switchTab('agenda');
+    else if (alvo.dataset.act === 'editar-chamado') abrirEdicaoChamado(+alvo.dataset.i);
   });
 
   // 'toggle' não sobe pela árvore: escuta na captura. Só a vista completa
@@ -519,8 +598,14 @@ function ligarChamadosAla() {
     const el = e.target.closest('[data-act]');
     if (!el) return;
     if (el.dataset.act === 'aplicar') aplicarImportacaoChamados();
+    else if (el.dataset.act === 'vagar-chamado') salvarEdicaoChamado({ vagar: true });
     else if (el.dataset.act === 'ir-membros') { fecharModal('modal-chamados'); switchTab('membros'); }
     else if (el.dataset.act === 'ir-crescimento') { fecharModal('modal-chamados'); switchTab('crescimento'); }
+  });
+  document.getElementById('modal-chamados')?.addEventListener('submit', e => {
+    if (!e.target.closest('form[data-form="editar-chamado"]')) return;
+    e.preventDefault();
+    salvarEdicaoChamado();
   });
 }
 ligarChamadosAla();

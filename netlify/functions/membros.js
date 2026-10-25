@@ -16,7 +16,8 @@ const KEY = "dados";
 export default async (req) => {
   if (req.method === "OPTIONS") return new Response("", { headers: CORS });
 
-  const store = getStore(STORE_NAME);
+  // forte: ler→mudar→gravar precisa ver a gravação anterior (ver _crud.js)
+  const store = getStore({ name: STORE_NAME, consistency: "strong" });
 
   const VAZIO = { movimentacoes: [], saidos: [], adicionados: [], roster: null, rosterAtualizadoEm: null };
 

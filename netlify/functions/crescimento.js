@@ -37,7 +37,7 @@ export default async (req) => {
   const resposta = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: cab });
 
   let store;
-  try { store = getStore(STORE_NAME); }
+  try { store = getStore({ name: STORE_NAME, consistency: "strong" }); }   // ler→juntar→gravar (ver _crud.js)
   catch (e) { return resposta({ error: "Blobs: " + e.message }, 500); }
 
   if (req.method === "GET") {

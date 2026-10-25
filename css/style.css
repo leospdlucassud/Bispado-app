@@ -1161,6 +1161,7 @@
 .cresc-grade-sem { font-size:11.5px; color:var(--text3); padding:9px 0; font-style:italic; }
 .cresc-grade-salvar { grid-column:1 / -1; justify-self:start; }
 .cresc-grade-campo { display:flex; flex-direction:column; gap:4px; }
+.cresc-grade-futuro { font-weight:400; font-size:10.5px; color:var(--text3); }
 .cresc-grade-conta { align-self:flex-start; background:none; border:none; padding:2px 0; font:inherit; font-size:11px; color:var(--text3); cursor:pointer; text-decoration:underline dotted; }
 .cresc-grade-conta:hover, .cresc-grade-conta:focus-visible { color:var(--text1); }
 .cresc-grade-conta:disabled { opacity:.4; cursor:default; }
@@ -1259,3 +1260,8 @@ button[data-act="aplicar"]:disabled { opacity:.55; cursor:progress; }
   .pdf-progresso-anim span { opacity:.8; }
   .pdf-progresso-feito { transition:none; }
 }
+
+/* editar quem ocupa um chamado (chamados-ala.js) */
+.cham-editar { background:none; border:1px solid var(--border); border-radius:8px; padding:3px 8px; font:inherit; font-size:11px; color:var(--text2); cursor:pointer; white-space:nowrap; }
+.cham-editar:hover, .cham-editar:focus-visible { color:var(--text1); border-color:var(--gold); }
+.cham-ed-check { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-corpo); margin:4px 0 10px; }

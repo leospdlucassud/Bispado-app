@@ -622,3 +622,26 @@ export function limparDocumentoChamados(corpo) {
   }
   return { doc: { chamados, relatorio } };
 }
+
+// ---------- edição à mão na aba Chamados ----------
+// Preencher um chamado vago, trocar quem ocupa ou deixar vago (nome ''), sem
+// esperar o próximo relatório do LCR. Devolve { chamados } — uma lista NOVA, a de
+// entrada fica como estava — ou { erro }. Vago não tem data nem designação (como
+// o servidor grava: limparDocumentoChamados). A próxima importação do LCR troca a
+// lista inteira; a prévia dela mostra o que difere do que foi editado aqui.
+export function editarOcupante(chamados, i, { nome = '', apoiado = '', designado = false } = {}) {
+  if (!Array.isArray(chamados) || !Number.isInteger(i) || i < 0 || i >= chamados.length || !ehObjeto(chamados[i])) {
+    return { erro: 'chamado não encontrado' };
+  }
+  const n = String(nome ?? '').replace(/\s+/g, ' ').trim();
+  if (n.length > MAX_TEXTO_CHAMADO) return { erro: `nome: até ${MAX_TEXTO_CHAMADO} caracteres` };
+  const data = String(apoiado ?? '').trim();
+  if (n && !diaOk(data)) return { erro: 'data do apoio inválida' };
+  const lista = chamados.slice();
+  lista[i] = { ...chamados[i], nome: n, apoiado: n ? data : '', designado: !!n && designado === true };
+  return { chamados: lista };
+}
+
+// O cargo do "Quem está usando?" que este chamado do LCR é (Bispo, 1º
+// Conselheiro…), ou '' — editar quem ocupa um deles oferece trocar o nome lá também
+export const cargoDoChamado = c => (c && norm(c.org) === norm('Bispado') ? CARGOS_DO_LCR[c.chamado] || '' : '');

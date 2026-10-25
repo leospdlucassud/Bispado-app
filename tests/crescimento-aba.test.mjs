@@ -187,7 +187,8 @@ test('grade: os domingos do mês, a conferência sem campo e o domingo que ainda
 test('grade: grava só o que mudou, número inteiro ou vazio (apaga)', () => {
   const g = gradeFrequencia(ATAS, '2026-10', HOJE);
   const r = mudancasDaGrade(g, { '2026-10-04': ' 98 ', '2026-10-18': '0105', '2026-10-25': '50', '2026-10-11': '40' });
-  assert.deepEqual(r, { mudancas: [{ data: '2026-10-18', frequencia: '105' }], invalidos: [], zeros: [], acima: [], conflitos: [] });
+  // o domingo que ainda vem (25/10) também se lança: a grade vai até dezembro
+  assert.deepEqual(r, { mudancas: [{ data: '2026-10-18', frequencia: '105' }, { data: '2026-10-25', frequencia: '50' }], invalidos: [], zeros: [], acima: [], conflitos: [] });
   assert.deepEqual(mudancasDaGrade(g, { '2026-10-04': '' }).mudancas, [{ data: '2026-10-04', frequencia: '' }]);
   assert.deepEqual(mudancasDaGrade(g, { '2026-10-04': '9a', '2026-10-18': '-3' }).invalidos, ['2026-10-04', '2026-10-18']);
   assert.deepEqual(mudancasDaGrade(g, {}), { mudancas: [], invalidos: [], zeros: [], acima: [], conflitos: [] });
@@ -305,4 +306,14 @@ test('POST: junta por seção; vazio é 400; guardado estranho é 500 (não grav
   assert.equal(aplicarPostCrescimento(b.doc, { privado: { portadoresAtivosDizimistas: -2 } }, agora).status, 400);
   assert.equal(aplicarPostCrescimento('estragado', { publico: { historicoSacramental: { 2022: 41 } } }, agora).status, 500);
   assert.ok(MAX_CORPO_CRESCIMENTO > JSON.stringify({ privado: { recomendacoesPessoas: { adultos: Array.from({ length: 2000 }, () => ({ nome: 'X'.repeat(150), sexo: 'F', idade: 99, situacao: 'para-vencer', validade: '2027-01' })) } } }).length);
+});
+
+test('grade: vai até dezembro do ano de hoje', async () => {
+  const { ultimoMesDaGrade } = await import('../js/crescimento-lcr.js');
+  assert.equal(ultimoMesDaGrade('2026-10-25'), '2026-12');
+  assert.equal(ultimoMesDaGrade('2027-01-03'), '2027-12');
+  const dez = gradeFrequencia([], '2026-12', '2026-10-25');
+  assert.deepEqual(dez.map(d => d.data.slice(8)), ['06', '13', '20', '27']);
+  assert.ok(dez.every(d => d.futuro));
+  assert.deepEqual(mudancasDaGrade(dez, { '2026-12-20': '120' }).mudancas, [{ data: '2026-12-20', frequencia: '120' }]);
 });
