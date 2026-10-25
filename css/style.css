@@ -120,6 +120,17 @@
      hex: assim o tema claro só redefine os valores aqui embaixo. Cor escrita
      direto (#c8d8e8…) fica presa ao escuro — era por isso que o tema claro tinha
      textos invisíveis. --text3 era #445566 (2,1:1 no cartão); agora 4,8:1. */
+  /* color-scheme: sem ele, o navegador desenhava no CLARO o que é dele — a lista
+     de sugestões dos nomes (datalist), o calendário do campo de data, as barras
+     de rolagem — e, ao escolher uma sugestão, o campo ficava com fundo branco
+     (o realce de preenchimento automático), no meio do tema escuro */
+  :root { color-scheme: dark; }
+  [data-theme="light"] { color-scheme: light; }
+  .form-input:-webkit-autofill, .form-input:-webkit-autofill:hover, .form-input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--text1); caret-color: var(--text1);
+    -webkit-box-shadow: 0 0 0 1000px var(--bg3) inset; box-shadow: 0 0 0 1000px var(--bg3) inset;
+    transition: background-color 600000s 0s;
+  }
   :root {
     --bg1:#0d1b2a; --bg2:#152233; --bg3:#1a2d42; --bg4:#243b55;
     --text1:#e8edf2; --text-corpo:#c8d8e8; --text2:#8eacc8; --text3:#7a8fa8;
@@ -1265,3 +1276,7 @@ button[data-act="aplicar"]:disabled { opacity:.55; cursor:progress; }
 .cham-editar { background:none; border:1px solid var(--border); border-radius:8px; padding:3px 8px; font:inherit; font-size:11px; color:var(--text2); cursor:pointer; white-space:nowrap; }
 .cham-editar:hover, .cham-editar:focus-visible { color:var(--text1); border-color:var(--gold); }
 .cham-ed-check { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-corpo); margin:4px 0 10px; }
+
+/* ata da sacramental: "Sem este discurso" / "Sem este hino" (sacramental.js) */
+.ata-sem { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:11.5px; color:var(--text2); cursor:pointer; }
+.ata-vaga-campos[hidden] { display:none; }

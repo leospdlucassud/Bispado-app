@@ -132,6 +132,9 @@ export const ATA_ORDEM = [
   { k:'oracaoEncerramento', r:'Oração de encerramento' },
 ];
 
+// O hino que a ata marcou "Sem este hino neste domingo" (o campo <k>Sem = 'sim')
+export const hinoDispensado = (sac, k) => sac?.[k + 'Sem'] === 'sim';
+
 // Lê um campo aceitando os nomes antigos
 export function campoAta(sac, k) {
   if (!sac) return '';
@@ -181,7 +184,8 @@ export function renderSacramentais() {
       ? `<span style="color:var(--text2);font-size:11px">👥 ${esc(sac.frequencia||'—')}${sac.visitantes ? ` · ${esc(sac.visitantes)} visit.` : ''}${sac.frequenciaConta === 'nao' ? ' · não conta' : ''}</span>`
       : '';
 
-    const linha = (rot, val, cor) => val
+    // hino marcado "sem este hino" na ata não aparece (nem com um número gravado)
+    const linha = (rot, val, cor, k) => val && !(k && hinoDispensado(sac, k))
       ? `<div><span style="--c:${cor};font-size:11px">${rot}</span><div style="color:var(--text-corpo)">${esc(val)}</div></div>` : '';
 
     const orador = n => {
@@ -196,7 +200,7 @@ export function renderSacramentais() {
       if (!sac['orador' + n]) return '';
       const selo = estado === 'realizado' ? '' : ' ' + seloVaga(estado);
       return `<div><span style="--c:${CORES_POSICAO[n]};font-size:11px">${n}º Orador · ${minutosDaVaga(sac, n)} min</span>` +
-        `<div style="color:var(--text-corpo)">${esc(nomeNatural(sac['orador'+n]))}${sac['tema'+n] ? ` <span style="color:var(--text3)">· ${esc(sac['tema'+n])}</span>` : ''}${selo}</div></div>`;
+        `<div style="color:var(--text-corpo)">${esc(String(sac['orador'+n]).replace(/\s+/g, ' ').trim())}${sac['tema'+n] ? ` <span style="color:var(--text3)">· ${esc(sac['tema'+n])}</span>` : ''}${selo}</div></div>`;
     };
 
     return `
@@ -220,13 +224,13 @@ export function renderSacramentais() {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:12px">
         ${linha('Presidida por', g('presidida'), '#c9a84c')}
         ${linha('Dirigida por',  g('dirigida'),  '#c9a84c')}
-        ${linha('Hino inicial',  g('primeiroHino'), '#5b9bd5')}
-        ${linha('Hino Sacramental', g('hinoSacramental'), '#5b9bd5')}
+        ${linha('Hino inicial',  g('primeiroHino'), '#5b9bd5', 'primeiroHino')}
+        ${linha('Hino Sacramental', g('hinoSacramental'), '#5b9bd5', 'hinoSacramental')}
         ${orador(1)}
         ${orador(2)}
-        ${linha('Hino intermediário', g('hinoIntermediario'), '#f472b6')}
+        ${linha('Hino intermediário', g('hinoIntermediario'), '#f472b6', 'hinoIntermediario')}
         ${orador(3)}
-        ${linha('Hino de encerramento', g('hinoFinal'), '#5b9bd5')}
+        ${linha('Hino de encerramento', g('hinoFinal'), '#5b9bd5', 'hinoFinal')}
       </div>
       ${sac.observacoes ? `<div style="margin-top:6px;font-size:11px;color:var(--text2);border-top:1px solid rgba(74,106,138,.2);padding-top:6px">📝 ${esc(sac.observacoes)}</div>` : ''}
       ` : `
@@ -266,8 +270,9 @@ export function abrirModalSac(dataKey) {
          </div>`
       : `<div style="margin-bottom:10px">
            <label style="color:var(--text2);font-size:11px">${c.r}</label>
-           <input type="text" class="form-input" id="ata-${c.k}" value="${v}" placeholder="${ph}"${lista}
+           <input type="text" class="form-input" id="ata-${c.k}" value="${v}" placeholder="${ph}"${lista}${c.hino && hinoDispensado(sac, c.k) ? ' disabled' : ''}
              style="font-size:12px;padding:6px 10px">
+           ${c.hino ? `<label class="ata-sem"><input type="checkbox" id="ata-sem-${c.k}" data-sem-hino="${c.k}"${hinoDispensado(sac, c.k) ? ' checked' : ''}> Sem este hino neste domingo</label>` : ''}
          </div>`;
   };
 
@@ -287,7 +292,9 @@ export function abrirModalSac(dataKey) {
     <div data-vaga="${n}"${comOradores ? '' : ' hidden'} style="background:rgba(255,255,255,.03);border-left:3px solid ${cor};border-radius:8px;padding:10px;margin-bottom:10px">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px">
         <span style="--c:${cor};font-size:11px;font-weight:700">🎤 ${n}º ORADOR</span>${selo}
+        <label class="ata-sem" style="margin:0 0 0 auto"><input type="checkbox" id="sac-sem${n}" data-sem-vaga="${n}"${estado === 'dispensada' ? ' checked' : ''}> Sem este discurso</label>
       </div>
+      <div class="ata-vaga-campos"${estado === 'dispensada' ? ' hidden' : ''}>
       <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end">
         <div>
           <label style="color:var(--text2);font-size:11px" for="sac-orador${n}">Nome</label>
@@ -310,6 +317,7 @@ export function abrirModalSac(dataKey) {
       <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--text2)">
         <input type="checkbox" id="sac-fora${n}" ${sac['orador'+n+'Fora'] === true ? 'checked' : ''}> De fora da ala (sumo conselheiro, visitante)
       </label>
+      </div>
     </div>`;
   };
 
@@ -398,7 +406,12 @@ export function lerFormularioAta() {
   // 'nao'/'sim' e não verdadeiro/falso: o servidor ignora false ao juntar o domingo (fundirDomingo)
   const naoConta = document.getElementById('ata-nao-conta');
   if (naoConta) obj.frequenciaConta = naoConta.checked ? 'nao' : 'sim';
-  ATA_ORDEM.forEach(c => { if (c.k) obj[c.k] = v('ata-' + c.k); });
+  ATA_ORDEM.forEach(c => {
+    if (!c.k) return;
+    obj[c.k] = v('ata-' + c.k);
+    const sem = document.getElementById('ata-sem-' + c.k);
+    if (c.hino && sem) obj[c.k + 'Sem'] = sem.checked ? 'sim' : 'nao';
+  });
   obj.observacoes = v('sac-obs');
   for (const n of POSICOES) {
     obj['orador' + n] = v('sac-orador' + n);
@@ -432,6 +445,18 @@ export async function salvarSac(dataKey) {
   const tirar = tipoTemOradores(depois.tipo) || !document.getElementById('ata-tirar-oradores')?.checked ? []
     : POSICOES.filter(n => String(atual?.['orador' + n] ?? '').trim());
   for (const n of tirar) Object.assign(diff, camposVagaVazia(n));
+  // "Sem este discurso": a vaga fica vazia e marcada 'dispensada' (o mesmo do
+  // "Sem este discurso" do card); desmarcar devolve a vaga aberta
+  const semVaga = n => !!document.getElementById('sac-sem' + n)?.checked;
+  const eraDispensada = n => !!atual && estadoDaVaga({ ...atual, data: dataKey }, n, hoje) === 'dispensada';
+  const comVagas = tipoTemOradores(depois.tipo);
+  const dispensar = comVagas ? POSICOES.filter(n => semVaga(n) && !eraDispensada(n)) : [];
+  const reabrir = comVagas ? POSICOES.filter(n => !semVaga(n) && eraDispensada(n)) : [];
+  for (const n of dispensar) {
+    for (const k of camposDaVaga(n)) delete diff[k];
+    Object.assign(diff, camposVagaVazia(n), { ['orador' + n + 'Status']: 'dispensada' });
+  }
+  for (const n of reabrir) if (!String(depois['orador' + n] || '').trim()) diff['orador' + n + 'Status'] = '';
   if (!Object.keys(diff).length) {
     fecharModal('modal-sacramental');
     toast('Nada foi alterado');
@@ -440,14 +465,14 @@ export async function salvarSac(dataKey) {
   if ('hinoIntermediario' in diff) diff.hinoEspecial = diff.hinoIntermediario; // compatibilidade com registros antigos
 
   const avisos = [];
-  for (const n of tirar) {
+  for (const n of [...tirar, ...dispensar]) {
     const est = dataKey >= hoje ? estadoDaVaga(atual, n, hoje) : '';
     if (est === 'convidado' || est === 'aceito') {
       avisos.push(`${nomeCurto(atual['orador' + n])} já ${quemJa(est)} ${n}º discurso deste domingo.`);
     }
   }
   for (const n of POSICOES) {
-    if (tirar.includes(n)) continue;
+    if (tirar.includes(n) || dispensar.includes(n)) continue;
     if (!('orador' + n in diff)) continue;
     const antes = retratoAta?.['orador' + n] || '';
     // estrita: "Maria de Souza" → "Maria Souza" pode ser outra irmã — conta como troca
@@ -464,7 +489,7 @@ export async function salvarSac(dataKey) {
     }
   }
   // tirar e trocar nunca vêm juntos: com o tipo sem oradores, as vagas não mudam pelo formulário
-  const acao = tirar.length ? 'Tirar' : 'Trocar';
+  const acao = tirar.length || dispensar.length ? 'Tirar' : 'Trocar';
   if (avisos.length && !await confirmar(`${avisos.join(' ')} ${acao} mesmo assim? Lembre-se de avisar.`, { okLabel: acao })) return;
 
   fecharModal('modal-sacramental');
@@ -641,6 +666,11 @@ function ligarSacramental() {
   // o conteúdo do modal é recriado a cada ata aberta: a escuta fica no modal
   document.getElementById('modal-sacramental')?.addEventListener('change', e => {
     if (e.target.id === 'ata-tipo') mostrarVagasDaAta();
+    // "Sem este discurso": os campos do orador somem; "Sem este hino": o campo trava
+    const vaga = e.target.dataset?.semVaga;
+    if (vaga) { const c = document.querySelector(`#modal-sacramental-content [data-vaga="${vaga}"] .ata-vaga-campos`); if (c) c.hidden = e.target.checked; }
+    const hino = e.target.dataset?.semHino;
+    if (hino) { const i = document.getElementById('ata-' + hino); if (i) i.disabled = e.target.checked; }
   });
 }
 ligarSacramental();

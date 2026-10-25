@@ -24,7 +24,7 @@ import {
 } from './discursos-regras.js';
 import { MEMBROS_SAIDOS, movimentacoesCarregadas } from './membros.js';
 import {
-  abrirModalSac, campoAta, chavesNaAta, getSacPorData, gravarCamposDomingo,
+  abrirModalSac, campoAta, chavesNaAta, getSacPorData, gravarCamposDomingo, hinoDispensado,
   renderAbaSacramental, sacCarregado, sacDoServidor, seloVaga,
 } from './sacramental.js';
 import { abrirModal, fecharModal } from './ui.js';
@@ -218,7 +218,8 @@ function cardDomingo(ctx, dk, cont) {
     corpo = (tipo.dica ? `<div class="plano-semvagas">${esc(tipo.dica)}</div>` : '')
       + (soma > MINUTOS_ALERTA ? `<div class="plano-alerta">⚠️ ${soma} min de discursos — a reunião tem 1 hora (Manual 29.2.1.1)</div>` : '')
       + vagaHtml(ctx, reg, dk, 1) + vagaHtml(ctx, reg, dk, 2)
-      + `<div class="vaga-hino">♪ Hino intermediário${hino ? `: ${esc(hino)}` : ''}</div>`
+      // "Sem este hino" na ata: o marcador entre o 2º e o 3º discurso some
+      + (hinoDispensado(sac, 'hinoIntermediario') ? '' : `<div class="vaga-hino">♪ Hino intermediário${hino ? `: ${esc(hino)}` : ''}</div>`)
       + vagaHtml(ctx, reg, dk, 3);
   }
 
@@ -296,7 +297,8 @@ function vagaHtml(ctx, reg, dk, n) {
   const sub = selo + (detalhes ? `<span>${detalhes}</span>` : '');
 
   const nomeHtml = estado === 'dispensada' ? '<span class="vaga-vazia">Sem este discurso</span>'
-    : nome ? esc(nomeCurto(nome)) : '<span class="vaga-vazia">Vaga aberta</span>';
+    // o nome exatamente como foi escrito na ata (antes saía só o primeiro nome)
+    : nome ? esc(String(nome).replace(/\s+/g, ' ').trim()) : '<span class="vaga-vazia">Vaga aberta</span>';
 
   return `
   <div class="vaga" style="--vc:${cor}" data-dk="${esc(dk)}" data-n="${n}">
