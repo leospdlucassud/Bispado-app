@@ -19,7 +19,7 @@ import {
 import { inicioColecaoCarregada, renderInicio } from './inicio.js';
 import { imprimirAtaSacramental } from './pdf.js';
 import {
-  abrirEscolhaOrador, abrirFicha, garantirJanela, primeiraVagaAberta, renderPlano, renderRodizio,
+  abrirEscolhaOrador, abrirFicha, garantirJanela, primeiraVagaAberta, publicoDoOrador, renderPlano, renderRodizio,
 } from './rodizio.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
@@ -418,7 +418,8 @@ function definirBaseNaAta(n, base, url) {
 function pedirBaseNaAta(n) {
   const dk = ataAberta;
   const campoTema = document.getElementById('sac-tema' + n);
-  abrirDiscursoBase({ n, tema: campoTema?.value || '', aoEscolher: ({ tema, base, url }) => {
+  const publico = publicoDoOrador(document.getElementById('sac-orador' + n)?.value || '');
+  abrirDiscursoBase({ n, tema: campoTema?.value || '', publico, aoEscolher: ({ tema, base, url }) => {
     if (ataAberta !== dk) return;
     if (campoTema && !campoTema.value.trim()) campoTema.value = tema;
     definirBaseNaAta(n, base, url);

@@ -338,6 +338,20 @@ export const CARGOS_DO_LCR = {
   'Secretário Executivo da Ala': 'Secretário Executivo',
 };
 
+// Chamado de liderança da ala — quem a sugestão do 3º discurso prefere
+// (rodízio da Sacramental): o bispado, as presidências das organizações
+// (presidente e conselheiros, sem os secretários) e os líderes da ala (obra
+// missionária, templo e história da família).
+const BISPADO_NORM = new Set(Object.keys(CARGOS_DO_LCR).map(norm));
+export function chamadoDeLideranca(chamado) {
+  const t = norm(chamado).replace(/\(a\)/g, '');
+  if (!t) return false;
+  if (BISPADO_NORM.has(t)) return true;
+  if (/^presidente (do|da|das|dos) /.test(t)) return true;
+  if (/^(primeir|segund)[oa] conselheir[oa] (na presidencia )?(do|da|das|dos) /.test(t)) return true;
+  return /^lider .* da ala$/.test(t);
+}
+
 // { 'Bispo': 'Bruno Exemplo', … } — só os preenchidos, no nome curto
 export function nomesDoBispado(chamados) {
   const nomes = {};

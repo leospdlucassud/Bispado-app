@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  FONTES, autorDoConteudo, buscarDiscursosBase, lerResultado, limparTema, ordenarItens, rotuloDaFonte,
+  PUBLICOS, autorDoConteudo, buscarDiscursosBase, lerResultado, limparTema, ordenarItens, publicoDoGrupo, rotuloDaFonte,
   sugerirTemas, TEMAS_SUGERIDOS, textoBase, textoLimpo, urlDaBusca, urlSegura,
 } from '../js/discursos-base-regras.js';
 import { camposVagaVazia, mensagemDiscurso } from '../js/discursos-regras.js';
@@ -110,7 +110,8 @@ test('buscarDiscursosBase: as 3 fontes na ordem, Liahona sem a reimpressão, aut
     return { results: [] };
   };
   const r = await buscarDiscursosBase('Sacrifício', { buscarJson, comAutor: true });
-  assert.deepEqual(r.fontes.map(f => f.id), FONTES.map(f => f.id));
+  assert.deepEqual(r.fontes.map(f => f.id), PUBLICOS.adultos.fontes);
+  assert.equal(r.publico, 'adultos');
   const [gc, li, byu] = r.fontes;
   assert.deepEqual(gc.itens.map(i => i.titulo), ['Recente', 'Sem autor', 'Antigo']);
   assert.equal(gc.itens[0].autor, 'Autor de recente');
@@ -175,4 +176,61 @@ test('vaga vazia também limpa o discurso base', () => {
   const c = camposVagaVazia(3);
   assert.equal(c.base3, '');
   assert.equal(c.base3Url, '');
+});
+
+test('publicoDoGrupo: Primária → crianças, Moças e Rapazes → jovens, o resto → adultos', () => {
+  assert.equal(publicoDoGrupo('primaria'), 'criancas');
+  assert.equal(publicoDoGrupo('mocas'), 'jovens');
+  assert.equal(publicoDoGrupo('rapazes'), 'jovens');
+  for (const g of ['quorum', 'ss', 'jas', 'novos', 'outros', undefined]) assert.equal(publicoDoGrupo(g), 'adultos');
+});
+
+test('crianças e jovens: sem Conferência Geral nem BYU Speeches', () => {
+  assert.deepEqual(PUBLICOS.criancas.fontes, ['amigo', 'vem-primaria']);
+  assert.deepEqual(PUBLICOS.jovens.fontes, ['forca', 'vem-jovens', 'liahona']);
+  for (const p of ['criancas', 'jovens']) {
+    assert.ok(!PUBLICOS[p].fontes.includes('conferencia') && !PUBLICOS[p].fontes.includes('byu'));
+  }
+});
+
+const ST = 'https://www.churchofjesuschrist.org/study';
+test('lerResultado: revista Amigo, Força dos Jovens e o Vem, e Segue-Me de cada público', () => {
+  const amigo = lerResultado(res(ST + '/friend/2023/08-se/17-como-orar?lang=por', 'Como orar?', '2023-08-01'), 'amigo');
+  assert.equal(amigo.url, ST + '/friend/2023/08-se/17-como-orar?lang=por');
+  assert.equal(rotuloDaFonte(amigo, 'amigo'), 'Revista Amigo, agosto de 2023');
+  const forca = lerResultado(res(ST + '/ftsoy/2025/12/07-um-artigo?lang=por', 'Um artigo'), 'forca');
+  assert.equal(rotuloDaFonte(forca, 'forca'), 'Revista Força dos Jovens, dezembro de 2025');
+  assert.equal(forca.caminho, '/ftsoy/2025/12/07-um-artigo');
+
+  const prim = ST + '/manual/come-follow-me-for-primary-book-of-mormon-2020/13?lang=por';
+  const lar = ST + '/manual/come-follow-me-for-home-and-church-old-testament-2026/18?lang=por';
+  const esc = ST + '/manual/come-follow-me-for-sunday-school-book-of-mormon-2020/39?lang=por';
+  const p = lerResultado(res(prim, 'Lição'), 'vem-primaria');
+  assert.equal(rotuloDaFonte(p, 'vem-primaria'), 'Vem, e Segue-Me — Para a Primária: Livro de Mórmon 2020');
+  assert.equal(p.caminho, '', 'manual não tem autor para buscar');
+  assert.ok(lerResultado(res(lar, 'Lição'), 'vem-primaria'));
+  assert.equal(lerResultado(res(esc, 'Escola Dominical'), 'vem-primaria'), null, 'a Escola Dominical não é das crianças');
+  assert.ok(lerResultado(res(esc, 'Escola Dominical'), 'vem-jovens'));
+  assert.equal(lerResultado(res(prim, 'Lição'), 'vem-jovens'), null, 'o manual da Primária não é dos jovens');
+  assert.equal(lerResultado(res(ST + '/manual/come-follow-me-for-primary-old-testament-2022/disabilities?lang=por', 'Apoio'), 'vem-primaria'), null);
+  assert.equal(lerResultado(res(ST + '/manual/gospel-symbols/pray?lang=por', 'orar'), 'vem-jovens'), null);
+});
+
+test('buscarDiscursosBase para crianças só pede as fontes delas', async () => {
+  const facets = [];
+  const r = await buscarDiscursosBase('Oração', { publico: 'criancas', buscarJson: async u => {
+    const url = new URL(u);
+    facets.push(url.searchParams.get('facet'));
+    assert.equal(url.searchParams.get('year'), 'any-date');
+    if (url.searchParams.get('facet') === 'the-friend') return { results: [res(ST + '/friend/2024/04/03-oracao?lang=por', 'Oração', '2024-04-01')] };
+    return { results: [res(ST + '/manual/come-follow-me-for-home-and-church-new-testament-2027/54-appendix-b/002-prayer?lang=por', 'Fevereiro')] };
+  } });
+  assert.equal(r.publico, 'criancas');
+  assert.deepEqual([...new Set(facets)].sort(), ['come-follow-me', 'the-friend']);
+  assert.deepEqual(r.fontes.map(f => f.itens.length), [1, 1]);
+  assert.equal(r.fontes[1].itens[0].rotulo, 'Vem, e Segue-Me — Para o lar e a Igreja: Novo Testamento 2027');
+  assert.ok(!('manual' in r.fontes[1].itens[0]));
+  // público desconhecido vale como adultos
+  const a = await buscarDiscursosBase('Fé', { publico: 'x', buscarJson: async () => ({ results: [] }) });
+  assert.equal(a.publico, 'adultos');
 });

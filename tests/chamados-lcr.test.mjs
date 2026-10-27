@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import {
+import { chamadoDeLideranca,
   CARGOS_DO_LCR, DOC_CHAMADOS_VAZIO, cargoDoChamado, editarOcupante, FILTROS_CHAMADOS, MAX_CHAMADOS, MAX_TEXTO_CHAMADO, aDesignar, agruparPorOrganizacao,
   chamadosDoMembro, compararBispado, compararChamados, dataLcr, designacaoNaAgenda, filtrarChamados, indicePorPessoa,
   limparDocumentoChamados, membroDoQuadro, membrosSemChamado, nomeCurto, nomesAposImportar, nomesDoBispado,
@@ -779,4 +779,14 @@ test('editar quem ocupa: preencher, trocar e deixar vago, sem mexer na lista de 
   assert.equal(cargoDoChamado({ org: 'Bispado', chamado: 'Secretário Executivo da Ala' }), 'Secretário Executivo');
   assert.equal(cargoDoChamado(lista[1]), '');
   assert.equal(cargoDoChamado({ org: 'Primária', chamado: 'Bispo' }), '', 'só no Bispado');
+});
+
+test('chamadoDeLideranca: bispado, presidências e líderes da ala — sem secretários das organizações', () => {
+  const sim = ['Bispo', 'Segundo Conselheiro no Bispado', 'Secretário Executivo da Ala', 'Presidente da Primária',
+    'Primeira Conselheira na Presidência da Sociedade de Socorro', 'Segundo Conselheiro do Quórum de Élderes',
+    'Presidente das Moças', 'Presidente da Escola Dominical', 'Líder da Obra Missionária da Ala',
+    'Líder de Templo e História da Família da Ala'];
+  const nao = ['Secretária da Sociedade de Socorro', 'Professor(a) da Primária', 'Recepcionista', '', 'Pianista'];
+  for (const t of sim) assert.equal(chamadoDeLideranca(t), true, t);
+  for (const t of nao) assert.equal(chamadoDeLideranca(t), false, t);
 });

@@ -1,8 +1,9 @@
-import { MAX_TEMA, buscarDiscursosBase, limparTema } from "../../js/discursos-base-regras.js";
+import { MAX_TEMA, buscarDiscursosBase, limparTema, publicoValido } from "../../js/discursos-base-regras.js";
 
 // Discursos para inspirar o orador (o "discurso base" da aba Sacramental):
-// busca o tema na Biblioteca do Evangelho — Conferência Geral, Liahona e BYU
-// Speeches, nessa ordem — e lê o autor na página de cada discurso. Só leitura
+// busca o tema na Biblioteca do Evangelho, nas fontes do público (?publico=
+// criancas | jovens | adultos — ver PUBLICOS), e lê o autor na página de cada
+// discurso ou artigo. Só leitura
 // de conteúdo público: não grava nada e não recebe dado de ninguém da ala.
 // Se esta função falhar, o app busca direto do navegador (sem o autor).
 
@@ -31,16 +32,18 @@ export default async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: H });
   if (req.method !== "GET") return new Response(JSON.stringify({ error: "Método não permitido" }), { status: 405, headers: H });
 
-  const bruto = new URL(req.url).searchParams.get("tema") || "";
+  const params = new URL(req.url).searchParams;
+  const bruto = params.get("tema") || "";
+  const publico = publicoValido(params.get("publico") || "");
   const tema = limparTema(bruto);
   if (tema.length < 2 || bruto.length > MAX_TEMA * 2) {
     return new Response(JSON.stringify({ error: "tema" }), { status: 400, headers: H });
   }
-  const chave = tema.toLowerCase();
+  const chave = publico + "|" + tema.toLowerCase();
   const guardado = CACHE.get(chave);
   if (guardado && Date.now() - guardado.em < VALIDADE) return new Response(guardado.json, { status: 200, headers: H });
 
-  const r = await buscarDiscursosBase(tema, { buscarJson, comAutor: true });
+  const r = await buscarDiscursosBase(tema, { buscarJson, comAutor: true, publico });
   // todas as fontes falharam: o app tenta do navegador
   if (r.fontes.every(f => f.erro)) return new Response(JSON.stringify({ error: "busca" }), { status: 502, headers: H });
   const json = JSON.stringify(r);

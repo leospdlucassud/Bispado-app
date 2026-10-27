@@ -10,6 +10,7 @@
 // 5/10/15 minutos e o jovem no 1º discurso são COSTUME — vêm do Manual 2 (2019)
 // —, por isso ficam aqui como padrões editáveis, nunca como regra.
 // =============================================
+import { chamadoDeLideranca } from './chamados-lcr.js';
 import { urlSegura } from './discursos-base-regras.js';
 import { dataLocal, norm, partesDoNascimento } from './utils.js';
 
@@ -306,9 +307,21 @@ const idadeConhecida = (m, hojeKey) => {
   return m.age > 0 ? m.age : NaN;
 };
 
+// Os líderes da ala, pelo relatório de chamados do LCR (aba Chamados):
+// chave da pessoa → o 1º chamado de liderança dela (chamadoDeLideranca)
+export function lideresDaAla(chamados) {
+  const lideres = new Map();
+  for (const c of Array.isArray(chamados) ? chamados : []) {
+    const chave = chavePessoa(c?.nome || '');
+    if (chave && !lideres.has(chave) && chamadoDeLideranca(c.chamado)) lideres.set(chave, String(c.chamado).trim());
+  }
+  return lideres;
+}
+
 // O pool do rodízio: o quadro ativo + quem foi ajustado/adicionado à mão + quem
 // já aparece nos domingos. Com o quadro vazio, funciona com os dois últimos.
-export function montarPessoas({ membros = [], saidos = [], oradores = [], historico = new Map(), hojeKey }) {
+// `lideres`: de lideresDaAla — o 3º discurso prefere os líderes da ala.
+export function montarPessoas({ membros = [], saidos = [], oradores = [], historico = new Map(), hojeKey, lideres = new Map() }) {
   const pessoas = new Map();
   const fora = new Set(saidos);
   const chavesSaidas = new Set(membros.filter(m => m && fora.has(m.id)).map(m => chavePessoa(m.name)));
@@ -334,6 +347,7 @@ export function montarPessoas({ membros = [], saidos = [], oradores = [], histor
     p.ajuste = ajuste;
     p.hist = hist;
     p.grupo = grupoDe(p.membro, ajuste, hojeKey);
+    p.lider = lideres.get(p.chave) || '';
     p.vezes = hist ? hist.discursos.length : 0;
     p.planejadas = hist ? hist.planejadas : [];
     p.pausadoAte = pausadoEm(ajuste, hojeKey) ? ajuste.pausaAte : '';
@@ -591,11 +605,15 @@ export function sugerirParaVaga({ pessoas, dk, n, ocupadas = new Map(), gruposNo
     if (pos) afinidade = pos === String(n) ? 0 : 2;
     else if (JOVEM_PRIMEIRO) afinidade = n === 1 ? (jovem(p) ? 0 : 1) : (jovem(p) ? 2 : 0);
     else afinidade = 0;
+    // o 3º discurso (o último, o mais longo), de preferência, um líder da ala —
+    // abaixo só de quem pediu o 3º na ficha
+    if (!pos && n === 3) afinidade += p.lider ? 1 : 2;
     if (gruposNoDomingo.has(p.grupo)) afinidade += 1;
     const meses = p.ultimo ? Math.max(0, mesesEntre(p.ultimo.data, hojeKey)) : null;
     const partes = [infoGrupo(p.grupo).curto, meses === null ? 'nunca discursou' : haMeses(meses)];
     if (pos && pos === String(n)) partes.push(`prefere o ${n}º`);
     if (n === 1 && jovem(p)) partes.push('jovem');
+    if (n === 3 && p.lider) partes.push(p.lider);
     const item = { pessoa: p, motivo: partes.join(' · '), ocupada,
       _ord: [afinidade, p.ultimo ? 1 : 0, p.ultimo ? p.ultimo.data : '', hashEstavel(p.chave + '|' + dk + '|' + n)] };
     if (meses !== null && meses < INTERVALO_MESES) recentes.push(item); else lista.push(item);

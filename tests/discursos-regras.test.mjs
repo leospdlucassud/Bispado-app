@@ -6,7 +6,7 @@ import {
   fundirDomingo, grupoAuto, grupoDe, grupoDoBancoAntigo, hashEstavel, historicoDiscursos, indiceDoQuadro,
   membroDaChave, mensagemDiscurso, mesesEntre, minutosDaVaga, montarPessoas, nomeCurto, nomeNatural,
   parecidos, pendenciasDiscurso, primeiroNomeDe, proximoDomingo, proximosDomingos, quandoPorExtenso,
-  resumoDomingo, somaMinutos, sugerirParaVaga, tipoProvavel,
+  lideresDaAla, resumoDomingo, somaMinutos, sugerirParaVaga, tipoProvavel,
 } from '../js/discursos-regras.js';
 
 const ANA = 'Fictícia Souza, Ana Beatriz';
@@ -501,4 +501,47 @@ test('busca: o nome guardado num domingo sem oradores não aparece como orador',
   // nada gravado nas vagas: trecho vazio, também sem a marca
   assert.equal(trechoDaBusca({ data: '2026-10-04', tipo: 'jejum' }), '');
   assert.equal(trechoDaBusca(undefined), '');
+});
+
+test('Primária: a criança com 8 anos entra no rodízio; com 7, não', () => {
+  const membros = [
+    { id: 1, name: 'Oito, Exemplo', gender: 'F', nascimento: '10 out 2018' },
+    { id: 2, name: 'Sete, Exemplo', gender: 'M', nascimento: '10 nov 2018' },
+  ];
+  const p = montarPessoas({ membros, hojeKey: '2026-10-27' });
+  assert.equal(p.get(chavePessoa('Exemplo Oito'))?.grupo, 'primaria');
+  assert.equal(p.has(chavePessoa('Exemplo Sete')), false);
+});
+
+test('líderes da ala: o 3º discurso prefere quem tem chamado de liderança', () => {
+  const chamados = [
+    { org: 'Primária', chamado: 'Presidente da Primária', nome: 'Lider, Ana' },
+    { org: 'Primária', chamado: 'Professor(a) da Primária', nome: 'Comum, Bruno' },
+    { org: 'Sociedade de Socorro', chamado: 'Secretária da Sociedade de Socorro', nome: 'Secretaria, Carla' },
+    { org: 'Ala', chamado: 'Líder da Obra Missionária da Ala', nome: 'Missao, Davi' },
+    { org: 'Primária', chamado: 'Presidente da Primária', nome: '' },
+  ];
+  const lideres = lideresDaAla(chamados);
+  assert.deepEqual([...lideres.keys()].sort(), [chavePessoa('Ana Lider'), chavePessoa('Davi Missao')].sort());
+  assert.equal(lideres.get(chavePessoa('Ana Lider')), 'Presidente da Primária');
+
+  const membros = [
+    { id: 1, name: 'Lider, Ana', gender: 'F', nascimento: '01 jan 1985' },
+    { id: 2, name: 'Comum, Bruno', gender: 'M', nascimento: '01 jan 1985' },
+    { id: 3, name: 'Secretaria, Carla', gender: 'F', nascimento: '01 jan 1985' },
+    { id: 4, name: 'Missao, Davi', gender: 'M', nascimento: '01 jan 1985' },
+  ];
+  const hojeKey = '2026-10-27', dk = '2026-11-01';
+  const pessoas = montarPessoas({ membros, hojeKey, lideres });
+  const s3 = sugerirParaVaga({ pessoas, dk, n: 3, hojeKey }).lista;
+  assert.deepEqual(s3.slice(0, 2).map(i => i.pessoa.nome).sort(), ['Ana Lider', 'Davi Missao']);
+  assert.ok(s3[0].motivo.includes('Presidente da Primária') || s3[0].motivo.includes('Líder da Obra Missionária da Ala'));
+  // no 2º, as regras de sempre: liderança não muda a ordem nem aparece no motivo
+  const s2 = sugerirParaVaga({ pessoas, dk, n: 2, hojeKey }).lista;
+  const s2Sem = sugerirParaVaga({ pessoas: montarPessoas({ membros, hojeKey }), dk, n: 2, hojeKey }).lista;
+  assert.deepEqual(s2.map(i => i.pessoa.nome), s2Sem.map(i => i.pessoa.nome));
+  assert.ok(s2.every(i => !i.motivo.includes('Presidente')));
+  // a posição escolhida na ficha continua mandando
+  const fixo = montarPessoas({ membros, hojeKey, lideres, oradores: [{ chave: chavePessoa('Bruno Comum'), posicao: '3' }] });
+  assert.equal(sugerirParaVaga({ pessoas: fixo, dk, n: 3, hojeKey }).lista[0].pessoa.nome, 'Bruno Comum');
 });

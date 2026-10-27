@@ -9,16 +9,18 @@
 // nunca gravado; a pausa não tem motivo; recusas não ficam guardadas.
 // =============================================
 import { apiFetch, atualizarUltimaSinc, avisarPendente, idProvisorioDo, setSyncStatus } from './api.js';
+import { dadosDosChamados } from './chamados-ala.js';
 import { comNome, nomeDoCargo } from './chamados.js';
 import { ALA, API_ORADORES, DADOS, HORARIO_SACRAMENTAL, cargoInfo, nomeDoResponsavel } from './config.js';
 import { MEMBROS } from './dados-membros.js';
 import { confirmar } from './dialogo.js';
 import { abrirDiscursoBase, htmlBaseEscolhida } from './discurso-base.js';
+import { publicoDoGrupo } from './discursos-base-regras.js';
 import {
   CORES_POSICAO, GRUPOS, LEMBRETE_DIAS, MAIS_SEMANAS, MAX_SEMANAS, MINUTOS_ALERTA, ORDEM_TIPOS, POSICOES,
   ROTULO_ESTADO, SEMANAS_PLANO, TEMPOS_OPCOES, TIPOS_DOMINGO,
   assinaturaConvite, camposAoTrocarOrador, camposVagaVazia, chavePessoa, diasEntre, docOrador, estadoDaVaga,
-  grupoAuto, grupoDe, grupoDoBancoAntigo, grupoValido, haMeses, historicoDiscursos, indiceDoQuadro, infoGrupo,
+  grupoAuto, grupoDe, grupoDoBancoAntigo, grupoValido, haMeses, historicoDiscursos, indiceDoQuadro, infoGrupo, lideresDaAla,
   membroDaChave, mensagemDiscurso, mesPorExtenso, mesesEntre, minutosDaVaga, montarPessoas, nomeCurto,
   nomeNatural, ordenarRodizio, parecidos, partesData, pausadoEm, perfilParaMensagem, perguntarTipo,
   proximosDomingos, registroDoDomingo, somaMinutos, sugerirParaVaga, tipoDe,
@@ -58,11 +60,13 @@ const dm = dk => { const p = partesData(dk); return p ? `${String(p.d).padStart(
 const domingoCurto = dk => { const p = partesData(dk); return p ? `Dom, ${p.d} de ${mesPorExtenso(p.m)}` : ''; };
 
 // histórico, pool e índice do quadro — recalculados a cada desenho (o app
-// instalado fica aberto por dias; os dados chegam a cada 30 s)
+// instalado fica aberto por dias; os dados chegam a cada 30 s). Os líderes vêm
+// do relatório de chamados (aba Chamados): o 3º discurso prefere um deles.
 function contexto() {
   const hoje = hojeK();
   const historico = historicoDiscursos(DADOS.sacramentais, hoje);
-  const pessoas = montarPessoas({ membros: MEMBROS, saidos: MEMBROS_SAIDOS, oradores: DADOS.oradores || [], historico, hojeKey: hoje });
+  const lideres = lideresDaAla(dadosDosChamados().chamados);
+  const pessoas = montarPessoas({ membros: MEMBROS, saidos: MEMBROS_SAIDOS, oradores: DADOS.oradores || [], historico, hojeKey: hoje, lideres });
   return { hoje, historico, pessoas, indice: indiceDoQuadro(MEMBROS, MEMBROS_SAIDOS) };
 }
 
@@ -586,10 +590,21 @@ function redesenharBase(ctx) {
   if (ctx === 'escolha') atualizarLinkEscolha();
 }
 
+// Crianças e jovens têm as suas fontes do discurso base (discursos-base-regras.js):
+// o público sai do grupo do orador no rodízio
+export function publicoDoOrador(nome) {
+  const nm = String(nome || '').trim();
+  return nm ? publicoDoGrupo(pessoaDaVaga(contexto(), nm).grupo) : 'adultos';
+}
+
 function pedirBase(ctx) {
   const st = estadoDaBase(ctx);
   if (!st) return;
-  abrirDiscursoBase({ n: st.n, tema: campoDoTema(ctx)?.value || '', aoEscolher: ({ tema, base, url }) => {
+  // na escolha: a pessoa escolhida (o orador de fora é adulto); no "Tempo e
+  // tema": quem está na vaga
+  const publico = ctx === 'escolha' ? (st.fora ? 'adultos' : publicoDoGrupo(st.sel?.grupo))
+    : publicoDoOrador(getSacPorData(st.dk)?.['orador' + st.n]);
+  abrirDiscursoBase({ n: st.n, tema: campoDoTema(ctx)?.value || '', publico, aoEscolher: ({ tema, base, url }) => {
     if (estadoDaBase(ctx) !== st) return;   // o diálogo de baixo mudou enquanto isso
     st.base = base; st.baseUrl = url;
     // sem tema digitado, fica o tema da busca

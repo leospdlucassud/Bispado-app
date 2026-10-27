@@ -4,7 +4,8 @@
 // (js/discurso-base.js, quando o servidor não consegue buscar).
 //
 // A busca é a da Biblioteca do Evangelho (churchofjesuschrist.org/search), em
-// português, nas três fontes, nesta ordem de prioridade (pedido do Leo):
+// português, nas fontes do público do orador (PUBLICOS); para adultos, nesta
+// ordem de prioridade (pedido do Leo):
 //   1. Conferência Geral — das mais recentes para as mais antigas;
 //   2. Revista Liahona — sem as reimpressões da conferência (já estão em 1);
 //   3. BYU Speeches em português.
@@ -18,11 +19,43 @@ const SITE = 'https://www.churchofjesuschrist.org';
 export const URL_BUSCA = SITE + '/search/proxy/search';
 export const URL_CONTEUDO = SITE + '/study/api/v3/language-pages/type/content';
 
-export const FONTES = [
-  { id: 'conferencia', facet: 'general-conference', titulo: 'Conferência Geral', paginas: 2, max: 6 },
-  { id: 'liahona', facet: 'liahona', titulo: 'Revista Liahona', paginas: 1, max: 4 },
-  { id: 'byu', facet: 'byu-speeches', titulo: 'BYU Speeches', paginas: 1, max: 4 },
-];
+// As fontes de cada público, na ordem de prioridade (pedido do Leo):
+// - adultos: Conferência Geral, Liahona e BYU Speeches;
+// - jovens: o que é feito para eles — a revista Força dos Jovens e o Vem, e
+//   Segue-Me —, e depois a Liahona;
+// - crianças: a revista Amigo e o Vem, e Segue-Me da Primária (ou o "Para o
+//   lar e a Igreja", que traz as ideias para ensinar as crianças).
+// Conferência Geral e BYU Speeches ficam fora para crianças e jovens: são
+// temas mais complexos para eles. O diálogo deixa trocar o público.
+export const PUBLICOS = {
+  criancas: { rotulo: 'Crianças', fontes: ['amigo', 'vem-primaria'] },
+  jovens: { rotulo: 'Jovens', fontes: ['forca', 'vem-jovens', 'liahona'] },
+  adultos: { rotulo: 'Adultos', fontes: ['conferencia', 'liahona', 'byu'] },
+};
+export const publicoValido = p => Object.hasOwn(PUBLICOS, p) ? p : 'adultos';
+
+// O público pelo grupo do rodízio (discursos-regras.js)
+export const publicoDoGrupo = g => g === 'primaria' ? 'criancas' : g === 'rapazes' || g === 'mocas' ? 'jovens' : 'adultos';
+
+const REVISTA = '\\/(\\d{4})\\/(\\d{2})[a-z-]*\\/([a-z0-9-]+(?:\\/[a-z0-9-]+)*)$';
+// re: o caminho do discurso ou artigo (ano, mês, resto); manual: os manuais aceitos
+export const FONTE = {
+  conferencia: { facet: 'general-conference', titulo: 'Conferência Geral', paginas: 2, max: 6,
+    re: /^\/study\/general-conference\/(\d{4})\/(\d{2})\/([a-z0-9-]+)$/ },
+  liahona: { facet: 'liahona', titulo: 'Revista Liahona', paginas: 1, max: 4, ano: true,
+    re: new RegExp('^\\/study\\/liahona' + REVISTA),
+    // as edições de maio e novembro reimprimem a conferência, sessão por sessão
+    fora: resto => /(^|\/)[a-z-]*session(\/|$)/.test(resto) },
+  byu: { facet: 'byu-speeches', titulo: 'BYU Speeches', paginas: 1, max: 4 },
+  amigo: { facet: 'the-friend', titulo: 'Revista Amigo', paginas: 1, max: 5, ano: true,
+    re: new RegExp('^\\/study\\/friend' + REVISTA) },
+  forca: { facet: 'for-the-strength-of-youth', titulo: 'Revista Força dos Jovens', paginas: 1, max: 5, ano: true,
+    re: new RegExp('^\\/study\\/ftsoy' + REVISTA) },
+  'vem-primaria': { facet: 'come-follow-me', titulo: 'Vem, e Segue-Me — Primária', paginas: 2, max: 4, ano: true,
+    manual: /^come-follow-me-for-(primary|home-and-church)-/ },
+  'vem-jovens': { facet: 'come-follow-me', titulo: 'Vem, e Segue-Me', paginas: 1, max: 4, ano: true,
+    manual: /^come-follow-me-for-(home-and-church|individuals-and-families|sunday-school)-/ },
+};
 
 export const MAX_TEMA = 80;
 export const limparTema = t => String(t ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_TEMA);
@@ -79,7 +112,8 @@ export function sugerirTemas(sacramentais, hojeKey, qtd = 6) {
 // ---------- endereços ----------
 export function urlDaBusca(tema, facet) {
   const q = new URLSearchParams({ query: limparTema(tema), page: '1', facet, lang: 'por', type: 'web' });
-  if (facet === 'liahona') q.set('year', 'any-date');   // sem ele a busca da Liahona dá erro 500
+  // sem ele a busca das revistas (e dos manuais) dá erro 500
+  if (Object.values(FONTE).some(f => f.facet === facet && f.ano)) q.set('year', 'any-date');
   return URL_BUSCA + '?' + q;
 }
 
@@ -125,12 +159,27 @@ const campo = (f, k) => f?.[k]?.stringValue ?? f?.[k]?.listValue?.values?.[0]?.s
 const nomeDoSlug = slug => String(slug || '').split('-').filter(Boolean)
   .map(p => p.length === 1 ? p.toUpperCase() + '.' : p[0].toUpperCase() + p.slice(1)).join(' ');
 
-// Um resultado da busca → { titulo, url, ano, mes, data, trecho, autor, caminho }
-// ou null quando não é um discurso/artigo (página de tópico, índice da sessão,
-// reimpressão da conferência na Liahona).
+// O Vem, e Segue-Me de cada ano: "come-follow-me-for-primary-book-of-mormon-2020"
+const PARA_QUEM = {
+  primary: 'Para a Primária', 'home-and-church': 'Para o lar e a Igreja',
+  'individuals-and-families': 'Para uso individual e familiar', 'sunday-school': 'Para a Escola Dominical',
+};
+const LIVRO = {
+  'old-testament': 'Antigo Testamento', 'new-testament': 'Novo Testamento',
+  'book-of-mormon': 'Livro de Mórmon', 'doctrine-and-covenants': 'Doutrina e Convênios',
+};
+function partesDoManual(slug) {
+  const m = String(slug).match(/^come-follow-me-for-(primary|home-and-church|individuals-and-families|sunday-school)-(old-testament|new-testament|book-of-mormon|doctrine-and-covenants)-(\d{4})$/);
+  return m ? { para: PARA_QUEM[m[1]], livro: LIVRO[m[2]], ano: m[3] } : null;
+}
+
+// Um resultado da busca → { titulo, url, ano, mes, data, trecho, autor, caminho, slug }
+// ou null quando não é um discurso/artigo da fonte (página de tópico, índice da
+// sessão, reimpressão da conferência na Liahona, manual de outro público).
 export function lerResultado(r, fonte) {
+  const f = FONTE[fonte];
   const d = r?.document?.derivedStructData?.fields;
-  if (!d) return null;
+  if (!f || !d) return null;
   let url;
   try { url = new URL(campo(d, 'link')); } catch { return null; }
   let titulo = textoLimpo(campo(d, 'title') || campo(d, 'htmlTitle'));
@@ -139,33 +188,30 @@ export function lerResultado(r, fonte) {
     || d.snippets?.listValue?.values?.[0]?.structValue?.fields?.snippet?.stringValue || ''), 240);
   const data = campo(r.document.structData?.fields, 'published_date').slice(0, 10);
   const p = url.pathname.replace(/\/+$/, '');
-  let m, autor = '', caminho = '';
-  if (fonte === 'conferencia') {
-    if (url.hostname !== 'www.churchofjesuschrist.org') return null;
-    m = p.match(/^\/study\/general-conference\/(\d{4})\/(\d{2})\/([a-z0-9-]+)$/);
-    if (!m) return null;
-    caminho = p.slice('/study'.length);
-  } else if (fonte === 'liahona') {
-    if (url.hostname !== 'www.churchofjesuschrist.org') return null;
-    m = p.match(/^\/study\/liahona\/(\d{4})\/(\d{2})\/([a-z0-9-]+(?:\/[a-z0-9-]+)*)$/);
-    // as edições de maio e novembro reimprimem a conferência, sessão por sessão
-    if (!m || /(^|\/)[a-z-]*session(\/|$)/.test(m[3])) return null;
-    caminho = p.slice('/study'.length);
-  } else if (fonte === 'byu') {
+  if (fonte === 'byu') {
     if (url.hostname !== 'speeches.byu.edu') return null;
-    m = p.match(/^\/por\/talks\/([a-z0-9-]+)\/([a-z0-9-]+)$/);
+    const m = p.match(/^\/por\/talks\/([a-z0-9-]+)\/([a-z0-9-]+)$/);
     if (!m) return null;
     titulo = titulo.replace(/\s*\|\s*BYU Speeches.*$/i, '');
-    autor = nomeDoSlug(m[1]);
-    return { titulo, url: url.origin + p + '/', ano: '', mes: '', data, trecho, autor, caminho: '' };
-  } else return null;
-  if (!titulo) return null;
-  return { titulo, url: SITE + p + '?lang=por', ano: m[1], mes: m[2], data, trecho, autor, caminho, slug: m[3].split('/').pop() };
+    return titulo ? { titulo, url: url.origin + p + '/', ano: '', mes: '', data, trecho, autor: nomeDoSlug(m[1]), caminho: '', slug: m[2] } : null;
+  }
+  if (url.hostname !== 'www.churchofjesuschrist.org' || !titulo) return null;
+  if (f.manual) {
+    const m = p.match(/^\/study\/manual\/([a-z0-9-]+)\/([a-z0-9-]+(?:\/[a-z0-9-]+)*)$/);
+    const man = m && f.manual.test(m[1]) ? partesDoManual(m[1]) : null;
+    // as páginas de apoio ao professor (necessidades especiais) não são lição
+    if (!man || /(^|\/)disabilities$/.test(m[2])) return null;
+    return { titulo, url: SITE + p + '?lang=por', ano: man.ano, mes: '', data, trecho, autor: '', caminho: '',
+      slug: m[1] + '/' + m[2], manual: man };
+  }
+  const m = p.match(f.re);
+  if (!m || f.fora?.(m[3])) return null;
+  return { titulo, url: SITE + p + '?lang=por', ano: m[1], mes: m[2], data, trecho, autor: '',
+    caminho: p.slice('/study'.length), slug: m[3].split('/').pop() };
 }
 
-// Os itens de uma fonte, sem repetir e na ordem certa: Conferência e Liahona
-// das mais recentes para as mais antigas; BYU na ordem da busca (ela não traz
-// a data do discurso).
+// Os itens de uma fonte, sem repetir e na ordem certa: das mais recentes para
+// as mais antigas; BYU na ordem da busca (ela não traz a data do discurso).
 export function ordenarItens(itens, fonte) {
   const vistos = new Set();
   const unicos = itens.filter(it => it && !vistos.has(it.url) && vistos.add(it.url));
@@ -176,8 +222,13 @@ export function ordenarItens(itens, fonte) {
 
 export function rotuloDaFonte(it, fonte) {
   const mes = MESES[Number(it.mes) - 1];
+  const quando = mes ? `, ${mes} de ${it.ano}` : '';
   if (fonte === 'conferencia') return mes ? `Conferência Geral de ${mes} de ${it.ano}` : 'Conferência Geral';
-  if (fonte === 'liahona') return mes ? `Liahona, ${mes} de ${it.ano}` : 'Liahona';
+  if (fonte === 'liahona') return 'Liahona' + quando;
+  if (fonte === 'amigo') return 'Revista Amigo' + quando;
+  if (fonte === 'forca') return 'Revista Força dos Jovens' + quando;
+  if (it.manual) return `Vem, e Segue-Me — ${it.manual.para}: ${it.manual.livro} ${it.manual.ano}`;
+  if (FONTE[fonte]?.manual) return 'Vem, e Segue-Me';
   return 'BYU Speeches';
 }
 
@@ -202,12 +253,15 @@ export function textoBase(it) {
 
 // ---------- a busca inteira ----------
 // `buscarJson(url)` devolve o JSON (ou lança); com `comAutor`, lê a página de
-// cada discurso da Conferência e da Liahona para achar o autor.
-// Devolve { tema, fontes: [{ id, titulo, itens, erro, mais }] } — a fonte que
-// falhou fica com erro: true e as outras seguem.
-export async function buscarDiscursosBase(tema, { buscarJson, comAutor = false }) {
+// cada discurso ou artigo das revistas para achar o autor (os manuais não têm).
+// Devolve { tema, publico, fontes: [{ id, titulo, itens, erro, mais }] } — a
+// fonte que falhou fica com erro: true e as outras seguem.
+export async function buscarDiscursosBase(tema, { buscarJson, comAutor = false, publico = 'adultos' }) {
   const t = limparTema(tema);
-  const fontes = await Promise.all(FONTES.map(async f => {
+  const pub = publicoValido(publico);
+  const ids = PUBLICOS[pub].fontes;
+  const fontes = await Promise.all(ids.map(async id => {
+    const f = FONTE[id];
     const mais = urlDaPaginaDeBusca(t, f.facet);
     try {
       const paginas = await Promise.all(Array.from({ length: f.paginas }, (_, i) => {
@@ -216,23 +270,25 @@ export async function buscarDiscursosBase(tema, { buscarJson, comAutor = false }
         return buscarJson(u.href).catch(e => { if (i === 0) throw e; return null; });
       }));
       const brutos = paginas.flatMap(p => Array.isArray(p?.results) ? p.results : []);
-      const itens = ordenarItens(brutos.map(r => lerResultado(r, f.id)), f.id);
-      return { id: f.id, titulo: f.titulo, itens, erro: false, mais };
+      const itens = ordenarItens(brutos.map(r => lerResultado(r, id)), id);
+      return { id, titulo: f.titulo, itens, erro: false, mais };
     } catch {
-      return { id: f.id, titulo: f.titulo, itens: [], erro: true, mais };
+      return { id, titulo: f.titulo, itens: [], erro: true, mais };
     }
   }));
-  // a Liahona sem os discursos que já vieram da Conferência (mesmo endereço final)
-  const daConferencia = new Set(fontes[0].itens.map(it => it.slug));
-  fontes[1].itens = fontes[1].itens.filter(it => !daConferencia.has(it.slug));
-  for (const [i, f] of fontes.entries()) {
-    f.itens = f.itens.slice(0, FONTES[i].max).map(it => ({ ...it, rotulo: rotuloDaFonte(it, f.id) }));
+  // o que já veio numa fonte anterior não se repete (a Liahona reimprime a
+  // Conferência: mesmo endereço final)
+  const vistos = new Set();
+  for (const f of fontes) {
+    f.itens = f.itens.filter(it => !vistos.has(it.slug)).slice(0, FONTE[f.id].max)
+      .map(it => ({ ...it, rotulo: rotuloDaFonte(it, f.id) }));
+    for (const it of f.itens) vistos.add(it.slug);
   }
   if (comAutor) {
     await Promise.all(fontes.flatMap(f => f.itens.filter(it => it.caminho && !it.autor).map(async it => {
       try { it.autor = autorDoConteudo(await buscarJson(urlDoConteudo(it.caminho))); } catch { /* sem autor */ }
     })));
   }
-  for (const f of fontes) for (const it of f.itens) { delete it.caminho; delete it.slug; }
-  return { tema: t, fontes };
+  for (const f of fontes) for (const it of f.itens) { delete it.caminho; delete it.slug; delete it.manual; }
+  return { tema: t, publico: pub, fontes };
 }
