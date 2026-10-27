@@ -20,7 +20,7 @@ import {
   CORES_POSICAO, GRUPOS, LEMBRETE_DIAS, MAIS_SEMANAS, MAX_SEMANAS, MINUTOS_ALERTA, ORDEM_TIPOS, POSICOES,
   ROTULO_ESTADO, SEMANAS_PLANO, TEMPOS_OPCOES, TIPOS_DOMINGO,
   assinaturaConvite, camposAoTrocarOrador, camposVagaVazia, chavePessoa, diasEntre, docOrador, estadoDaVaga,
-  grupoAuto, grupoDe, grupoDoBancoAntigo, grupoValido, haMeses, historicoDiscursos, indiceDoQuadro, infoGrupo, lideresDaAla,
+  grupoAuto, grupoDe, grupoDoBancoAntigo, grupoValido, haMeses, historicoDiscursos, idadeDoJovem, indiceDoQuadro, infoGrupo, lideresDaAla,
   membroDaChave, mensagemDiscurso, mesPorExtenso, mesesEntre, minutosDaVaga, montarPessoas, nomeCurto,
   nomeNatural, ordenarRodizio, parecidos, partesData, pausadoEm, perfilParaMensagem, perguntarTipo,
   proximosDomingos, registroDoDomingo, somaMinutos, sugerirParaVaga, tipoDe,
@@ -74,6 +74,12 @@ function contexto() {
 export function garantirJanela(dk) {
   const hoje = hojeK();
   while (planoSemanas < MAX_SEMANAS && !proximosDomingos(hoje, planoSemanas).includes(dk)) planoSemanas++;
+}
+
+// crianças e jovens: a idade ao lado do nome
+function comIdade(pessoa) {
+  const i = idadeDoJovem(pessoa);
+  return i ? ` <span class="pessoa-idade">${esc(i)}</span>` : '';
 }
 
 function pessoaDaVaga(ctx, nome) {
@@ -306,7 +312,7 @@ function vagaHtml(ctx, reg, dk, n) {
 
   const nomeHtml = estado === 'dispensada' ? '<span class="vaga-vazia">Sem este discurso</span>'
     // o nome exatamente como foi escrito na ata (antes saía só o primeiro nome)
-    : nome ? esc(String(nome).replace(/\s+/g, ' ').trim()) : '<span class="vaga-vazia">Vaga aberta</span>';
+    : nome ? esc(String(nome).replace(/\s+/g, ' ').trim()) + comIdade(pessoaDaVaga(ctx, nome)) : '<span class="vaga-vazia">Vaga aberta</span>';
 
   return `
   <div class="vaga" style="--vc:${cor}" data-dk="${esc(dk)}" data-n="${n}">
@@ -491,7 +497,7 @@ function renderListaSeletor() {
     : o.data === dk ? 'já neste domingo' : `já em ${dm(o.data)} · ${o.n}º`}</span>`;
   const linha = (pes, sub, selos = '') => `
     <button type="button" class="orador-op" data-act="pegar" data-chave="${esc(pes.chave)}">
-      <strong>${esc(pes.nome)}</strong> ${selos}<span class="op-sub">${esc(sub)}</span></button>`;
+      <strong>${esc(pes.nome)}</strong>${comIdade(pes)} ${selos}<span class="op-sub">${esc(sub)}</span></button>`;
 
   const q = (document.getElementById('orador-busca')?.value || '').trim();
   if (q.length >= 2) {
@@ -551,7 +557,7 @@ function selecionar(chave, nomeDigitado = '') {
   const incerto = vagaIncerta(escolha.dk);
   painel(`
     <div class="orador-escolhido">
-      <div><strong>${esc(pessoa.nome)}</strong> · ${esc(infoGrupo(pessoa.grupo).rotulo)}</div>
+      <div><strong>${esc(pessoa.nome)}</strong>${comIdade(pessoa)} · ${esc(infoGrupo(pessoa.grupo).rotulo)}</div>
       <div class="op-sub">${esc(ultimo)}</div>
       <div class="op-sub">${temTel ? `📱 WhatsApp do quadro de membros (${esc(nomeNatural(membro.name))})` : '📵 Sem telefone no quadro — o WhatsApp vai abrir para você escolher o contato.'}</div>
       ${parec.length ? `<div class="op-sub">Você quis dizer: ${parec.map(m => `<button type="button" class="btn-secondary" data-act="usar-parecido" data-chave="${esc(chavePessoa(m.name))}" data-nome="${esc(m.name)}">${esc(nomeNatural(m.name))}</button>`).join(' ')}?</div>` : ''}
@@ -976,7 +982,7 @@ function cardPessoa(p, ctx) {
   return `
   <div class="entrevista-card rod-pessoa" style="border-left:3px solid ${g.cor}">
     <div class="ent-header">
-      <span class="ent-nome">${esc(p.nome)}</span>
+      <span class="ent-nome">${esc(p.nome)}${comIdade(p)}</span>
       <span class="rod-grupo" style="--c:${g.cor}">${esc(g.curto)}</span>
       ${p.pausadoAte ? `<span class="selo-reenviar">Em pausa até ${esc(formatarData(p.pausadoAte))}</span>` : ''}
     </div>

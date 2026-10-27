@@ -832,6 +832,7 @@
   .orador-op { display:block; width:100%; text-align:left; min-height:44px; background:var(--bg2); color:var(--text1); border:1px solid var(--border); border-radius:10px; padding:8px 12px; margin-bottom:6px; cursor:pointer; font-family:inherit; font-size:14px; }
   .orador-op:hover { border-color:var(--gold); }
   .orador-op strong { font-weight:600; }
+  .pessoa-idade { font-size:12px; font-weight:400; color:var(--text2); white-space:nowrap; }
   .op-sub { display:block; font-size:12px; color:var(--text2); margin-top:2px; line-height:1.5; }
   #orador-busca { margin-bottom:10px; }
   #orador-filtros { margin-bottom:10px; }

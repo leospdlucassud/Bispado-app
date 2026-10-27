@@ -6,7 +6,7 @@ import {
   fundirDomingo, grupoAuto, grupoDe, grupoDoBancoAntigo, hashEstavel, historicoDiscursos, indiceDoQuadro,
   membroDaChave, mensagemDiscurso, mesesEntre, minutosDaVaga, montarPessoas, nomeCurto, nomeNatural,
   parecidos, pendenciasDiscurso, primeiroNomeDe, proximoDomingo, proximosDomingos, quandoPorExtenso,
-  lideresDaAla, resumoDomingo, somaMinutos, sugerirParaVaga, tipoProvavel,
+  idadeDoJovem, lideresDaAla, resumoDomingo, somaMinutos, sugerirParaVaga, tipoProvavel,
 } from '../js/discursos-regras.js';
 
 const ANA = 'Fictícia Souza, Ana Beatriz';
@@ -544,4 +544,18 @@ test('líderes da ala: o 3º discurso prefere quem tem chamado de liderança', (
   // a posição escolhida na ficha continua mandando
   const fixo = montarPessoas({ membros, hojeKey, lideres, oradores: [{ chave: chavePessoa('Bruno Comum'), posicao: '3' }] });
   assert.equal(sugerirParaVaga({ pessoas: fixo, dk, n: 3, hojeKey }).lista[0].pessoa.nome, 'Bruno Comum');
+});
+
+test('idadeDoJovem: crianças e jovens mostram a idade; adultos e sem quadro, não', () => {
+  const membros = [
+    { id: 1, name: 'Crianca, Exemplo', gender: 'F', nascimento: '10 out 2017' },
+    { id: 2, name: 'Jovem, Exemplo', gender: 'M', nascimento: '01 jan 2010' },
+    { id: 3, name: 'Adulto, Exemplo', gender: 'M', nascimento: '01 jan 1985' },
+  ];
+  const p = montarPessoas({ membros, hojeKey: '2026-10-27', oradores: [{ chave: chavePessoa('Fora Quadro'), nome: 'Fora Quadro' }] });
+  assert.equal(idadeDoJovem(p.get(chavePessoa('Exemplo Crianca'))), '9 anos');
+  assert.equal(idadeDoJovem(p.get(chavePessoa('Exemplo Jovem'))), '16 anos');
+  assert.equal(idadeDoJovem(p.get(chavePessoa('Exemplo Adulto'))), '');
+  assert.equal(idadeDoJovem(p.get(chavePessoa('Fora Quadro'))), '');
+  assert.equal(idadeDoJovem(null), '');
 });

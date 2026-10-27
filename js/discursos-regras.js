@@ -307,6 +307,13 @@ const idadeConhecida = (m, hojeKey) => {
   return m.age > 0 ? m.age : NaN;
 };
 
+// A idade de crianças e jovens, para mostrar ao lado do nome ("9 anos");
+// '' para adultos e para quem não tem a idade no quadro
+export function idadeDoJovem(pessoa) {
+  const i = pessoa?.idade;
+  return Number.isFinite(i) && i < 18 ? `${i} anos` : '';
+}
+
 // Os líderes da ala, pelo relatório de chamados do LCR (aba Chamados):
 // chave da pessoa → o 1º chamado de liderança dela (chamadoDeLideranca)
 export function lideresDaAla(chamados) {
@@ -348,6 +355,7 @@ export function montarPessoas({ membros = [], saidos = [], oradores = [], histor
     p.hist = hist;
     p.grupo = grupoDe(p.membro, ajuste, hojeKey);
     p.lider = lideres.get(p.chave) || '';
+    p.idade = p.membro ? idadeConhecida(p.membro, hojeKey) : NaN;
     p.vezes = hist ? hist.discursos.length : 0;
     p.planejadas = hist ? hist.planejadas : [];
     p.pausadoAte = pausadoEm(ajuste, hojeKey) ? ajuste.pausaAte : '';
