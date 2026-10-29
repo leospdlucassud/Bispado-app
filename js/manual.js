@@ -1,6 +1,8 @@
 // =============================================
 // MANUAL & LINKS OFICIAIS
 // =============================================
+import { apiFetch } from './api.js';
+import { urlSegura } from './discursos-base-regras.js';
 import { toggleOrd } from './ui.js';
 import { toast } from './usuario.js';
 import { esc } from './utils.js';
@@ -80,9 +82,11 @@ export function filtrarManual(v) { renderManual(v); }
 
 // =============================================
 // ROTEIROS DE ENTREVISTA
-// Assuntos de cada entrevista, na ordem, com atalho para o texto oficial.
-// O texto das perguntas não é reproduzido aqui: é material da Intellectual
-// Reserve. O campo de anotações permite guardar a versão que a ala usa.
+// Cada roteiro mostra o texto oficial das perguntas (ou, quando o Manual não
+// traz perguntas fixas, o texto que orienta a entrevista), lido na hora da
+// Biblioteca do Evangelho por /api/roteiro-oficial — o texto não fica no
+// repositório: é material da Intellectual Reserve. A última leitura fica
+// guardada no aparelho, para abrir sem internet. Abaixo, o resumo dos assuntos.
 // =============================================
 export const MG26 = 'https://www.churchofjesuschrist.org/study/manual/general-handbook/26-temple-recommends?lang=por';
 
@@ -213,12 +217,73 @@ export const ROTEIROS = [
 
 export const chaveNotaRoteiro = id => 'roteiro_notas_' + id;
 
+export const API_ROTEIRO = '/api/roteiro-oficial';
+export const chaveOficial = id => 'roteiro_oficial_' + id;
+const VALIDADE_OFICIAL = 7 * 86400e3;
+const carregando = new Set();
+
+export const oficialValido = r => Array.isArray(r?.partes) && r.partes.length > 0
+  && r.partes.every(p => Array.isArray(p?.blocos));
+
+function lerOficialGuardado(id) {
+  try {
+    const g = JSON.parse(localStorage.getItem(chaveOficial(id)) || 'null');
+    return g && oficialValido(g.r) ? g : null;
+  } catch { return null; }
+}
+
+// Só texto: o servidor já tirou o HTML da página da Igreja, e aqui tudo é escapado
+export function htmlOficial(r) {
+  const aviso = r.semLista
+    ? '<p class="rot-aviso">O Manual não traz uma lista fixa de perguntas para esta entrevista. Abaixo, o texto oficial que a orienta.</p>'
+    : '';
+  return aviso + r.partes.map(p => {
+    const url = urlSegura(p.url);
+    const blocos = p.blocos.map(b => {
+      if (b?.tipo === 'titulo') return `<div class="rot-titulo">${b.num ? esc(b.num) + ' ' : ''}${esc(b.texto)}</div>`;
+      if (b?.tipo === 'p') return `<p class="rot-p">${esc(b.texto)}</p>`;
+      if (b?.tipo === 'item' && Array.isArray(b.textos)) {
+        const nivel = Math.min(4, Math.max(1, Number(b.nivel) || 1));
+        return `<div class="rot-item" style="--nivel:${nivel}"><span class="rot-marca">${esc(b.marcador || '')}</span>
+          <div>${b.textos.map(t => `<p class="rot-p">${esc(t)}</p>`).join('')}</div></div>`;
+      }
+      return '';
+    }).join('');
+    const fonte = url ? `<a href="${esc(url)}" target="_blank" rel="noopener">Fonte: ${esc(p.fonte)} ↗</a>` : `Fonte: ${esc(p.fonte)}`;
+    return `<div class="rot-parte">${blocos}<div class="rot-fonte">${fonte}</div></div>`;
+  }).join('');
+}
+
+const elOficial = id => document.getElementById('rot-oficial-' + id);
+
+// Ao abrir o roteiro: mostra o guardado e, se tiver mais de 7 dias (ou não
+// houver), busca de novo
+export async function carregarOficial(id) {
+  const guardado = lerOficialGuardado(id);
+  if (guardado && elOficial(id)) elOficial(id).innerHTML = htmlOficial(guardado.r);
+  if ((guardado && Date.now() - guardado.em < VALIDADE_OFICIAL) || carregando.has(id)) return;
+  carregando.add(id);
+  try {
+    const r = await apiFetch(API_ROTEIRO + '?id=' + encodeURIComponent(id));
+    if (!oficialValido(r)) throw new Error('resposta');
+    try { localStorage.setItem(chaveOficial(id), JSON.stringify({ em: Date.now(), r })); } catch { /* sem espaço: só não guarda */ }
+    if (elOficial(id)) elOficial(id).innerHTML = htmlOficial(r);
+  } catch {
+    if (!guardado && elOficial(id)) {
+      elOficial(id).innerHTML = `<p class="rot-aviso">Não foi possível carregar o texto oficial agora${navigator.onLine === false ? ' (sem internet)' : ''}. Abra pelo link do Manual abaixo.</p>`;
+    }
+  } finally {
+    carregando.delete(id);
+  }
+}
+
 export function renderRoteiros() {
   const el = document.getElementById('lista-roteiros');
   if (!el) return;
 
   el.innerHTML = ROTEIROS.map(r => {
     const nota = localStorage.getItem(chaveNotaRoteiro(r.id)) || '';
+    const oficial = lerOficialGuardado(r.id);
     return `
     <div class="ord-card" id="rot-${r.id}">
       <div class="ord-header">
@@ -227,17 +292,22 @@ export function renderRoteiros() {
           <div class="ord-titulo">${esc(r.titulo)}</div>
           <div class="ord-sub">${esc(r.sub)}</div>
         </div>
-        <span class="ord-badge" style="background:rgba(255,255,255,.06);--c:${r.cor}">${r.temas.length} temas</span>
         <span class="ord-arrow">▼</span>
       </div>
       <div class="ord-body">
         <div class="ord-autoridade"><span>📖 Manual Geral — ${esc(r.ref)}</span></div>
-        <ol style="margin:10px 0 0 18px;padding:0;color:var(--text-corpo);font-size:12.5px;line-height:1.8">
-          ${r.temas.map(t => `<li>${esc(t)}</li>`).join('')}
-        </ol>
+        <div class="rot-oficial" id="rot-oficial-${r.id}">
+          ${oficial ? htmlOficial(oficial.r) : '<p class="rot-aviso">Carregando o texto oficial…</p>'}
+        </div>
+        <details class="rot-resumo">
+          <summary>Resumo dos assuntos (${r.temas.length})</summary>
+          <ol style="margin:8px 0 0 18px;padding:0;color:var(--text-corpo);font-size:12.5px;line-height:1.8">
+            ${r.temas.map(t => `<li>${esc(t)}</li>`).join('')}
+          </ol>
+        </details>
         <div style="margin-top:12px">
           <label style="color:var(--text2);font-size:10px;display:block;margin-bottom:4px">Anotações da ala (salvas neste aparelho)</label>
-          <textarea class="form-input" rows="3" placeholder="Cole aqui o texto oficial das perguntas ou observações da entrevista…"
+          <textarea class="form-input" rows="3" placeholder="Observações da entrevista, costumes da ala…"
             style="font-size:12px;padding:8px 10px;resize:vertical"
             data-rot="${r.id}">${esc(nota)}</textarea>
         </div>
@@ -263,7 +333,9 @@ function ligarManual() {
   const roteiros = document.getElementById('lista-roteiros');
   roteiros?.addEventListener('click', e => {
     const card = e.target.closest('.ord-header')?.closest('.ord-card');
-    if (card) toggleOrd(card.id);
+    if (!card) return;
+    toggleOrd(card.id);
+    if (card.classList.contains('open')) carregarOficial(card.id.replace(/^rot-/, ''));
   });
   roteiros?.addEventListener('change', e => {
     if (e.target.dataset.rot) salvarNotaRoteiro(e.target.dataset.rot, e.target.value);
