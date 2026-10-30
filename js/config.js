@@ -51,8 +51,8 @@ export const corDoCargo = x => cargoInfo(x)?.cor || '#8eacc8';
 // Cor de cada status da entrevista (borda do card, itens do Início): tokens
 // --st-* do style.css, que têm a sua versão no tema claro.
 export const COR_STATUS = {
-  pendente: 'var(--st-pendente)', agendada: 'var(--st-agendada)',
-  realizada: 'var(--st-realizada)', 'nao-realizada': 'var(--st-nao-realizada)',
+  criado: 'var(--st-criado)', enviado: 'var(--st-enviado)', 'em-agendamento': 'var(--st-em-agendamento)',
+  agendada: 'var(--st-agendada)', realizada: 'var(--st-realizada)', 'nao-realizada': 'var(--st-nao-realizada)',
 };
 
 export let DADOS = { agenda:[], reunioes:[], designacoes:[], eventos_extras:[], sacramentais:[], acompanhamentos:[], oradores:[] };
@@ -64,7 +64,7 @@ export let DADOS = { agenda:[], reunioes:[], designacoes:[], eventos_extras:[], 
 // (o que esta publicado) para o app instalado se atualizar sozinho.
 // Nao editar a mao: `node scripts/versao.mjs patch|minor|major` atualiza este,
 // o version.json, o CACHE do sw.js e o package.json juntos.
-export const VERSAO = '5.33.0';
+export const VERSAO = '5.34.0';
 
 // =============================================
 // NOME DA ALA

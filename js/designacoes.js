@@ -36,7 +36,7 @@ export function renderDesignacoes() {
     const statusLabel = isPerm
       ? (d.status==='inativa'?'⏸ Inativa':'📌 Ativa')
       : (d.status==='andamento'?'Em Andamento':d.status.charAt(0).toUpperCase()+d.status.slice(1));
-    const statusClass = isPerm ? (d.status==='inativa'?'nao-realizada':'realizada') : d.status;
+    const statusClass = isPerm ? (d.status==='inativa'?'inativa':'realizada') : d.status;
     return `<div class="desig-card" style="${isPerm?'border-left:3px solid #a78bfa;':''}${d.status==='inativa'?'opacity:.55':''}">
       <div class="desig-header">
         <span class="desig-tarefa">${esc(d.tarefa)}</span>

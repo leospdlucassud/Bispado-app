@@ -136,9 +136,13 @@
     --text1:#e8edf2; --text-corpo:#c8d8e8; --text2:#8eacc8; --text3:#7a8fa8;
     --gold:#c9a84c; --border:#2a4060;
     --sac:#e8d080;          /* dourado da Sacramental */
-    /* status da entrevista: selo, borda do card e itens do Início (COR_STATUS
-       em config.js aponta para estes) */
-    --st-pendente:#f87171; --st-agendada:#3b82f6; --st-realizada:#34d399; --st-nao-realizada:#94a3b8;
+    /* status da entrevista: a bolinha e o selo do card, a lateral do card e os
+       itens do Início (COR_STATUS em config.js aponta para estes). Seis matizes
+       bem separados: cinza, azul, laranja, violeta, verde, vermelho.
+       --st-pendente e --st-inativa são das Designações. */
+    --st-criado:#94a3b8; --st-enviado:#3b82f6; --st-em-agendamento:#fb923c;
+    --st-agendada:#a78bfa; --st-realizada:#34d399; --st-nao-realizada:#f87171;
+    --st-pendente:#f87171; --st-inativa:#94a3b8;
     --font-size-base: 14px;
     --zoom: 1;
   }
@@ -148,7 +152,9 @@
     --gold:#7a5c0f; --border:#dcd0b8;
     --sac:#7d6210;
     /* sobre o creme os tons claros somem; as mesmas cores, escurecidas */
-    --st-pendente:#b91c1c; --st-agendada:#1d4ed8; --st-realizada:#047857; --st-nao-realizada:#475569;
+    --st-criado:#475569; --st-enviado:#1d4ed8; --st-em-agendamento:#c2410c;
+    --st-agendada:#6d28d9; --st-realizada:#047857; --st-nao-realizada:#b91c1c;
+    --st-pendente:#b91c1c; --st-inativa:#475569;
   }
   /* (a regra das cores de destaque, --c, fica no fim do arquivo) */
   [data-theme="light"] body { background:var(--bg1); color:var(--text1); }
@@ -183,9 +189,8 @@
   [data-theme="light"] .link-card:hover { background-color:var(--bg3); }
   [data-theme="light"] .link-card .lc-title { color:var(--text1); }
   [data-theme="light"] .link-card .lc-sub { color:var(--text2); }
-  [data-theme="light"] .entrevista-card { background:var(--bg2); border:1px solid var(--border); }
-  /* sobre o fundo creme o cobalto perde contraste; escurece, como o dourado faz */
-  [data-theme="light"] .status-agendada { background:rgba(29,78,216,.12); }
+  /* a borda fina do tema claro não pode apagar a lateral com a cor do status */
+  [data-theme="light"] .entrevista-card { background:var(--bg2); border:1px solid var(--border); border-left:4px solid var(--st, var(--border)); }
   [data-theme="light"] .desig-card { background:var(--bg2); border:1px solid var(--border); }
   [data-theme="light"] .reuniao-card { background:var(--bg2); border:1px solid var(--border); }
   [data-theme="light"] .nota-card { background:var(--bg2); border:1px solid var(--border); }
@@ -345,24 +350,34 @@
   .filtros { display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px; }
   .filtro-btn { padding:6px 14px;border-radius:20px;border:1px solid #2a4060;background:transparent;color:var(--text2);font-size:12px;cursor:pointer;transition:all .2s; }
   .filtro-btn.active { background:#c9a84c;color:#0d1b2a;border-color:#c9a84c;font-weight:700; }
-  .entrevista-card { background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:10px;border-left:4px solid;transition:box-shadow .2s; }
+  .entrevista-card { background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:10px;border-left:4px solid var(--st, var(--border));transition:box-shadow .2s; }
   .entrevista-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.4); }
   .ent-header { display:flex;align-items:center;gap:10px;margin-bottom:8px; }
   .ent-nome { font-size:14px;font-weight:700;flex:1; }
-  .ent-prioridade { font-size:16px; }
+  /* a bolinha tem a cor do status, a mesma da lateral do card */
+  .ent-dot { flex:0 0 auto; width:12px; height:12px; border-radius:50%; background:var(--st, var(--text3)); }
   .ent-info { display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text2); }
   .ent-info span { display:flex;align-items:center;gap:4px; }
   .ent-obs { margin-top:8px;font-size:12px;color:var(--text2);font-style:italic;padding:6px 10px;background:rgba(255,255,255,.03);border-radius:6px; }
   .ent-actions { display:flex;gap:8px;margin-top:10px;flex-wrap:wrap; }
-  .status-badge { padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700; }
-  .status-pendente { background:rgba(248,113,113,.15);color:var(--st-pendente); }
-  /* Azul cobalto: os azuis do app são todos claros/lavados (#60a5fa nos links e
-     notas, #5b9bd5 no responsável — que aparece neste mesmo card — e #64b5f6 nas
-     ordenanças), então o tom saturado e mais escuro é o que não se confunde com
-     nenhum deles. O âmbar de antes era a cor do Acompanhamento. */
-  .status-agendada { background:rgba(59,130,246,.15);color:var(--st-agendada); }
-  .status-realizada { background:rgba(52,211,153,.15);color:var(--st-realizada); }
-  .status-nao-realizada { background:rgba(148,163,184,.15);color:var(--st-nao-realizada); }
+  /* O selo pega a cor do status (--c-st) e um fundo dela bem fraco. Sem
+     color-mix (iOS < 16.2), o fundo fica neutro e a cor vai só no texto.
+     Azul cobalto no Enviado: os azuis do app são claros/lavados (#60a5fa nos
+     links, #5b9bd5 no responsável — neste mesmo card), e o âmbar é o do
+     Acompanhamento — daí laranja no Em agendamento. */
+  .status-badge { padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;
+    color:var(--c-st, var(--text2)); background:rgba(148,163,184,.12); }
+  @supports (color: color-mix(in srgb, red 50%, #000)) {
+    .status-badge { background:color-mix(in srgb, var(--c-st, var(--text2)) 16%, transparent); }
+  }
+  .status-criado { --c-st:var(--st-criado); }
+  .status-enviado { --c-st:var(--st-enviado); }
+  .status-em-agendamento { --c-st:var(--st-em-agendamento); }
+  .status-agendada { --c-st:var(--st-agendada); }
+  .status-realizada { --c-st:var(--st-realizada); }
+  .status-nao-realizada { --c-st:var(--st-nao-realizada); }
+  .status-pendente { --c-st:var(--st-pendente); }
+  .status-inativa { --c-st:var(--st-inativa); }
   .vazia { text-align:center;padding:40px 20px;color:var(--text3);font-size:14px; }
 
   /* === REUNIÃO === */
@@ -634,9 +649,6 @@
   }
 
   /* === TEMA CLARO: destaques que vêm das classes === */
-  [data-theme="light"] .status-pendente { background:rgba(185,28,28,.1); }
-  [data-theme="light"] .status-realizada { background:rgba(4,120,87,.1); }
-  [data-theme="light"] .status-nao-realizada { background:rgba(71,85,105,.12); }
   [data-theme="light"] .status-andamento { color:#1d4ed8; }
   [data-theme="light"] .selo-sigilo { color:#b91c1c; border-color:rgba(185,28,28,.4); background:rgba(185,28,28,.08); }
   [data-theme="light"] .membros-stat .stat-num { color:#0f766e; }

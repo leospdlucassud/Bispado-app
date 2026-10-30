@@ -23,6 +23,7 @@ import { dadosDosChamados, setFiltroChamados } from './chamados-ala.js';
 import { nomeCurto as nomeCurtoLcr, resumoDesignacoes } from './chamados-lcr.js';
 import { comNome } from './chamados.js';
 import { COR_STATUS, DADOS, cargoInfo, comAla, nomeDoResponsavel } from './config.js';
+import { avisarAceite, estadoDaEntrevista } from './convite-regras.js';
 import { dadosDoCrescimento, irParaSecao } from './crescimento.js';
 import { destaqueDoRumo, mesCurto } from './crescimento-lcr.js';
 import { nomeCurto, pendenciasDiscurso, registroDoDomingo, resumoDomingo } from './discursos-regras.js';
@@ -206,7 +207,7 @@ function renderEntrevistas(ag, d) {
 
   let html = futuras.length
     ? futuras.slice(0, MAX_ENTREVISTAS).map(e => item({
-        cor: COR_STATUS[e.status] || 'var(--text3)', aba: 'agenda',
+        cor: COR_STATUS[estadoDaEntrevista(e, d.kHoje)] || 'var(--text3)', aba: 'agenda',
         quando: esc(rotuloDia(e.data, d)) + (e.hora ? `<span class="inicio-hora">${esc(e.hora)}</span>` : ''),
         titulo: nomeEntrevista(e),
         sub: [
@@ -232,16 +233,23 @@ function pendencias(ag, d, cr) {
       titulo: `⏳ Definir nova data — <strong>${nomeEntrevista(e)}</strong>`,
       sub: dataValida(e.sugestaoData) ? `pediu ${quandoData(e.sugestaoData, e.sugestaoHora)}` : 'o membro pediu outra data',
     })));
+    ag.ativas.filter(avisarAceite).forEach(e => add(e, item({
+      cor: COR_STATUS.agendada, aba: 'agenda',
+      titulo: `📨 Avisar o membro — <strong>${nomeEntrevista(e)}</strong>`,
+      sub: `você aceitou o horário sugerido: ${quandoData(e.data, e.hora)}`,
+    })));
     // com a nova data já passada, o que falta é registrar o resultado (regra abaixo)
     ag.ativas.filter(e => precisaReenviarConvite(e) && !(dataValida(e.data) && e.data < d.kHoje)).forEach(e => add(e, item({
       cor: '#c9a84c', aba: 'agenda',
       titulo: `📨 Reenviar convite — <strong>${nomeEntrevista(e)}</strong>`,
       sub: dataValida(e.data) ? `nova data: ${quandoData(e.data, e.hora)}` : '',
     })));
-    ag.ativas.filter(e => dataValida(e.data) && e.data < d.kHoje)
+    // a data passou sem reagendamento: o card já diz "Não Realizada", mas pode
+    // ter acontecido (falta marcar Realizada) ou pedir uma data nova
+    ag.vencidas.filter(e => dataValida(e.data))
       .sort((a, b) => a.data.localeCompare(b.data))
       .forEach(e => add(e, item({
-        cor: '#f87171', aba: 'agenda',
+        cor: COR_STATUS['nao-realizada'], aba: 'agenda',
         titulo: `📋 Registrar o resultado — <strong>${nomeEntrevista(e)}</strong>`,
         sub: `estava marcada para ${quandoData(e.data, e.hora)}`,
       })));

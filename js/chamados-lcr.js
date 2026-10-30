@@ -32,7 +32,7 @@
 //   uma célula que quebra desce ~9 pt por linha e as outras ficam centralizadas
 //     no meio dela; de um registro ao outro são ~13,5 pt.
 // =============================================
-import { TIPO_DESIGNACAO } from './convite-regras.js';
+import { TIPO_DESIGNACAO, encerrada } from './convite-regras.js';
 import { norm, partesDoNascimento } from './utils.js';
 
 // ---------- tolerâncias ----------
@@ -507,7 +507,7 @@ export function designacaoNaAgenda(entrevistas, c) {
   const k = c && c.nome ? chavePessoa(c.nome) : '';
   if (!k) return null;
   const dela = (entrevistas || []).filter(e => e && e.tipo === TIPO_DESIGNACAO && chavePessoa(e.membro) === k);
-  const aberta = dela.filter(e => e.status === 'pendente' || e.status === 'agendada')
+  const aberta = dela.filter(e => !encerrada(e))
     .sort((a, b) => (a.data || '9999').localeCompare(b.data || '9999'))[0];
   if (aberta) return { estado: 'marcada', e: aberta };
   // uma designação de antes do apoio era de outro chamado

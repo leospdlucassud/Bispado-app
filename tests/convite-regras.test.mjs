@@ -2,7 +2,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  TIPO_DESIGNACAO, camposDaResposta, comoNoConvite, conviteJaRespondido, conviteParaMembro, primeiroNome, tipoNoConvite,
+  ESTADOS, TIPO_DESIGNACAO, avisarAceite, camposDaNovaData, camposDaResposta, camposDoEnvio, comoNoConvite,
+  conviteJaRespondido, conviteParaMembro, estadoDaEntrevista, naoRealizadaPelaData, precisaReenviarConvite,
+  primeiroNome, rotuloDoEstado, tipoNoConvite,
 } from '../js/convite-regras.js';
 
 const AGORA = '2026-10-08T22:00:00.000Z';
@@ -65,16 +67,17 @@ test('o membro recebe só os campos da tela, sem observações nem registros', (
   }
 });
 
-test('confirmar move para Agendada; pedir outra data volta para Pendente', () => {
-  assert.deepEqual(camposDaResposta({ status: 'pendente' }, 'confirmado', null, AGORA),
-    { confirmacao: 'confirmado', confirmadoEm: AGORA, status: 'agendada' });
+test('a resposta não grava status: confirmar encerra a negociação; pedir outra data a abre', () => {
+  assert.deepEqual(camposDaResposta({ status: 'aberta' }, 'confirmado', null, AGORA),
+    { confirmacao: 'confirmado', confirmadoEm: AGORA, negociando: false });
   assert.deepEqual(camposDaResposta({ status: 'agendada' }, 'reagendar', { data: '2026-10-15', hora: '20:00' }, AGORA),
-    { confirmacao: 'reagendar', confirmadoEm: AGORA, status: 'pendente', sugestaoData: '2026-10-15', sugestaoHora: '20:00' });
+    { confirmacao: 'reagendar', confirmadoEm: AGORA, negociando: true, sugestaoData: '2026-10-15', sugestaoHora: '20:00' });
 });
 
-test('resposta a entrevista encerrada não mexe no status', () => {
+test('resposta a entrevista encerrada não mexe no status nem na negociação', () => {
   const c = camposDaResposta({ status: 'realizada' }, 'confirmado', null, AGORA);
   assert.equal(c.status, undefined);
+  assert.equal('negociando' in c, false);
 });
 
 test('resposta ou sugestão inválida é recusada', () => {
@@ -89,4 +92,104 @@ test('já respondeu = resposta depois do último convite', () => {
   assert.equal(conviteJaRespondido({ confirmadoEm: '2026-10-08T10:00:00Z', convidadoEm: '2026-10-07T10:00:00Z' }), true);
   assert.equal(conviteJaRespondido({ confirmadoEm: '2026-10-06T10:00:00Z', convidadoEm: '2026-10-07T10:00:00Z' }), false);
   assert.equal(conviteJaRespondido({ confirmadoEm: '2026-10-06T10:00:00Z' }), true);
+});
+
+// ---------- status do card ----------
+const HOJE = '2026-10-30';
+const est = e => estadoDaEntrevista(e, HOJE);
+const t = n => `2026-10-30T1${n}:00:00.000Z`;
+
+test('não existe mais "Pendente": os seis status', () => {
+  assert.deepEqual(Object.keys(ESTADOS), ['criado', 'enviado', 'em-agendamento', 'agendada', 'nao-realizada', 'realizada']);
+  assert.ok(!Object.values(ESTADOS).includes('Pendente'));
+});
+
+test('Criado → Enviado → Agendado, e os registros antigos (pendente/agendada)', () => {
+  const nova = { status: 'aberta', data: '2026-11-05', hora: '19:00' };
+  assert.equal(est(nova), 'criado');
+  assert.equal(est({ ...nova, status: 'pendente' }), 'criado');
+  assert.equal(est({ status: 'aberta', data: '' }), 'criado');
+  const enviada = { ...nova, ...camposDoEnvio(nova, t(0)) };
+  assert.equal(est(enviada), 'enviado');
+  assert.equal(est({ ...enviada, status: 'agendada' }), 'enviado');
+  const confirmada = { ...enviada, ...camposDaResposta(enviada, 'confirmado', null, t(1)) };
+  assert.equal(est(confirmada), 'agendada');
+  assert.equal(est({ ...confirmada, status: 'realizada' }), 'realizada');
+  assert.equal(est({ ...confirmada, status: 'nao-realizada', motivo: 'viajou' }), 'nao-realizada');
+});
+
+test('a data passou sem reagendamento: Não Realizada (sozinha), menos se o membro pediu outra', () => {
+  const ontem = { status: 'aberta', data: '2026-10-29', hora: '19:00' };
+  assert.equal(est(ontem), 'nao-realizada');
+  assert.equal(naoRealizadaPelaData(ontem, HOJE), true);
+  assert.equal(est({ ...ontem, convidadoEm: '2026-10-20T10:00:00Z' }), 'nao-realizada');
+  assert.equal(est({ ...ontem, confirmacao: 'confirmado', confirmadoEm: '2026-10-21T10:00:00Z' }), 'nao-realizada');
+  assert.equal(est({ ...ontem, data: HOJE, confirmacao: 'confirmado', confirmadoEm: '2026-10-21T10:00:00Z' }), 'agendada', 'hoje ainda vale');
+  // o membro pediu outra data: a vez é do bispado
+  assert.equal(est({ ...ontem, confirmacao: 'reagendar', confirmadoEm: '2026-10-21T10:00:00Z', sugestaoData: '2026-11-03' }), 'em-agendamento');
+  // a registrada pelo bispado não é "pela data"
+  assert.equal(naoRealizadaPelaData({ ...ontem, status: 'nao-realizada' }, HOJE), false);
+});
+
+test('a negociação: Enviado → Em agendamento → (contraproposta) Em agendamento → Agendado', () => {
+  let e = { status: 'aberta', membro: 'Exemplo, Ana', data: '2026-11-05', hora: '19:00', reagendamentos: [] };
+  e = { ...e, ...camposDoEnvio(e, t(0)) };
+  assert.equal(rotuloDoEstado(e, HOJE), 'Enviado');
+  // o membro não pode e sugere outro horário
+  e = { ...e, ...camposDaResposta(e, 'reagendar', { data: '2026-11-06', hora: '20:00' }, t(1)) };
+  assert.equal(est(e), 'em-agendamento');
+  // o bispado propõe um terceiro horário: o card pede o convite de novo
+  e = { ...e, ...camposDaNovaData(e, '2026-11-07', '18:00', t(2)) };
+  assert.equal(est(e), 'em-agendamento');
+  assert.equal(precisaReenviarConvite(e), true);
+  assert.equal(e.aceitoEm, '');
+  e = { ...e, ...camposDoEnvio(e, t(3)) };
+  assert.equal(e.tentativas, 2);
+  assert.equal(rotuloDoEstado(e, HOJE), 'Em agendamento · 2ª tentativa', 'ainda esperando o membro');
+  // o membro confirma o horário novo
+  e = { ...e, ...camposDaResposta(e, 'confirmado', null, t(4)) };
+  assert.equal(est(e), 'agendada');
+  assert.equal(rotuloDoEstado(e, HOJE), 'Agendado');
+});
+
+test('o bispado aceita o horário que o membro sugeriu: Agendado, e falta avisar o membro', () => {
+  let e = { status: 'aberta', membro: 'Exemplo, Ana', data: '2026-11-05', hora: '19:00', reagendamentos: [] };
+  e = { ...e, ...camposDoEnvio(e, t(0)) };
+  e = { ...e, ...camposDaResposta(e, 'reagendar', { data: '2026-11-06', hora: '20:00' }, t(1)) };
+  const aceito = camposDaNovaData(e, '2026-11-06', '20:00', t(2));
+  assert.equal(aceito.aceitoEm, t(2));
+  e = { ...e, ...aceito };
+  assert.equal(est(e), 'agendada');
+  assert.equal(precisaReenviarConvite(e), false, 'não pede convite: pede a confirmação');
+  assert.equal(avisarAceite(e), true);
+  assert.equal(conviteJaRespondido(e), true, 'o link do convite mostra que já está combinado');
+  e = { ...e, confirmacaoEnviadaEm: t(3) };
+  assert.equal(avisarAceite(e), false);
+  // horário diferente do sugerido não é aceite
+  const outro = { ...e, confirmacao: 'reagendar', confirmadoEm: t(4), sugestaoData: '2026-11-08', sugestaoHora: '' };
+  assert.equal(camposDaNovaData(outro, '2026-11-08', '09:00', t(5)).aceitoEm, '');
+  assert.ok(camposDaNovaData(outro, '2026-11-08', '', t(5)).aceitoEm);
+});
+
+test('o bispado muda a data sem o membro pedir: Em agendamento até reenviar, depois Enviado · 2ª tentativa', () => {
+  let e = { status: 'aberta', data: '2026-11-05', hora: '19:00', reagendamentos: [] };
+  e = { ...e, ...camposDoEnvio(e, t(0)) };
+  e = { ...e, ...camposDaResposta(e, 'confirmado', null, t(1)) };
+  e = { ...e, ...camposDaNovaData(e, '2026-11-12', '19:00', t(2)) };
+  assert.equal(est(e), 'em-agendamento');
+  e = { ...e, ...camposDoEnvio(e, t(3)) };
+  assert.equal(rotuloDoEstado(e, HOJE), 'Enviado · 2ª tentativa');
+});
+
+test('tentativas: reenviar o mesmo horário não conta; registro antigo conta 1', () => {
+  const e = { data: '2026-11-05', hora: '19:00' };
+  const um = { ...e, ...camposDoEnvio(e, t(0)) };
+  assert.equal(um.tentativas, 1);
+  assert.equal(camposDoEnvio(um, t(1)).tentativas, 1);
+  assert.equal(camposDoEnvio({ ...um, hora: '20:00' }, t(1)).tentativas, 2);
+  // antigo: convite sem convidadoPara nem contador
+  const antigo = { data: '2026-11-05', convidadoEm: '2026-10-01T10:00:00Z' };
+  assert.equal(camposDoEnvio(antigo, t(0)).tentativas, 1);
+  const antigoReagendado = { ...antigo, reagendamentos: [{ reagendadoEm: '2026-10-02T10:00:00Z' }] };
+  assert.equal(camposDoEnvio(antigoReagendado, t(0)).tentativas, 2);
 });

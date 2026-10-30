@@ -7,16 +7,24 @@ import { comNome } from './chamados.js';
 import { renderChamadosAla } from './chamados-ala.js';
 import { reativarAbaAtual } from './app.js';
 import { ALA, API_AGENDA, CARGOS_INFO, COR_STATUS, DADOS, corDoCargo, nomeDoResponsavel } from './config.js';
-import { TIPO_DESIGNACAO, comoNoConvite, primeiroNome, tipoNoConvite } from './convite-regras.js';
+import {
+  ESTADOS_ABERTOS, TIPO_DESIGNACAO, aguardandoNovaData, avisarAceite, camposDaNovaData, camposDoEnvio, comoNoConvite,
+  encerrada, estadoDaEntrevista, naoRealizadaPelaData, precisaReenviarConvite, primeiroNome, rotuloDoEstado, tipoNoConvite,
+} from './convite-regras.js';
 import { renderCrescimento } from './crescimento.js';
 import { MEMBROS } from './dados-membros.js';
 import { confirmar, pedirTexto } from './dialogo.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { podeVer, toast } from './usuario.js';
-import { digitosTelefone, esc, formatarData, ico, norm } from './utils.js';
+import { dataLocal, digitosTelefone, esc, formatarData, ico, norm } from './utils.js';
 
-// Começa em "Em aberto" (pendentes e agendadas), o botão marcado como active no
-// index.html. Em "Todas", as realizadas se acumulavam para sempre na frente.
+// as regras do status moram em convite-regras.js (o servidor também usa);
+// o Início as importa daqui
+export { aguardandoNovaData, precisaReenviarConvite };
+
+// Começa em "Em aberto" (criadas, enviadas, em agendamento e agendadas), o botão
+// marcado como active no index.html. Em "Todas", as realizadas se acumulavam
+// para sempre na frente.
 export let filAgenda = 'abertas';
 
 export const TIPOS_ENTREVISTA = [
@@ -58,20 +66,15 @@ export const TIPOS_ENTREVISTA = [
   'Outro',
 ];
 
-// Um registro sem status (vindo torto do servidor) não pode derrubar a lista
-// inteira — antes, `e.status.charAt(0)` estourava e nada renderizava.
-function rotuloStatus(status) {
-  if (!status) return '—';
-  if (status === 'nao-realizada') return 'Não Realizada';
-  return status.charAt(0).toUpperCase() + status.slice(1);
-}
-
 // Contas do resumo da agenda. A aba Agenda e o Início usam esta mesma função
 // para nunca mostrarem números diferentes. Sigilosos ficam fora da conta de
-// quem não é o bispo.
+// quem não é o bispo. `vencidas`: as que a data passou sem reagendamento (o
+// card diz "Não Realizada"), que o bispado ainda não registrou.
 export function resumoAgenda() {
   const todas = (DADOS.agenda || []).filter(podeVer);
-  const ativas = todas.filter(e => e.status === 'pendente' || e.status === 'agendada');
+  const hojeKey = dataLocal();
+  const ativas = todas.filter(e => ESTADOS_ABERTOS.has(estadoDaEntrevista(e, hojeKey)));
+  const vencidas = todas.filter(e => naoRealizadaPelaData(e, hojeKey));
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   const limite = new Date(hoje); limite.setDate(limite.getDate() + 7);
   const proximas = ativas.filter(e => {
@@ -84,8 +87,10 @@ export function resumoAgenda() {
   // (confirmacao='reagendar') zerava o contador justamente no caso que precisa
   // de ação do bispado.
   const aguardando = ativas.filter(e => e.data && e.confirmacao !== 'confirmado');
-  return { todas, ativas, proximas, aguardando };
+  return { todas, ativas, vencidas, proximas, aguardando };
 }
+
+const PRIORIDADE = { alta: 'Alta', media: 'Média', normal: 'Normal' };
 
 export function renderAgenda() {
   const el = document.getElementById('lista-agenda');
@@ -101,13 +106,14 @@ export function renderAgenda() {
       <div class="membros-stat"><div class="stat-num" style="--c:#60a5fa">${proximas.length}</div><div class="stat-label">Próximos 7 dias</div></div>
       <div class="membros-stat"><div class="stat-num" style="--c:${aguardando.length ? '#e8b040' : '#34d399'}">${aguardando.length}</div><div class="stat-label">Sem confirmação</div></div>`;
   }
+  const hojeKey = dataLocal();
   let lista = DADOS.agenda.filter(podeVer).filter(e => {
-    const matchBusca = !busca || e.membro.toLowerCase().includes(busca);
+    const matchBusca = !busca || String(e.membro || '').toLowerCase().includes(busca);
+    const est = estadoDaEntrevista(e, hojeKey);
     let matchFil;
     if (filAgenda === 'todas') matchFil = true;
-    else if (filAgenda === 'abertas') matchFil = e.status === 'pendente' || e.status === 'agendada';
-    else if (filAgenda === 'ativas') matchFil = e.status !== 'realizada';
-    else matchFil = e.status === filAgenda;
+    else if (filAgenda === 'abertas') matchFil = ESTADOS_ABERTOS.has(est);
+    else matchFil = est === filAgenda;
     return matchBusca && matchFil;
   }).sort((a,b) => {
     // Prioridade: Alta > Média > Normal, depois por data
@@ -118,55 +124,37 @@ export function renderAgenda() {
 
   if (!lista.length) { el.innerHTML = `<div class="vazia">📭 Nenhuma entrevista encontrada</div>`; return; }
 
-  const prioEmoji = { alta:'🔴', media:'🟡', normal:'🟢' };
-
   const maisAbertos = new Set([...el.querySelectorAll('details.mais-acoes[open]')].map(d => d.dataset.id));
-  el.innerHTML = lista.map(e => `
-    <div class="entrevista-card" style="border-color:${COR_STATUS[e.status] || 'var(--border)'}">
+  el.innerHTML = lista.map(e => {
+    const est = estadoDaEntrevista(e, hojeKey);
+    const vencida = naoRealizadaPelaData(e, hojeKey);
+    return `
+    <div class="entrevista-card" style="--st:${COR_STATUS[est] || 'var(--border)'}">
       <div class="ent-header">
-        <span class="ent-prioridade">${prioEmoji[e.prioridade]||'🟢'}</span>
+        <span class="ent-dot" title="${esc(rotuloDoEstado(e, hojeKey))}"></span>
         <span class="ent-nome">${esc(e.membro)}</span>
         ${e.sigiloso?'<span class="selo-sigilo">🔒 Sigiloso</span>':''}
         ${e.acompanhar?'<span style="font-size:10px;--c:#fbbf24">🧭</span>':''}
-        ${precisaReenviarConvite(e)?'<span class="selo-reenviar" title="A data mudou depois do último convite">📨 Reenviar convite</span>':''}
+        ${!vencida && precisaReenviarConvite(e)?'<span class="selo-reenviar" title="A data mudou depois do último convite">📨 Reenviar convite</span>':''}
         ${aguardandoNovaData(e)?'<span class="selo-reenviar" title="O membro pediu outra data: use Reagendar para fechar a nova">⏳ Defina a nova data</span>':''}
-        <span class="status-badge status-${e.status || ''}">${rotuloStatus(e.status)}</span>
+        ${avisarAceite(e)?'<span class="selo-reenviar" title="Você aceitou o horário que o membro sugeriu">📨 Avise o membro</span>':''}
+        <span class="status-badge status-${est}">${esc(rotuloDoEstado(e, hojeKey))}</span>
       </div>
       <div class="ent-info">
         <span>📋 ${esc(e.tipo)}</span>
         <span style="--c:${corDoCargo(e.responsavel)}">👤 ${esc(comNome(nomeDoResponsavel(e.responsavel)))}</span>
         ${e.data?`<span>📅 ${formatarData(e.data)}${e.hora?` às ${e.hora}`:''}</span>`:''}
+        <span>⚑ Prioridade ${PRIORIDADE[e.prioridade] || PRIORIDADE.normal}</span>
         ${e.reagendamentos?.length?`<span>🔄 Reagendado ${e.reagendamentos.length}x</span>`:''}
+        ${vencida?'<span>⏰ A data passou sem reagendamento</span>':''}
         ${selosConfirmacao(e)}
       </div>
       ${e.obs?`<div class="ent-obs">${esc(e.obs)}</div>`:''}
       ${e.obs_conclusao?`<div class="ent-obs" style="border-left:3px solid #34d399;padding-left:8px;margin-top:4px;--c:#34d399">✔ ${esc(e.obs_conclusao)}</div>`:''}
-      ${acoesDoCard(e)}
-    </div>
-  `).join('');
+      ${acoesDoCard(e, vencida)}
+    </div>`;
+  }).join('');
   for (const d of el.querySelectorAll('details.mais-acoes')) if (maisAbertos.has(d.dataset.id)) d.open = true;
-}
-
-// O membro pediu outra data e o bispado ainda não fechou nenhuma. Enquanto isso,
-// `data`/`hora` continuam sendo as que ele recusou — convidar de novo mandaria
-// exatamente a data recusada. O próximo passo aqui é Reagendar, não Convidar.
-export function aguardandoNovaData(e) {
-  if (e.confirmacao !== 'reagendar' || !e.confirmadoEm) return false;
-  if (e.status === 'realizada' || e.status === 'nao-realizada') return false;
-  const hist = e.reagendamentos || [];
-  const ultimo = hist[hist.length - 1]?.reagendadoEm;
-  return !ultimo || ultimo < e.confirmadoEm;
-}
-
-// Entrevista reagendada cujo convite mais recente é ANTERIOR ao reagendamento:
-// o membro ainda não foi avisado da data nova e está esperando um aviso que não
-// saiu. Comparação de ISO por string funciona (mesmo fuso, mesmo formato).
-export function precisaReenviarConvite(e) {
-  const hist = e.reagendamentos || [];
-  const ultimoReagendamento = hist[hist.length - 1]?.reagendadoEm;
-  if (!ultimoReagendamento) return false;                       // nunca foi reagendada
-  if (e.status === 'realizada' || e.status === 'nao-realizada') return false;
-  return !e.convidadoEm || e.convidadoEm < ultimoReagendamento;
 }
 
 
@@ -285,7 +273,8 @@ async function copiarLinkConvite(id, contato) {
 export async function registrarEnvioConvite(id, via, contato = null) {
   const e = DADOS.agenda.find(x => x.id === id);
   if (!e) return;
-  const campos = { convidadoEm: new Date().toISOString() };
+  // conta a tentativa (cada horário novo mandado é +1) — ver camposDoEnvio
+  const campos = camposDoEnvio(e, new Date().toISOString());
   if (contato) {
     campos.telefone = String(contato.telefone || '').trim();
     campos.email = String(contato.email || '').trim();
@@ -305,6 +294,79 @@ export async function registrarEnvioConvite(id, via, contato = null) {
   renderAgenda();
   if (via === 'copiar') toast('Link copiado — convite marcado como enviado');
   if (via === 'copiar-manual') toast('Copie o link do campo acima — convite marcado como enviado');
+}
+
+// =============================================
+// CONFIRMAÇÃO AO MEMBRO
+// O bispado aceitou o horário que o membro sugeriu: o card fica Agendado e o
+// membro precisa saber. Abre sozinho depois do Reagendar; o "Enviar a
+// confirmação" do card reabre. WhatsApp e e-mail são <a href> de verdade (por
+// script, depois de um await, o navegador bloqueia).
+// =============================================
+export function mensagemAceite(e) {
+  const quando = formatarData(e.data) + (e.hora ? `, às ${e.hora}` : '');
+  return `Olá, ${primeiroNome(e.membro)}! Aqui é o bispado da ${ALA}.\n\n` +
+    `Confirmamos ${comoNoConvite(tipoNoConvite(e)).frase} para ${quando}, como você sugeriu.\n\n` +
+    `Até lá!`;
+}
+
+export function abrirAvisoAceite(id) {
+  const e = DADOS.agenda.find(x => x.id === id);
+  if (!e || !e.data) return;
+  const tel = digitosTelefone(e.telefone || telefoneDoMembro(e.membro));
+  const email = (e.email || emailDoMembro(e.membro) || '').trim();
+  const msg = mensagemAceite(e);
+  const ok = 'text-align:center;text-decoration:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer';
+  const whats = tel
+    ? `<a data-act="aceite-enviar" data-id="${esc(e.id)}" href="https://wa.me/${tel}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener"
+         style="${ok};background:rgba(37,211,102,.15);--c:#25d366;border:1px solid #25d366">💬 Enviar pelo WhatsApp</a>` : '';
+  const mail = /.+@.+\..+/.test(email)
+    ? `<a data-act="aceite-enviar" data-id="${esc(e.id)}" href="mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(assuntoConvite(e))}&body=${encodeURIComponent(msg)}"
+         style="${ok};background:rgba(91,155,213,.15);--c:#5b9bd5;border:1px solid #5b9bd5">✉️ Enviar por e-mail</a>` : '';
+  document.getElementById('modal-agenda-content').innerHTML = `
+    <h3>✅ Horário combinado <button class="modal-close" data-act="fechar">✕</button></h3>
+    <p style="color:var(--text2);font-size:13px;line-height:1.5;margin-bottom:12px">
+      ${esc(e.membro)} fica <strong>Agendado</strong> para ${esc(formatarData(e.data))}${e.hora ? ` às ${esc(e.hora)}` : ''}. Avise o membro:</p>
+    <div class="form-group">
+      <label>Mensagem</label>
+      <textarea class="form-input" id="aceite-msg" rows="5" readonly style="font-size:12.5px">${esc(msg)}</textarea>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+      ${whats}${mail}
+      <button data-act="aceite-copiar" data-id="${esc(e.id)}"
+         style="background:rgba(201,168,76,.12);color:var(--gold);border:1px solid rgba(201,168,76,.45);border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">📋 Copiar a mensagem</button>
+    </div>
+    ${tel || mail ? '' : '<p class="ficha-dica" style="margin-top:10px">Sem WhatsApp nem e-mail nesta entrevista: copie a mensagem e mande por onde costuma falar com o membro.</p>'}`;
+  abrirModal('modal-agenda');
+}
+
+async function registrarAvisoAceite(id, fechar = true) {
+  const e = DADOS.agenda.find(x => x.id === id);
+  if (!e) return;
+  const campos = { confirmacaoEnviadaEm: new Date().toISOString() };
+  Object.assign(e, campos);
+  if (fechar) fecharModal('modal-agenda');
+  renderAgenda();
+  try {
+    const atualizado = await apiFetch(`${API_AGENDA}?id=${id}`, 'PUT', campos);
+    DADOS.agenda = DADOS.agenda.map(x => x.id === id ? atualizado : x);
+    atualizarUltimaSinc(); setSyncStatus('ok');
+  } catch (err) {
+    avisarPendente('confirmação ao membro');
+  }
+  renderAgenda();
+}
+
+async function copiarAvisoAceite(id) {
+  const campo = document.getElementById('aceite-msg');
+  let copiou = false;
+  try { campo?.select(); copiou = document.execCommand('copy'); } catch (err) {}
+  if (!copiou) {
+    try { await navigator.clipboard.writeText(campo?.value || ''); copiou = true; } catch (err) {}
+  }
+  // não copiou: o diálogo fica aberto, com a mensagem selecionável
+  await registrarAvisoAceite(id, copiou);
+  toast(copiou ? 'Mensagem copiada' : 'Copie a mensagem do campo acima');
 }
 
 // Liga/desliga acompanhar ou sigiloso direto no card, depois de criada a entrevista
@@ -393,22 +455,37 @@ export function botaoConvite(e) {
 // próximo passo se perdia entre eles. Agora: na frente, só o que se faz em
 // seguida — convidar (ou definir a nova data, se o membro pediu outra), marcar
 // como realizada, reagendar — e o resto num "⋯ Mais" (<details>, sem JS).
-function acoesDoCard(e) {
-  const aberta = e.status === 'pendente' || e.status === 'agendada';
+// `vencida`: a data passou sem reagendamento (o card já diz "Não Realizada"):
+// sobra registrar o que houve — Realizada, Reagendar ou o motivo.
+function acoesDoCard(e, vencida = false) {
+  const aberta = !encerrada(e);
   const id = esc(e.id);
   const pediuOutra = aberta && aguardandoNovaData(e);
+  const aceitou = aberta && avisarAceite(e);
+  const agendado = aberta && !vencida && e.confirmacao === 'confirmado';
   const temTelefone = !!digitosTelefone(e.telefone || telefoneDoMembro(e.membro));
-  const frente = !aberta ? '' : pediuOutra
-    ? `<button class="btn-secondary btn-destaque" data-act="reagendar" data-id="${id}">${ico('refresh-cw')} Definir a nova data</button>
-       <button class="btn-secondary" data-act="realizada" data-id="${id}">${ico('check')} Realizada</button>`
-    : `${botaoConvite(e)}
-       <button class="btn-secondary" data-act="realizada" data-id="${id}">${ico('check')} Realizada</button>
-       <button class="btn-secondary" data-act="reagendar" data-id="${id}">${ico('refresh-cw')} Reagendar</button>`;
+  const realizada = `<button class="btn-secondary" data-act="realizada" data-id="${id}">${ico('check')} Realizada</button>`;
+  const reagendar = `<button class="btn-secondary" data-act="reagendar" data-id="${id}">${ico('refresh-cw')} Reagendar</button>`;
+  let frente = '';
+  if (aberta && pediuOutra) {
+    frente = `<button class="btn-secondary btn-destaque" data-act="reagendar" data-id="${id}">${ico('refresh-cw')} Definir a nova data</button>${realizada}`;
+  } else if (aberta && vencida) {
+    frente = realizada + reagendar;
+  } else if (aceitou) {
+    frente = `<button class="btn-secondary btn-destaque" data-act="aviso-aceite" data-id="${id}">${ico('send')} Enviar a confirmação</button>${realizada}${reagendar}`;
+  } else if (agendado) {
+    // horário confirmado: o convite já cumpriu o papel (fica no Mais)
+    frente = realizada + reagendar;
+  } else if (aberta) {
+    frente = botaoConvite(e) + realizada + reagendar;
+  }
   const item = (act, rotulo, extra = '') => `<button class="btn-secondary" data-act="${act}" data-id="${id}" ${extra}>${rotulo}</button>`;
   const mais = [
     item('editar', `${ico('pencil')} Editar`, 'title="Corrigir membro, tipo, responsável, data ou contato"'),
-    aberta && temTelefone && !pediuOutra ? item('convite', `${ico('mail')} Outro meio de convite`, 'title="E-mail, copiar o link ou outro número"') : '',
-    aberta ? item('naorealizada', `${ico('x')} Não realizada`) : '',
+    agendado && !aceitou ? item('convite', `${ico('mail')} Mandar o convite de novo`, 'title="WhatsApp, e-mail ou copiar o link"') : '',
+    aberta && temTelefone && !pediuOutra && !vencida && !aceitou && !agendado ? item('convite', `${ico('mail')} Outro meio de convite`, 'title="E-mail, copiar o link ou outro número"') : '',
+    aberta && e.aceitoEm && e.confirmacao === 'confirmado' && !aceitou ? item('aviso-aceite', `${ico('send')} Mandar a confirmação de novo`) : '',
+    aberta ? item('naorealizada', vencida ? `${ico('x')} Registrar o motivo` : `${ico('x')} Não realizada`) : '',
     item('toggle', `${ico('compass')} ${e.acompanhar ? 'Parar de acompanhar' : 'Acompanhar'}`, 'data-campo="acompanhar"'),
     item('toggle', e.sigiloso ? `${ico('lock-open')} Tirar o sigilo` : `${ico('lock')} Marcar como sigilosa`, 'data-campo="sigiloso"'),
     `<button class="btn-danger" data-act="excluir" data-id="${id}">${ico('trash-2')} Excluir</button>`,
@@ -535,6 +612,8 @@ export async function salvarEntrevista(id) {
   };
   const atual = id ? DADOS.agenda.find(x => x.id === id) : null;
   if (atual) Object.assign(payload, efeitosDaEdicao(atual, payload));
+  // pela edição também dá para aceitar a data que o membro sugeriu
+  const aceitou = !!(atual && payload.aceitoEm && payload.aceitoEm !== atual.aceitoEm);
   fecharModal('modal-agenda');
   reativarAbaAtual();
   try {
@@ -544,14 +623,14 @@ export async function salvarEntrevista(id) {
       const atualizado = await apiFetch(`${API_AGENDA}?id=${id}`, 'PUT', payload);
       DADOS.agenda = DADOS.agenda.map(x => x.id === id ? atualizado : x);
     } else {
-      const criado = await apiFetch(API_AGENDA, 'POST', { ...payload, status: 'pendente', reagendamentos: [] });
+      const criado = await apiFetch(API_AGENDA, 'POST', { ...payload, status: 'aberta', reagendamentos: [] });
       DADOS.agenda.push(criado);
     }
     atualizarUltimaSinc(); setSyncStatus('ok');
     toast(id ? 'Entrevista atualizada' : 'Entrevista criada');
   } catch(e) {
     if (id) DADOS.agenda = DADOS.agenda.map(x => x.id === id ? { ...x, ...payload } : x);
-    else DADOS.agenda.push({ ...payload, id: idProvisorioDo(e), status: 'pendente', reagendamentos: [] });
+    else DADOS.agenda.push({ ...payload, id: idProvisorioDo(e), status: 'aberta', reagendamentos: [] });
     avisarPendente('entrevista');
   }
   renderAgenda();
@@ -560,40 +639,30 @@ export async function salvarEntrevista(id) {
   // e a das renovações (aba Vamos crescer a Ala, de onde o "📅 Agendar
   // renovação" abriu este formulário) — que só desenha se estiver aberta
   renderCrescimento();
+  if (aceitou) abrirAvisoAceite(id);
 }
 
 // O que o Editar invalida numa entrevista em aberto. Corrigir uma encerrada não
 // mexe no resultado; corrigir antes de convidar só grava o que mudou.
-//  - Outro membro: o convite e a resposta eram de outra pessoa — nada vale.
+//  - Outro membro: o convite e a resposta eram de outra pessoa — nada vale, e
+//    a entrevista volta a Criado.
 //  - Data ou horário mudaram depois de convite ou resposta: é um reagendamento
-//    (o mesmo do botão Reagendar); sem isto o card seguia "✅ Confirmou" para
-//    uma data que o membro nem conhece. Sem nova data, volta a "sem data".
+//    (o mesmo do botão Reagendar, ver camposDaNovaData); sem isto o card seguia
+//    "✅ Confirmou" para uma data que o membro nem conhece. Sem nova data, a
+//    resposta deixa de valer.
 function efeitosDaEdicao(atual, payload) {
-  if (atual.status !== 'pendente' && atual.status !== 'agendada') return {};
-  const respostaZerada = { confirmacao: '', confirmadoEm: '', sugestaoData: '', sugestaoHora: '' };
+  if (encerrada(atual)) return {};
+  const respostaZerada = { confirmacao: '', confirmadoEm: '', sugestaoData: '', sugestaoHora: '', aceitoEm: '' };
   if (payload.membro !== atual.membro) {
-    return { ...respostaZerada, convidadoEm: '', email: '', status: 'pendente' };
+    return { ...respostaZerada, convidadoEm: '', convidadoPara: '', tentativas: 0, negociando: false,
+      confirmacaoEnviadaEm: '', email: '' };
   }
   const mudouQuando = payload.data !== (atual.data || '') || payload.hora !== (atual.hora || '');
   const haviaConvite = !!(atual.convidadoEm || atual.confirmacao);
   if (!mudouQuando || !haviaConvite) return {};
-  if (!payload.data) return { ...respostaZerada, status: 'pendente' };
+  if (!payload.data) return respostaZerada;
   // primeira data depois de um convite "a combinar" também invalida a resposta
-  return camposDeReagendamento({ ...atual, data: atual.data || '', hora: atual.hora || '' }, payload.data, payload.hora);
-}
-
-// O que muda numa entrevista quando a data muda — pelo Reagendar ou pelo Editar.
-// O pedido do membro foi atendido e a data mudou: a resposta anterior não vale
-// mais para o novo horário, então volta a "sem confirmação" — o membro recebe o
-// convite de novo e confirma a data nova.
-function camposDeReagendamento(atual, data, hora) {
-  const hist = [...(atual.reagendamentos || []), {
-    dataAnterior: atual.data, horaAnterior: atual.hora, reagendadoEm: new Date().toISOString(),
-  }];
-  return {
-    data, hora, status: 'agendada', reagendamentos: hist,
-    sugestaoData: '', sugestaoHora: '', confirmacao: '', confirmadoEm: '',
-  };
+  return camposDaNovaData(atual, payload.data, payload.hora, new Date().toISOString());
 }
 
 export async function marcarRealizada(id) {
@@ -640,7 +709,9 @@ export async function reagendarEntrevista(id) {
   ], { okLabel: 'Reagendar' });
   if (r === null) return;
 
-  const campos = camposDeReagendamento(atual, r.data, r.hora);
+  // a data que o membro sugeriu: Agendado, e o app abre a confirmação para ele;
+  // outra data: contraproposta, e o card pede o convite de novo
+  const campos = camposDaNovaData(atual, r.data, r.hora, new Date().toISOString());
   try {
     const atualizado = await apiFetch(`${API_AGENDA}?id=${id}`, 'PUT', campos);
     DADOS.agenda = DADOS.agenda.map(e => e.id===id ? atualizado : e);
@@ -650,6 +721,7 @@ export async function reagendarEntrevista(id) {
     avisarPendente('remarcação');
   }
   renderAgenda();
+  if (campos.aceitoEm) abrirAvisoAceite(id);
 }
 
 export async function excluirEntrevista(id) {
@@ -695,6 +767,7 @@ function ligarAgenda() {
       case 'excluir':       excluirEntrevista(id); break;
       case 'toggle':        toggleFlagEntrevista(id, alvo.dataset.campo); break;
       case 'convite':       abrirModalConvite(id); break;
+      case 'aviso-aceite':  abrirAvisoAceite(id); break;
       // link direto do WhatsApp: sem preventDefault, so registra o envio
       case 'convidar':      registrarEnvioConvite(id, 'whatsapp'); break;
     }
@@ -718,12 +791,16 @@ function ligarAgenda() {
       registrarEnvioConvite(id, alvo.dataset.via, contatoDoDialogo()); // sem preventDefault
     } else if (act === 'conv-copiar') {
       copiarLinkConvite(id, contatoDoDialogo());
+    } else if (act === 'aceite-enviar') {
+      registrarAvisoAceite(id);                     // sem preventDefault: o link abre
+    } else if (act === 'aceite-copiar') {
+      copiarAvisoAceite(id);
     }
   });
 
   // tocar no campo do link ja seleciona tudo, para copiar na mao
   document.getElementById('modal-agenda')?.addEventListener('focusin', ev => {
-    if (ev.target.id === 'conv-link') ev.target.select();
+    if (ev.target.id === 'conv-link' || ev.target.id === 'aceite-msg') ev.target.select();
   });
 
   // Trocar o membro no formulário traz o WhatsApp do novo membro — mas só se o

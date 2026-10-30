@@ -44,6 +44,7 @@
 //     em vez de 8,8; ícone 10,5 em vez de 12,5): as tolerâncias são relativas.
 // =============================================
 import { CARGOS_DO_LCR, aDesignar, ordemNatural, tipoDePdf } from './chamados-lcr.js';
+import { encerrada } from './convite-regras.js';
 import { chavePessoa, ehDomingo, registroDoDomingo, somarDias, somarMeses, tipoDe } from './discursos-regras.js';
 import { dataLocal, norm } from './utils.js';
 
@@ -646,7 +647,7 @@ export function renovacaoNaAgenda(entrevistas, pessoa, tipo = 'adultos', { desde
   if (!k) return null;
   const tipos = TIPOS_DA_RENOVACAO[tipo] || TIPOS_DA_RENOVACAO.adultos;
   const dela = (entrevistas || []).filter(e => e && tipos.includes(e.tipo) && e.membro && chave(e.membro) === k);
-  const aberta = dela.filter(e => e.status === 'pendente' || e.status === 'agendada')
+  const aberta = dela.filter(e => !encerrada(e))
     .sort((a, b) => (a.data || '9999').localeCompare(b.data || '9999'))[0];
   if (aberta) return { estado: 'marcada', e: aberta };
   if (!RE_DIA.test(desde || '')) return null;

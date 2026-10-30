@@ -267,10 +267,12 @@
   </div>
   <div class="filtros" id="filtros-agenda">
     <button class="filtro-btn active" data-fil="abertas">Em aberto</button>
-    <button class="filtro-btn" data-fil="pendente">Pendentes</button>
+    <button class="filtro-btn" data-fil="criado">Criadas</button>
+    <button class="filtro-btn" data-fil="enviado">Enviadas</button>
+    <button class="filtro-btn" data-fil="em-agendamento">Em agendamento</button>
     <button class="filtro-btn" data-fil="agendada">Agendadas</button>
+    <button class="filtro-btn" data-fil="nao-realizada">Não Realizadas</button>
     <button class="filtro-btn" data-fil="realizada">Realizadas</button>
-    <button class="filtro-btn" style="border-color:#e05555;--c:#e05555" data-fil="nao-realizada">Não Realizadas</button>
     <button class="filtro-btn" data-fil="todas">Todas</button>
   </div>
   <div id="lista-agenda"><div class="loading">Carregando…</div></div>
@@ -953,9 +955,17 @@
     <div class="como-usar-item">Defina a prioridade: 🔴 Alta, 🟡 Média ou 🟢 Normal.</div>
     <div class="como-usar-item">Para reagendar, toque em "Reagendar" no card — o histórico é preservado.</div>
     <div class="como-usar-item"><strong>Editar</strong> corrige membro, tipo, responsável, telefone ou observação. Se a data ou o horário mudarem, conta como reagendamento: a confirmação anterior deixa de valer e o card pede para reenviar o convite.</div>
-    <div class="como-usar-item">A lista começa em <strong>Em aberto</strong> (pendentes e agendadas). As realizadas ficam nos filtros "Realizadas" e "Todas".</div>
+    <div class="como-usar-item"><strong>Status do card</strong> — a bolinha e a lateral do card têm a cor dele:
+      <span class="status-badge status-criado">Criado</span> logo que é criado, antes de qualquer convite;
+      <span class="status-badge status-enviado">Enviado</span> o convite saiu e o membro ainda não respondeu (cada horário novo mandado conta uma tentativa: "Enviado · 2ª tentativa");
+      <span class="status-badge status-em-agendamento">Em agendamento</span> o membro pediu outro horário e os dois ainda não bateram — vale enquanto se espera o bispado ou o membro;
+      <span class="status-badge status-agendada">Agendado</span> o horário está confirmado e a data ainda não passou;
+      <span class="status-badge status-nao-realizada">Não Realizada</span> a data passou sem reagendamento (ou você registrou o motivo);
+      <span class="status-badge status-realizada">Realizada</span> marcada como realizada.</div>
+    <div class="como-usar-item">Quando o membro sugere outro horário e você aceita esse mesmo horário em <strong>Definir a nova data</strong>, o card fica <strong>Agendado</strong> e o app abre a mensagem de confirmação para mandar ao membro (WhatsApp, e-mail ou copiar). Se escolher outro horário, é uma nova proposta: o card segue Em agendamento e pede o convite de novo.</div>
+    <div class="como-usar-item">A lista começa em <strong>Em aberto</strong> (criadas, enviadas, em agendamento e agendadas). Cada status tem o seu filtro; "Todas" mostra tudo.</div>
     <div class="como-usar-item">No card ficam só os próximos passos: convidar (ou <strong>Definir a nova data</strong>, quando o membro pediu outra), <strong>Realizada</strong> e <strong>Reagendar</strong>. O resto — Editar, outro meio de convite, Não realizada, Acompanhar, Sigilo e Excluir — fica em <strong>Mais</strong>.</div>
-    <div class="como-usar-item">Marque como "Realizada" após a entrevista. "Não realizada" exige informar o motivo.</div>
+    <div class="como-usar-item">Marque como "Realizada" após a entrevista. "Não realizada" exige informar o motivo. Se a data passou e o card virou Não Realizada sozinho, ainda dá para marcar Realizada, reagendar ou registrar o motivo.</div>
     <div class="como-usar-item"><strong>Convidar</strong> abre o WhatsApp com a mensagem pronta — nome, data e horário. O telefone vem do quadro de membros (importe o PDF do LCR na aba Membros) e pode ser digitado à mão no formulário.</div>
     <div class="como-usar-item">O tipo da entrevista só aparece no convite quando é de rotina (recomendação para o templo, ordenação, entrevista de jovens, missão, designação de chamado…). Nos demais tipos — e em qualquer entrevista sigilosa — a mensagem diz apenas <strong>"uma conversa com o bispado"</strong>, porque ela aparece na prévia da tela bloqueada e o número muitas vezes é o da família. O diálogo de convite mostra o que o membro vai ler.</div>
     <div class="como-usar-item"><strong>Designação de Chamado (Imposição de Mãos)</strong> é o tipo que a aba Chamados usa no <strong>📅 Agendar designação</strong>. Como o chamado já foi apoiado na sacramental, o convite diz o assunto, com as palavras dele: "gostaríamos de marcar a sua designação no chamado, por imposição de mãos". O <strong>Apoio de Chamado</strong>, que vem antes de o chamado ser público, continua como "uma conversa com o bispado".</div>

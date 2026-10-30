@@ -78,7 +78,115 @@ export function conviteJaRespondido(e) {
   return !e.convidadoEm || e.confirmadoEm > e.convidadoEm;
 }
 
+// Encerrada pelo bispado (marcou Realizada ou Não realizada, com o motivo). O
+// campo `status` gravado só diz isto — aberta ('aberta', ou 'pendente' /
+// 'agendada' dos registros antigos) ou encerrada; o status que o card mostra
+// sai de estadoDaEntrevista.
 export const encerrada = e => e.status === 'realizada' || e.status === 'nao-realizada';
+
+// =============================================
+// STATUS DO CARD
+// Criado → Enviado → (Em agendamento) → Agendado → Realizada / Não realizada.
+// Sai dos campos da entrevista, e não de um campo gravado: a resposta do membro
+// (no servidor), o convite (no aparelho do bispado) e a data que passa mudam o
+// status sem ninguém precisar regravá-lo.
+// =============================================
+export const ESTADOS = {
+  criado: 'Criado',
+  enviado: 'Enviado',
+  'em-agendamento': 'Em agendamento',
+  agendada: 'Agendado',
+  'nao-realizada': 'Não Realizada',
+  realizada: 'Realizada',
+};
+export const ESTADOS_ABERTOS = new Set(['criado', 'enviado', 'em-agendamento', 'agendada']);
+
+// O membro pediu outra data e o bispado ainda não fechou nenhuma. Enquanto isso,
+// `data`/`hora` continuam sendo as que ele recusou — convidar de novo mandaria
+// exatamente a data recusada. O próximo passo aqui é Reagendar, não Convidar.
+export function aguardandoNovaData(e) {
+  if (e.confirmacao !== 'reagendar' || !e.confirmadoEm) return false;
+  if (encerrada(e)) return false;
+  const hist = e.reagendamentos || [];
+  const ultimo = hist[hist.length - 1]?.reagendadoEm;
+  return !ultimo || ultimo < e.confirmadoEm;
+}
+
+// Entrevista reagendada cujo convite mais recente é ANTERIOR ao reagendamento:
+// o membro ainda não foi avisado da data nova. Comparação de ISO por string
+// funciona (mesmo fuso, mesmo formato). Horário já combinado (o bispado aceitou
+// o que o membro sugeriu) não pede convite: pede a confirmação (avisarAceite).
+export function precisaReenviarConvite(e) {
+  const hist = e.reagendamentos || [];
+  const ultimoReagendamento = hist[hist.length - 1]?.reagendadoEm;
+  if (!ultimoReagendamento) return false;                       // nunca foi reagendada
+  if (encerrada(e) || e.confirmacao === 'confirmado') return false;
+  return !e.convidadoEm || e.convidadoEm < ultimoReagendamento;
+}
+
+// Quantos horários diferentes já foram mandados ao membro (o "2ª tentativa").
+// Registro de antes do contador: com convite, conta 1.
+export const tentativasDe = e =>
+  Number.isInteger(e?.tentativas) && e.tentativas > 0 ? e.tentativas : (e?.convidadoEm ? 1 : 0);
+
+const DIA = /^\d{4}-\d{2}-\d{2}$/;
+
+// `hojeKey`: AAAA-MM-DD local. A data "passa" no dia seguinte ao marcado.
+export function estadoDaEntrevista(e, hojeKey) {
+  if (e.status === 'realizada') return 'realizada';
+  if (e.status === 'nao-realizada') return 'nao-realizada';
+  const passou = DIA.test(e.data || '') && DIA.test(hojeKey || '') && e.data < hojeKey;
+  if (e.confirmacao === 'confirmado') return passou ? 'nao-realizada' : 'agendada';
+  // o membro pediu outra data: a vez é do bispado, mesmo que a data velha já tenha passado
+  if (e.confirmacao === 'reagendar' || e.confirmacao === 'recusado') return 'em-agendamento';
+  if (passou) return 'nao-realizada';
+  // já houve um "não posso, pode ser outro dia?": até os dois baterem o horário
+  if (e.negociando) return 'em-agendamento';
+  if (e.convidadoEm) return precisaReenviarConvite(e) ? 'em-agendamento' : 'enviado';
+  return 'criado';
+}
+
+// "Não realizada" que o app concluiu sozinho (a data passou sem reagendamento):
+// o bispado ainda pode marcar Realizada, reagendar ou registrar o motivo.
+export const naoRealizadaPelaData = (e, hojeKey) => !encerrada(e) && estadoDaEntrevista(e, hojeKey) === 'nao-realizada';
+
+export function rotuloDoEstado(e, hojeKey) {
+  const est = estadoDaEntrevista(e, hojeKey);
+  const n = tentativasDe(e);
+  const vez = (est === 'enviado' || est === 'em-agendamento') && n >= 2 ? ` · ${n}ª tentativa` : '';
+  return ESTADOS[est] + vez;
+}
+
+// O que o envio do convite grava. Cada horário novo mandado conta uma tentativa;
+// reenviar o mesmo horário (outro meio, outro número) não conta.
+export function camposDoEnvio(e, agora) {
+  const para = `${e.data || ''}|${e.hora || ''}`;
+  const antes = tentativasDe(e);
+  const mesmo = typeof e.convidadoPara === 'string'
+    ? e.convidadoPara === para
+    : antes > 0 && !precisaReenviarConvite(e);        // registro de antes do contador
+  return { convidadoEm: agora, convidadoPara: para, tentativas: mesmo ? Math.max(1, antes) : antes + 1 };
+}
+
+// O bispado escolheu a nova data. Se é exatamente a que o membro sugeriu, os
+// dois bateram: fica Agendado, e o membro só precisa ser avisado (avisarAceite).
+// Senão, é uma contraproposta: o convite sai de novo, com o horário novo.
+export function camposDaNovaData(atual, data, hora, agora) {
+  const hist = [...(atual.reagendamentos || []), {
+    dataAnterior: atual.data || '', horaAnterior: atual.hora || '', reagendadoEm: agora,
+  }];
+  const campos = { data, hora: hora || '', reagendamentos: hist, sugestaoData: '', sugestaoHora: '' };
+  const aceitou = aguardandoNovaData(atual) && data === atual.sugestaoData && (hora || '') === (atual.sugestaoHora || '');
+  if (aceitou) {
+    return { ...campos, confirmacao: 'confirmado', confirmadoEm: agora, negociando: false, aceitoEm: agora,
+      convidadoPara: `${data}|${hora || ''}` };
+  }
+  return { ...campos, confirmacao: '', confirmadoEm: '', aceitoEm: '' };
+}
+
+// O bispado aceitou o horário do membro e ainda não mandou a confirmação.
+export const avisarAceite = e => !encerrada(e) && e.confirmacao === 'confirmado' && !!e.aceitoEm
+  && !(e.confirmacaoEnviadaEm && e.confirmacaoEnviadaEm >= e.aceitoEm);
 
 // Só duas respostas: quem não pode vir pede outra data, não apenas recusa.
 // ('recusado' segue reconhecido na Agenda, por causa dos registros antigos.)
@@ -92,14 +200,11 @@ const HORA = /^\d{2}:\d{2}$/;
 // Devolve null quando a resposta é inválida.
 export function camposDaResposta(atual, resposta, sugestao, agora) {
   if (!RESPOSTAS.includes(resposta)) return null;
+  // O status do card sai destes campos (estadoDaEntrevista): confirmar deixa
+  // Agendado; pedir outra data deixa Em agendamento até os horários baterem.
+  // Uma entrevista encerrada não muda (o servidor já recusa antes).
   const campos = { confirmacao: resposta, confirmadoEm: agora };
-  // A resposta move o status do card. Só em entrevista ainda aberta: um link
-  // antigo não pode ressuscitar uma já realizada.
-  const aberta = atual.status === 'pendente' || atual.status === 'agendada';
-  if (aberta && resposta === 'confirmado') campos.status = 'agendada';
-  // Pedir outra data desmarca: o horário combinado deixou de valer, e quem fecha
-  // a nova data é o bispado. Sem isso o card seguia "Agendada".
-  if (aberta && resposta === 'reagendar') campos.status = 'pendente';
+  if (!encerrada(atual)) campos.negociando = resposta === 'reagendar';
   if (resposta === 'reagendar') {
     // a sugestão é um pedido, não muda a data por conta própria
     if (!sugestao || !DATA.test(sugestao.data || '')) return null;
