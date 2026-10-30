@@ -64,32 +64,17 @@ export function comoNoConvite(tipo) {
 
 // =============================================
 // PRESENCIAL OU ONLINE
-// Sem o campo (registros antigos), é presencial. O link da chamada (Meet, Zoom,
-// WhatsApp…) é opcional: sem ele, o convite diz que o link vai antes do horário.
+// Sem o campo (registros antigos), é presencial. Por onde a online acontece
+// (o aplicativo, o link) é com o bispado: o app só registra que é online.
 // =============================================
 export const MODALIDADES = { presencial: 'Presencial', online: 'Online' };
 export const modalidadeDe = e => (e?.modalidade === 'online' ? 'online' : 'presencial');
-export const MAX_LINK_ONLINE = 500;
-
-// Só https e de tamanho razoável: o link vai para a mensagem e para a tela do membro
-export function linkOnlineSeguro(u) {
-  const t = String(u || '').trim();
-  if (!t || t.length > MAX_LINK_ONLINE) return '';
-  try {
-    const url = new URL(t);
-    return url.protocol === 'https:' && url.hostname.includes('.') ? url.href : '';
-  } catch { return ''; }
-}
 
 // A frase do convite e da confirmação sobre como vai ser
-export function fraseDoComo(e) {
-  if (modalidadeDe(e) === 'presencial') return 'Será presencial.';
-  const link = linkOnlineSeguro(e.linkOnline);
-  return link ? `Será online, por chamada de vídeo. Link: ${link}` : 'Será online, por chamada de vídeo. O link vai antes do horário.';
-}
+export const fraseDoComo = e => (modalidadeDe(e) === 'online' ? 'Será online.' : 'Será presencial.');
 
-// O bispado mudou de presencial para online (ou o link) depois do convite e o
-// membro ainda não soube: o convite (ou a confirmação) precisa sair de novo.
+// O bispado mudou de presencial para online (ou o contrário) depois do convite
+// e o membro ainda não soube: o convite (ou a confirmação) precisa sair de novo.
 export function avisarMudancaDeComo(e) {
   if (encerrada(e) || !e.comoMudouEm) return false;
   const avisado = [e.convidadoEm, e.confirmacaoEnviadaEm].some(t => t && t >= e.comoMudouEm);
@@ -257,7 +242,7 @@ export function conviteParaMembro(e) {
     nome: primeiroNome(e.membro),
     tipo: tipoNoConvite(e),
     data: e.data || '', hora: e.hora || '',
-    modalidade: modalidadeDe(e), linkOnline: modalidadeDe(e) === 'online' ? linkOnlineSeguro(e.linkOnline) : '',
+    modalidade: modalidadeDe(e),
     status: e.status || '',
     confirmacao: e.confirmacao || '', confirmadoEm: e.confirmadoEm || '',
     convidadoEm: e.convidadoEm || '',

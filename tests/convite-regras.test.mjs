@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  ESTADOS, TIPO_DESIGNACAO, avisarAceite, avisarMudancaDeComo, fraseDoComo, linkOnlineSeguro, modalidadeDe, camposDaNovaData, camposDaResposta, camposDoEnvio, comoNoConvite,
+  ESTADOS, TIPO_DESIGNACAO, avisarAceite, avisarMudancaDeComo, fraseDoComo, modalidadeDe, camposDaNovaData, camposDaResposta, camposDoEnvio, comoNoConvite,
   conviteJaRespondido, conviteParaMembro, estadoDaEntrevista, naoRealizadaPelaData, precisaReenviarConvite,
   primeiroNome, rotuloDoEstado, tipoNoConvite,
 } from '../js/convite-regras.js';
@@ -195,31 +195,21 @@ test('tentativas: reenviar o mesmo horário não conta; registro antigo conta 1'
 });
 
 // ---------- presencial ou online ----------
-test('sem o campo é presencial; online com link https só', () => {
+test('sem o campo é presencial', () => {
   assert.equal(modalidadeDe({}), 'presencial');
   assert.equal(modalidadeDe({ modalidade: 'qualquer' }), 'presencial');
   assert.equal(modalidadeDe({ modalidade: 'online' }), 'online');
-  assert.equal(linkOnlineSeguro('https://meet.google.com/abc-defg-hij'), 'https://meet.google.com/abc-defg-hij');
-  assert.equal(linkOnlineSeguro('  https://zoom.us/j/123  '), 'https://zoom.us/j/123');
-  for (const ruim of ['javascript:alert(1)', 'http://meet.google.com/x', 'meet.google.com/x', 'https://localhost/x', 'https://' + 'a'.repeat(600) + '.com']) {
-    assert.equal(linkOnlineSeguro(ruim), '', ruim);
-  }
 });
 
-test('a frase do convite: presencial, online com link, online sem link', () => {
+test('a frase do convite só diz presencial ou online — o meio é com o bispado', () => {
   assert.equal(fraseDoComo({}), 'Será presencial.');
-  assert.equal(fraseDoComo({ modalidade: 'online', linkOnline: 'https://meet.google.com/x' }),
-    'Será online, por chamada de vídeo. Link: https://meet.google.com/x');
-  assert.equal(fraseDoComo({ modalidade: 'online', linkOnline: 'javascript:alert(1)' }),
-    'Será online, por chamada de vídeo. O link vai antes do horário.');
+  assert.equal(fraseDoComo({ modalidade: 'online' }), 'Será online.');
 });
 
-test('a tela do membro recebe como vai ser; presencial não leva link', () => {
-  const p = conviteParaMembro({ id: 'a1', membro: 'Exemplo, Ana', modalidade: 'online', linkOnline: 'https://meet.google.com/x' });
+test('a tela do membro recebe como vai ser, e nada de link', () => {
+  const p = conviteParaMembro({ id: 'a1', membro: 'Exemplo, Ana', modalidade: 'online', linkOnline: 'https://exemplo.com/x' });
   assert.equal(p.modalidade, 'online');
-  assert.equal(p.linkOnline, 'https://meet.google.com/x');
-  const q = conviteParaMembro({ id: 'a2', membro: 'Exemplo, Ana', modalidade: 'presencial', linkOnline: 'https://meet.google.com/x' });
-  assert.equal(q.linkOnline, '');
+  assert.ok(!('linkOnline' in p));
   assert.equal(conviteParaMembro({ id: 'a3', membro: 'Exemplo, Ana' }).modalidade, 'presencial');
 });
 

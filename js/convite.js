@@ -5,7 +5,7 @@
 // Lê e grava só por /api/convite (ver netlify/functions/convite.js).
 // =============================================
 import { ALA, API_CONVITE } from './config.js';
-import { comoNoConvite, conviteJaRespondido, encerrada, linkOnlineSeguro, modalidadeDe } from './convite-regras.js';
+import { comoNoConvite, conviteJaRespondido, encerrada, modalidadeDe } from './convite-regras.js';
 import { esc, formatarData } from './utils.js';
 // --- Tela que o membro vê ao abrir o link do WhatsApp ---
 // Lê só a própria entrevista, por /api/convite (só os campos da tela). Antes
@@ -74,16 +74,9 @@ async function abrirTelaConfirmacao(id) {
   return telaConvite(caixa, e);
 }
 
-// Presencial ou online. O link da chamada já vem limpo do servidor
-// (conviteParaMembro); passa de novo pelo filtro antes de virar <a>.
+// Presencial ou online. Por onde a online acontece, o bispado combina com o membro.
 let naTela = null;   // a entrevista do formulário, para a tela de "confirmado"
-function htmlComo(e) {
-  if (modalidadeDe(e) !== 'online') return '📍 Presencial';
-  const link = linkOnlineSeguro(e.linkOnline);
-  return '💻 Online, por chamada de vídeo' + (link
-    ? ` · <a href="${esc(link)}" target="_blank" rel="noopener" style="color:var(--sac)">abrir a chamada</a>`
-    : ' · o link vai antes do horário');
-}
+const htmlComo = e => (modalidadeDe(e) === 'online' ? '💻 Online' : '📍 Presencial');
 const comoSeOnline = e => (e && modalidadeDe(e) === 'online' ? `<br><br>${htmlComo(e)}` : '');
 
 const telaJaEncerrada = caixa => telaEncerrada(caixa, '✅', 'Entrevista encerrada',
