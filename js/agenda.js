@@ -90,7 +90,9 @@ export function resumoAgenda() {
   return { todas, ativas, vencidas, proximas, aguardando };
 }
 
+// a bolinha do card é a prioridade; o texto "⚑ Prioridade …" repete por extenso
 const PRIORIDADE = { alta: 'Alta', media: 'Média', normal: 'Normal' };
+const PRIO_EMOJI = { alta: '🔴', media: '🟡', normal: '🟢' };
 
 export function renderAgenda() {
   const el = document.getElementById('lista-agenda');
@@ -131,7 +133,7 @@ export function renderAgenda() {
     return `
     <div class="entrevista-card" style="--st:${COR_STATUS[est] || 'var(--border)'}">
       <div class="ent-header">
-        <span class="ent-dot" title="${esc(rotuloDoEstado(e, hojeKey))}"></span>
+        <span class="ent-prioridade" title="Prioridade ${PRIORIDADE[e.prioridade] || PRIORIDADE.normal}">${PRIO_EMOJI[e.prioridade] || PRIO_EMOJI.normal}</span>
         <span class="ent-nome">${esc(e.membro)}</span>
         ${e.sigiloso?'<span class="selo-sigilo">🔒 Sigiloso</span>':''}
         ${e.acompanhar?'<span style="font-size:10px;--c:#fbbf24">🧭</span>':''}

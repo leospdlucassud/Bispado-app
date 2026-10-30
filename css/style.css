@@ -136,8 +136,7 @@
     --text1:#e8edf2; --text-corpo:#c8d8e8; --text2:#8eacc8; --text3:#7a8fa8;
     --gold:#c9a84c; --border:#2a4060;
     --sac:#e8d080;          /* dourado da Sacramental */
-    /* status da entrevista: a bolinha e o selo do card, a lateral do card e os
-       itens do Início (COR_STATUS em config.js aponta para estes). Seis matizes
+    /* status da entrevista: o selo e a lateral do card e os itens do Início (COR_STATUS em config.js aponta para estes). Seis matizes
        bem separados: cinza, azul, laranja, violeta, verde, vermelho.
        --st-pendente e --st-inativa são das Designações. */
     --st-criado:#94a3b8; --st-enviado:#3b82f6; --st-em-agendamento:#fb923c;
@@ -354,8 +353,7 @@
   .entrevista-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.4); }
   .ent-header { display:flex;align-items:center;gap:10px;margin-bottom:8px; }
   .ent-nome { font-size:14px;font-weight:700;flex:1; }
-  /* a bolinha tem a cor do status, a mesma da lateral do card */
-  .ent-dot { flex:0 0 auto; width:12px; height:12px; border-radius:50%; background:var(--st, var(--text3)); }
+  .ent-prioridade { font-size:16px; }
   .ent-info { display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text2); }
   .ent-info span { display:flex;align-items:center;gap:4px; }
   .ent-obs { margin-top:8px;font-size:12px;color:var(--text2);font-style:italic;padding:6px 10px;background:rgba(255,255,255,.03);border-radius:6px; }
