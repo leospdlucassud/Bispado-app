@@ -5,7 +5,7 @@
 // Lê e grava só por /api/convite (ver netlify/functions/convite.js).
 // =============================================
 import { ALA, API_CONVITE } from './config.js';
-import { comoNoConvite, conviteJaRespondido, encerrada } from './convite-regras.js';
+import { comoNoConvite, conviteJaRespondido, encerrada, linkOnlineSeguro, modalidadeDe } from './convite-regras.js';
 import { esc, formatarData } from './utils.js';
 // --- Tela que o membro vê ao abrir o link do WhatsApp ---
 // Lê só a própria entrevista, por /api/convite (só os campos da tela). Antes
@@ -59,7 +59,7 @@ async function abrirTelaConfirmacao(id) {
     const detalhe = e.confirmacao === 'reagendar'
       ? (sugerido ? ` sugerindo <strong style="color:var(--text-corpo)">${esc(sugerido)}</strong>.` : '.') +
         ' O bispado vai enviar um novo convite com a data confirmada.'
-      : '.';
+      : '.' + (comoSeOnline(e) ? comoSeOnline(e) + '<br><br>' : '');
     // A saída de emergência existe porque o `convidadoEm` pode estar velho no
     // servidor (o clique em "Convidar" pode nao ter subido, ex.: sem sinal na
     // capela) e o membro apareceria aqui logo depois de receber um convite novo.
@@ -74,6 +74,18 @@ async function abrirTelaConfirmacao(id) {
   return telaConvite(caixa, e);
 }
 
+// Presencial ou online. O link da chamada já vem limpo do servidor
+// (conviteParaMembro); passa de novo pelo filtro antes de virar <a>.
+let naTela = null;   // a entrevista do formulário, para a tela de "confirmado"
+function htmlComo(e) {
+  if (modalidadeDe(e) !== 'online') return '📍 Presencial';
+  const link = linkOnlineSeguro(e.linkOnline);
+  return '💻 Online, por chamada de vídeo' + (link
+    ? ` · <a href="${esc(link)}" target="_blank" rel="noopener" style="color:var(--sac)">abrir a chamada</a>`
+    : ' · o link vai antes do horário');
+}
+const comoSeOnline = e => (e && modalidadeDe(e) === 'online' ? `<br><br>${htmlComo(e)}` : '');
+
 const telaJaEncerrada = caixa => telaEncerrada(caixa, '✅', 'Entrevista encerrada',
   'O bispado já registrou o resultado desta entrevista. Se precisar de outra, fale com o bispado.');
 
@@ -82,6 +94,7 @@ const telaJaEncerrada = caixa => telaEncerrada(caixa, '✅', 'Entrevista encerra
 // `e` é o que /api/convite devolve (conviteParaMembro): nome já é o primeiro
 // nome e tipo vem vazio quando o assunto não pode aparecer.
 function telaConvite(caixa, e) {
+  naTela = e;
   const quando = e.data
     ? formatarData(e.data) + (e.hora ? `, às ${e.hora}` : '')
     : 'data a combinar';
@@ -100,7 +113,7 @@ function telaConvite(caixa, e) {
     <div style="background:rgba(255,255,255,.04);border-radius:12px;padding:14px;margin-bottom:18px;text-align:left">
       <div style="color:var(--text-corpo);font-size:14px;font-weight:700;margin-bottom:6px">${esc(e.nome)}</div>
       <div style="color:var(--text2);font-size:12px;line-height:1.8">
-        ${e.tipo ? `📋 ${esc(e.tipo)}` : '💬 Conversa com o bispado'}<br>📅 ${esc(quando)}
+        ${e.tipo ? `📋 ${esc(e.tipo)}` : '💬 Conversa com o bispado'}<br>📅 ${esc(quando)}<br>${htmlComo(e)}
       </div>
     </div>
     <p style="color:var(--text2);font-size:13px;margin-bottom:14px">Você pode comparecer?</p>
@@ -175,7 +188,7 @@ async function responderConvite(id, resposta, sugestao = null) {
   // agenda é o bispado, que reenvia o convite. A mensagem precisa deixar isso
   // claro, senão a pessoa sai achando que já está marcado.
   const txt = {
-    confirmado: ['✅', 'Presença confirmada', 'Obrigado! O bispado já foi avisado.'],
+    confirmado: ['✅', 'Presença confirmada', 'Obrigado! O bispado já foi avisado.' + comoSeOnline(naTela?.id === id ? naTela : null)],
     reagendar:  ['🔄', 'Pedido registrado',
                  (quandoPedido
                    ? `Anotamos sua sugestão de <strong style="color:var(--text-corpo)">${esc(quandoPedido)}</strong>. `

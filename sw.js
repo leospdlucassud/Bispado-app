@@ -1,4 +1,4 @@
-const CACHE = 'bispado-app-v5.34.1';
+const CACHE = 'bispado-app-v5.35.0';
 const ASSETS = [
   '/',
   '/index.html',

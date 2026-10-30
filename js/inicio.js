@@ -23,7 +23,7 @@ import { dadosDosChamados, setFiltroChamados } from './chamados-ala.js';
 import { nomeCurto as nomeCurtoLcr, resumoDesignacoes } from './chamados-lcr.js';
 import { comNome } from './chamados.js';
 import { COR_STATUS, DADOS, cargoInfo, comAla, nomeDoResponsavel } from './config.js';
-import { avisarAceite, estadoDaEntrevista } from './convite-regras.js';
+import { avisarAceite, avisarMudancaDeComo, estadoDaEntrevista, modalidadeDe } from './convite-regras.js';
 import { dadosDoCrescimento, irParaSecao } from './crescimento.js';
 import { destaqueDoRumo, mesCurto } from './crescimento-lcr.js';
 import { nomeCurto, pendenciasDiscurso, registroDoDomingo, resumoDomingo } from './discursos-regras.js';
@@ -212,6 +212,7 @@ function renderEntrevistas(ag, d) {
         titulo: nomeEntrevista(e),
         sub: [
           e.sigiloso ? '' : esc(e.tipo),
+          modalidadeDe(e) === 'online' ? '💻 Online' : '',
           `👤 ${responsavel(e)}`,
           e.confirmacao ? selosConfirmacao(e) : '<span class="inicio-sem-conf">⏳ Sem confirmação</span>',
         ].filter(Boolean).join(' · '),
@@ -237,6 +238,11 @@ function pendencias(ag, d, cr) {
       cor: COR_STATUS.agendada, aba: 'agenda',
       titulo: `📨 Avisar o membro — <strong>${nomeEntrevista(e)}</strong>`,
       sub: `você aceitou o horário sugerido: ${quandoData(e.data, e.hora)}`,
+    })));
+    ag.ativas.filter(e => avisarMudancaDeComo(e) && !precisaReenviarConvite(e)).forEach(e => add(e, item({
+      cor: '#c9a84c', aba: 'agenda',
+      titulo: `📨 Avisar a mudança — <strong>${nomeEntrevista(e)}</strong>`,
+      sub: modalidadeDe(e) === 'online' ? 'agora é online: reenvie o convite' : 'agora é presencial: reenvie o convite',
     })));
     // com a nova data já passada, o que falta é registrar o resultado (regra abaixo)
     ag.ativas.filter(e => precisaReenviarConvite(e) && !(dataValida(e.data) && e.data < d.kHoje)).forEach(e => add(e, item({

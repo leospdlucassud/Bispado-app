@@ -8,7 +8,8 @@ import { renderChamadosAla } from './chamados-ala.js';
 import { reativarAbaAtual } from './app.js';
 import { ALA, API_AGENDA, CARGOS_INFO, COR_STATUS, DADOS, corDoCargo, nomeDoResponsavel } from './config.js';
 import {
-  ESTADOS_ABERTOS, TIPO_DESIGNACAO, aguardandoNovaData, avisarAceite, camposDaNovaData, camposDoEnvio, comoNoConvite,
+  ESTADOS_ABERTOS, MODALIDADES, TIPO_DESIGNACAO, aguardandoNovaData, avisarAceite, avisarMudancaDeComo, camposDaNovaData,
+  camposDoEnvio, comoNoConvite, fraseDoComo, linkOnlineSeguro, modalidadeDe,
   encerrada, estadoDaEntrevista, naoRealizadaPelaData, precisaReenviarConvite, primeiroNome, rotuloDoEstado, tipoNoConvite,
 } from './convite-regras.js';
 import { renderCrescimento } from './crescimento.js';
@@ -138,12 +139,14 @@ export function renderAgenda() {
         ${e.sigiloso?'<span class="selo-sigilo">🔒 Sigiloso</span>':''}
         ${e.acompanhar?'<span style="font-size:10px;--c:#fbbf24">🧭</span>':''}
         ${!vencida && precisaReenviarConvite(e)?'<span class="selo-reenviar" title="A data mudou depois do último convite">📨 Reenviar convite</span>':''}
+        ${!vencida && !precisaReenviarConvite(e) && avisarMudancaDeComo(e)?`<span class="selo-reenviar" title="Mudou depois do último convite">📨 Avise: agora é ${modalidadeDe(e) === 'online' ? 'online' : 'presencial'}</span>`:''}
         ${aguardandoNovaData(e)?'<span class="selo-reenviar" title="O membro pediu outra data: use Reagendar para fechar a nova">⏳ Defina a nova data</span>':''}
         ${avisarAceite(e)?'<span class="selo-reenviar" title="Você aceitou o horário que o membro sugeriu">📨 Avise o membro</span>':''}
         <span class="status-badge status-${est}">${esc(rotuloDoEstado(e, hojeKey))}</span>
       </div>
       <div class="ent-info">
         <span>📋 ${esc(e.tipo)}</span>
+        ${htmlDoComo(e)}
         <span style="--c:${corDoCargo(e.responsavel)}">👤 ${esc(comNome(nomeDoResponsavel(e.responsavel)))}</span>
         ${e.data?`<span>📅 ${formatarData(e.data)}${e.hora?` às ${e.hora}`:''}</span>`:''}
         <span>⚑ Prioridade ${PRIORIDADE[e.prioridade] || PRIORIDADE.normal}</span>
@@ -308,7 +311,7 @@ export async function registrarEnvioConvite(id, via, contato = null) {
 export function mensagemAceite(e) {
   const quando = formatarData(e.data) + (e.hora ? `, às ${e.hora}` : '');
   return `Olá, ${primeiroNome(e.membro)}! Aqui é o bispado da ${ALA}.\n\n` +
-    `Confirmamos ${comoNoConvite(tipoNoConvite(e)).frase} para ${quando}, como você sugeriu.\n\n` +
+    `Confirmamos ${comoNoConvite(tipoNoConvite(e)).frase} para ${quando}, como você sugeriu. ${fraseDoComo(e)}\n\n` +
     `Até lá!`;
 }
 
@@ -430,19 +433,28 @@ export function mensagemConvite(e) {
     ? formatarData(e.data) + (e.hora ? `, às ${e.hora}` : '')
     : 'em data a combinar';
   return `Olá, ${primeiroNome(e.membro)}! Aqui é o bispado da ${ALA}.\n\n` +
-    `Gostaríamos de marcar ${comoNoConvite(tipoNoConvite(e)).frase} para ${quando}.\n\n` +
+    `Gostaríamos de marcar ${comoNoConvite(tipoNoConvite(e)).frase} para ${quando}. ${fraseDoComo(e)}\n\n` +
     `Por favor, responda por este link:\n${linkConfirmacao(e.id)}\n\n` +
     `Obrigado!`;
 }
 
 export const assuntoConvite = e => comoNoConvite(tipoNoConvite(e)).assunto;
 
+// "📍 Presencial" ou "💻 Online", com o link da chamada para o bispado abrir
+function htmlDoComo(e) {
+  if (modalidadeDe(e) === 'presencial') return '<span>📍 Presencial</span>';
+  const link = linkOnlineSeguro(e.linkOnline);
+  return link
+    ? `<span>💻 Online · <a href="${esc(link)}" target="_blank" rel="noopener" style="color:var(--gold)">abrir a chamada</a></span>`
+    : '<span>💻 Online · sem link ainda</span>';
+}
+
 // Com telefone, o convite continua a um toque: link direto do WhatsApp.
 // "Outro meio" abre o diálogo (e-mail, copiar link, outro número) — e é o
 // único caminho de quem não tem telefone cadastrado, que antes ficava sem botão.
 export function botaoConvite(e) {
   const tel = digitosTelefone(e.telefone || telefoneDoMembro(e.membro));
-  const rotulo = precisaReenviarConvite(e) ? `${ico('send')} Reenviar convite` : `${ico('message-circle')} Convidar`;
+  const rotulo = precisaReenviarConvite(e) || avisarMudancaDeComo(e) ? `${ico('send')} Reenviar convite` : `${ico('message-circle')} Convidar`;
   if (!tel) {
     return `<button class="btn-secondary" data-act="convite" data-id="${e.id}"
               style="--c:#25d366;border-color:#25d366">${rotulo}</button>`;
@@ -476,8 +488,9 @@ function acoesDoCard(e, vencida = false) {
   } else if (aceitou) {
     frente = `<button class="btn-secondary btn-destaque" data-act="aviso-aceite" data-id="${id}">${ico('send')} Enviar a confirmação</button>${realizada}${reagendar}`;
   } else if (agendado) {
-    // horário confirmado: o convite já cumpriu o papel (fica no Mais)
-    frente = realizada + reagendar;
+    // horário confirmado: o convite já cumpriu o papel (fica no Mais) — a não ser
+    // que tenha mudado de presencial para online (ou o link) depois dele
+    frente = (avisarMudancaDeComo(e) ? botaoConvite(e) : '') + realizada + reagendar;
   } else if (aberta) {
     frente = botaoConvite(e) + realizada + reagendar;
   }
@@ -578,6 +591,18 @@ export function abrirModalAgenda(id, prefill = null) {
                data-auto="${esc(telInicial)}">
       </div>
     </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="ag-modalidade">Como será</label>
+        <select class="form-select" id="ag-modalidade">
+          ${Object.entries(MODALIDADES).map(([v, r]) => `<option value="${v}" ${modalidadeDe(e) === v ? 'selected' : ''}>${v === 'online' ? '💻' : '📍'} ${r}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group" id="ag-link-grupo" ${modalidadeDe(e) === 'online' ? '' : 'hidden'}>
+        <label for="ag-link">Link da chamada <span style="opacity:.6;font-weight:400">(opcional)</span></label>
+        <input type="url" class="form-input" id="ag-link" maxlength="500" placeholder="https://meet.google.com/…" value="${esc(e?.linkOnline || '')}">
+      </div>
+    </div>
     <div class="form-group">
       <label>Observações (máx. 100 caracteres)</label>
       <input type="text" class="form-input" id="ag-obs" maxlength="100" placeholder="Observações livres…" value="${esc(ini.obs||'')}">
@@ -607,11 +632,16 @@ export async function salvarEntrevista(id) {
     data: document.getElementById('ag-data').value,
     hora: document.getElementById('ag-hora').value,
     telefone: document.getElementById('ag-telefone').value.trim(),
+    modalidade: document.getElementById('ag-modalidade').value === 'online' ? 'online' : 'presencial',
     prioridade: document.getElementById('ag-prioridade').value,
     obs: document.getElementById('ag-obs').value,
     acompanhar: document.getElementById('ag-acompanhar').checked,
     sigiloso: document.getElementById('ag-sigiloso').checked,
   };
+  // sem link, a mensagem diz que ele vai antes do horário; link torto não passa
+  const linkDigitado = payload.modalidade === 'online' ? (document.getElementById('ag-link')?.value || '').trim() : '';
+  payload.linkOnline = linkOnlineSeguro(linkDigitado);
+  if (linkDigitado && !payload.linkOnline) return toast('Link da chamada inválido — use um endereço que comece com https://');
   const atual = id ? DADOS.agenda.find(x => x.id === id) : null;
   if (atual) Object.assign(payload, efeitosDaEdicao(atual, payload));
   // pela edição também dá para aceitar a data que o membro sugeriu
@@ -652,11 +682,19 @@ export async function salvarEntrevista(id) {
 //    (o mesmo do botão Reagendar, ver camposDaNovaData); sem isto o card seguia
 //    "✅ Confirmou" para uma data que o membro nem conhece. Sem nova data, a
 //    resposta deixa de valer.
+//  - Presencial ↔ online (ou o link) mudou depois do convite: o card pede para
+//    avisar o membro (avisarMudancaDeComo); a resposta dele continua valendo.
 function efeitosDaEdicao(atual, payload) {
   if (encerrada(atual)) return {};
+  const mudouComo = payload.modalidade !== modalidadeDe(atual) || (payload.linkOnline || '') !== (atual.linkOnline || '');
+  const aviso = mudouComo && (atual.convidadoEm || atual.confirmacaoEnviadaEm) ? { comoMudouEm: new Date().toISOString() } : {};
+  return { ...aviso, ...efeitosDoQuando(atual, payload) };
+}
+
+function efeitosDoQuando(atual, payload) {
   const respostaZerada = { confirmacao: '', confirmadoEm: '', sugestaoData: '', sugestaoHora: '', aceitoEm: '' };
   if (payload.membro !== atual.membro) {
-    return { ...respostaZerada, convidadoEm: '', convidadoPara: '', tentativas: 0, negociando: false,
+    return { ...respostaZerada, convidadoEm: '', convidadoPara: '', tentativas: 0, negociando: false, comoMudouEm: '',
       confirmacaoEnviadaEm: '', email: '' };
   }
   const mudouQuando = payload.data !== (atual.data || '') || payload.hora !== (atual.hora || '');
@@ -803,6 +841,12 @@ function ligarAgenda() {
   // tocar no campo do link ja seleciona tudo, para copiar na mao
   document.getElementById('modal-agenda')?.addEventListener('focusin', ev => {
     if (ev.target.id === 'conv-link' || ev.target.id === 'aceite-msg') ev.target.select();
+  });
+
+  document.getElementById('modal-agenda')?.addEventListener('change', ev => {
+    if (ev.target.id !== 'ag-modalidade') return;
+    const grupo = document.getElementById('ag-link-grupo');
+    if (grupo) grupo.hidden = ev.target.value !== 'online';
   });
 
   // Trocar o membro no formulário traz o WhatsApp do novo membro — mas só se o
