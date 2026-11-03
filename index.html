@@ -96,6 +96,7 @@
   <button class="tab-btn" data-tab="notas"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-notebook-pen"/></svg> Notas</button>
   <button class="tab-btn" data-tab="ordenancas"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-hand-heart"/></svg> Ordenanças</button>
   <button class="tab-btn" data-tab="manual"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-book-open"/></svg> Manual</button>
+  <button class="tab-btn" data-tab="ferramentas"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-wrench"/></svg> Ferramentas</button>
   <button class="tab-btn" data-tab="como-usar"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-circle-help"/></svg> Como Usar</button>
 </div>
 
@@ -122,6 +123,7 @@
     <optgroup label="Consulta">
       <option value="ordenancas">🕊️ Ordenanças</option>
       <option value="manual">📖 Manual</option>
+      <option value="ferramentas">🛠️ Ferramentas</option>
       <option value="como-usar">ℹ️ Como Usar</option>
     </optgroup>
   </select>
@@ -212,6 +214,7 @@
       <button type="button" class="link-card" style="--lc:#60a5fa" data-act="ir" data-aba="notas"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-notebook-pen"/></svg></span><span class="lc-txt"><span class="lc-title">Notas</span><span class="lc-sub">Privadas neste aparelho ou compartilhadas</span></span></button>
       <button type="button" class="link-card" style="--lc:#a78bfa" data-act="ir" data-aba="ordenancas"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-hand-heart"/></svg></span><span class="lc-txt"><span class="lc-title">Ordenanças</span><span class="lc-sub">Palavras das ordenanças e roteiros de entrevista</span></span></button>
       <button type="button" class="link-card" style="--lc:#c9a84c" data-act="ir" data-aba="manual"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-book-open"/></svg></span><span class="lc-txt"><span class="lc-title">Manual</span><span class="lc-sub">Manual Geral e links oficiais</span></span></button>
+      <button type="button" class="link-card" style="--lc:#2dd4bf" data-act="ir" data-aba="ferramentas"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-wrench"/></svg></span><span class="lc-txt"><span class="lc-title">Ferramentas</span><span class="lc-sub">Magnifique seu Chamado, Caravana ao Templo e iSUD</span></span></button>
       <button type="button" class="link-card" style="--lc:#94a3b8" data-act="ir" data-aba="como-usar"><span class="lc-ico"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-circle-help"/></svg></span><span class="lc-txt"><span class="lc-title">Como Usar</span><span class="lc-sub">Guia rápido do painel</span></span></button>
     </div>
   </div>
@@ -932,6 +935,20 @@
   </div>
 </div>
 
+<!-- ========== FERRAMENTAS ==========
+     Os apps da ala, fora deste painel: cada link abre o app numa aba nova. -->
+<div class="panel" id="panel-ferramentas">
+  <div style="text-align:center;margin-bottom:18px">
+    <h2 style="--c:#2dd4bf;font-size:18px"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-wrench"/></svg> Ferramentas</h2>
+    <p style="color:var(--text2);font-size:12px;margin-top:4px">Outros apps da ala — cada um abre numa aba nova</p>
+  </div>
+  <div class="link-grid ferramentas-grid">
+    <a class="link-card" style="--lc:#c9a84c" href="https://magnifiqueseuchamado.netlify.app/#/" target="_blank" rel="noopener"><span class="lc-ico" aria-hidden="true">✨</span><span class="lc-txt"><span class="lc-title">Magnifique seu Chamado ↗</span><span class="lc-sub">Apoio para servir bem no chamado</span></span></a>
+    <a class="link-card" style="--lc:#a78bfa" href="https://caravanadaala.vercel.app/" target="_blank" rel="noopener"><span class="lc-ico" aria-hidden="true">🛕</span><span class="lc-txt"><span class="lc-title">Caravana ao Templo ↗</span><span class="lc-sub">Caravanas da ala ao templo: inscrições, pendências, fila de espera e embarque</span></span></a>
+    <a class="link-card" style="--lc:#60a5fa" href="https://isudapp.netlify.app/#inicio" target="_blank" rel="noopener"><span class="lc-ico" aria-hidden="true">🙌</span><span class="lc-txt"><span class="lc-title">iSUD ↗</span><span class="lc-sub">Obra missionária: almoço com os missionários e disponibilidade para lições</span></span></a>
+  </div>
+</div>
+
 <div class="panel" id="panel-como-usar">
   <div style="text-align:center;margin-bottom:20px">
     <h2 style="--c:#c9a84c;font-size:18px"><svg class="ico" aria-hidden="true"><use href="/icons/sprite.svg#i-circle-help"/></svg> Como Usar o Painel</h2>
@@ -1102,6 +1119,11 @@
     <div class="como-usar-item">Acesso direto ao <strong>Manual Geral</strong> e aos capítulos mais usados pelo bispado.</div>
     <div class="como-usar-item">Use o campo de filtro para achar um capítulo por número ou assunto.</div>
     <div class="como-usar-item">Também reúne atalhos para LCR, Biblioteca do Evangelho, Escrituras, Hinos, Templos e FamilySearch.</div>
+  </div>
+
+  <div class="como-usar-section">
+    <div class="como-usar-titulo" style="--c:#2dd4bf">🛠️ Ferramentas</div>
+    <div class="como-usar-item">Atalhos para os outros apps da ala: <strong>Magnifique seu Chamado</strong>, <strong>Caravana ao Templo</strong> e <strong>iSUD</strong> (obra missionária). Cada um abre numa aba nova; o painel continua aberto aqui.</div>
   </div>
 
   <div class="como-usar-section">

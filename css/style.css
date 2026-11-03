@@ -285,6 +285,8 @@
   .tab-btn[data-tab="agenda"].active { background:#34d399;color:#0d1b2a; }
   .tab-btn[data-tab="calendario"] { color:#60a5fa;border-color:#60a5fa; }
   .tab-btn[data-tab="calendario"].active { background:#60a5fa;color:#0d1b2a; }
+  .tab-btn[data-tab="ferramentas"] { color:#2dd4bf;border-color:#2dd4bf; }
+  .tab-btn[data-tab="ferramentas"].active { background:#2dd4bf;color:#0d1b2a; }
   .tab-btn[data-tab="como-usar"] { color:#94a3b8;border-color:#94a3b8; }
   .tab-btn[data-tab="como-usar"].active { background:#94a3b8;color:#0d1b2a; }
 
