@@ -33,6 +33,8 @@ import './offline-pwa.js';
 import './pendentes.js';
 import './tema.js';
 import './agenda.js';
+import './lembretes-regras.js';
+import './lembretes.js';
 import './acompanhamento.js';
 import './reunioes.js';
 import './designacoes.js';

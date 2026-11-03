@@ -1,4 +1,4 @@
-const CACHE = 'bispado-app-v5.35.1';
+const CACHE = 'bispado-app-v5.36.0';
 const ASSETS = [
   '/',
   '/index.html',
@@ -15,6 +15,8 @@ const ASSETS = [
   // cache) o apagavam, e a ata deixava de sair sem sinal
   '/vendor/jspdf.umd.min.js',
   '/js/acompanhamento.js',
+  '/js/lembretes-regras.js',
+  '/js/lembretes.js',
   '/js/agenda.js',
   '/js/api.js',
   '/js/app.js',
@@ -142,4 +144,36 @@ self.addEventListener('fetch', e => {
       return cached || network;
     })
   );
+});
+
+// Lembretes do Acompanhamento (netlify/functions/lembretes.js manda; o texto
+// chega cifrado e o navegador entrega aqui já aberto). Sem dados, não mostra
+// nada — mas o navegador exige mostrar algo: vai um aviso genérico.
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (err) { d = {}; }
+  const url = typeof d.url === 'string' && d.url.startsWith('/') ? d.url : '/#acompanhamento';
+  e.waitUntil(self.registration.showNotification(String(d.titulo || '🧭 Lembrete de acompanhamento'), {
+    body: String(d.corpo || 'Abra o app para ver.'),
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: typeof d.tag === 'string' ? d.tag : undefined,
+    renotify: !!d.tag,
+    data: { url },
+  }));
+});
+
+// Tocar na notificação abre (ou traz para a frente) o app na aba Acompanhamento
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = new URL(e.notification.data?.url || '/#acompanhamento', self.location.origin).href;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(janelas => {
+    const aberta = janelas.find(j => new URL(j.url).origin === self.location.origin);
+    // já aberto: o app troca de aba (lembretes.js) — sem recarregar
+    if (aberta) {
+      aberta.postMessage({ type: 'ABRIR_ABA', aba: new URL(url).hash.slice(1) || 'acompanhamento' });
+      return aberta.focus().catch(() => self.clients.openWindow(url));
+    }
+    return self.clients.openWindow(url);
+  }));
 });

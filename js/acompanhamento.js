@@ -6,11 +6,100 @@
 import { renderAgenda } from './agenda.js';
 import { apiFetch, atualizarUltimaSinc, avisarPendente, idProvisorioDo, setSyncStatus } from './api.js';
 import { API_AGENDA, CARGOS, DADOS, nomeDoResponsavel } from './config.js';
+import { REPETICOES, proximoToque, repeticaoValida } from './lembretes-regras.js';
+import { renderAvisoLembretes } from './lembretes.js';
 import { MEMBROS } from './dados-membros.js';
 import { confirmar, pedirTexto } from './dialogo.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { USUARIO, podeVer, toast } from './usuario.js';
 import { dataLocal, esc, formatarData } from './utils.js';
+
+// "⏰ 05/11 às 19:00 · toda semana · Bispo, 1º Conselheiro" — o próximo toque,
+// na hora deste aparelho
+export function rotuloDoLembrete(ref) {
+  const t = Date.parse(ref?.lembreteEm || '');
+  if (!Number.isFinite(t)) return '';
+  const d = new Date(t);
+  const quando = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' às '
+    + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const rep = repeticaoValida(ref.lembreteRepetir);
+  const cargos = Array.isArray(ref.lembreteCargos) && ref.lembreteCargos.length ? ref.lembreteCargos.join(', ') : 'todo o bispado';
+  return `⏰ ${quando}${rep ? ' · ' + REPETICOES[rep].toLowerCase() : ''} · ${cargos}`;
+}
+
+// Os campos do lembrete lidos do formulário (o do card ou o do novo
+// acompanhamento). Sem data, sem lembrete. A hora é a deste aparelho.
+function lerLembrete(prefixo) {
+  const data = document.getElementById(prefixo + '-lem-data')?.value || '';
+  const hora = document.getElementById(prefixo + '-lem-hora')?.value || '09:00';
+  if (!data) return { lembreteEm: '', lembreteRepetir: '', lembreteCargos: [] };
+  const em = new Date(`${data}T${hora}`);
+  if (Number.isNaN(em.getTime())) return null;
+  const repetir = repeticaoValida(document.getElementById(prefixo + '-lem-rep')?.value || '');
+  // já passou e não repete: toca na próxima rodada (até 15 min); repete: o próximo
+  const iso = em.toISOString();
+  const lembreteEm = repetir && em.getTime() <= Date.now() ? proximoToque(iso, repetir, Date.now()) : iso;
+  const lembreteCargos = [...document.querySelectorAll(`[name="${prefixo}-lem-cargo"]:checked`)].map(c => c.value).filter(c => CARGOS.includes(c));
+  return { lembreteEm, lembreteRepetir: repetir, lembreteCargos };
+}
+
+const doisDig = n => String(n).padStart(2, '0');
+// os campos do lembrete; `ref` traz o que já está marcado, `padrao` os cargos sugeridos
+function camposDoLembrete(prefixo, ref = {}, padrao = []) {
+  const t = Date.parse(ref.lembreteEm || '');
+  const d = Number.isFinite(t) ? new Date(t) : null;
+  const data = d ? `${d.getFullYear()}-${doisDig(d.getMonth() + 1)}-${doisDig(d.getDate())}` : '';
+  const hora = d ? `${doisDig(d.getHours())}:${doisDig(d.getMinutes())}` : '09:00';
+  const marcados = Array.isArray(ref.lembreteCargos) && ref.lembreteCargos.length ? ref.lembreteCargos : padrao;
+  return `
+    <div class="form-row">
+      <div class="form-group">
+        <label for="${prefixo}-lem-data">Data</label>
+        <input type="date" class="form-input" id="${prefixo}-lem-data" value="${data}">
+      </div>
+      <div class="form-group">
+        <label for="${prefixo}-lem-hora">Horário</label>
+        <input type="time" class="form-input" id="${prefixo}-lem-hora" value="${hora}">
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="${prefixo}-lem-rep">Repetir</label>
+      <select class="form-select" id="${prefixo}-lem-rep">
+        ${Object.entries(REPETICOES).map(([v, r]) => `<option value="${v}" ${repeticaoValida(ref.lembreteRepetir) === v ? 'selected' : ''}>${r}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Avisar no celular de</label>
+      <div class="lem-cargos">${CARGOS.map(c => `<label><input type="checkbox" name="${prefixo}-lem-cargo" value="${esc(c)}" ${marcados.includes(c) ? 'checked' : ''}> ${esc(c)}</label>`).join('')}</div>
+      <div class="ficha-dica">Nenhum marcado: avisa todo o bispado. Só chega nos aparelhos que ligaram os lembretes.</div>
+    </div>`;
+}
+
+// O despertador do card: quando toca, se repete, em quais celulares
+export function abrirLembreteAcomp(origem, id) {
+  const item = acharAcomp(origem, id);
+  if (!item) return;
+  const resp = origem === 'entrevista' ? nomeDoResponsavel(item.responsavel) : item.responsavel;
+  const padrao = [...new Set([resp, USUARIO].filter(c => CARGOS.includes(c)))];
+  document.getElementById('modal-acomp-content').innerHTML = `
+    <h3>⏰ Lembrete <button class="modal-close" data-act="fechar">✕</button></h3>
+    <p style="color:var(--text2);font-size:12.5px;margin-bottom:12px">${esc(origem === 'entrevista' ? item.membro : item.titulo)}${item.sigiloso ? ' · 🔒 o aviso não mostra o nome' : ''}</p>
+    ${camposDoLembrete('lc', item, padrao)}
+    <button class="btn-primary" data-act="lembrete-salvar" data-origem="${origem}" data-id="${esc(id)}">💾 Salvar lembrete</button>
+    ${item.lembreteEm ? `<button class="btn-secondary" style="width:100%;margin-top:8px" data-act="lembrete-tirar" data-origem="${origem}" data-id="${esc(id)}">Tirar o lembrete</button>` : ''}`;
+  abrirModal('modal-acomp');
+}
+
+function salvarLembreteAcomp(origem, id, tirar = false) {
+  const item = acharAcomp(origem, id);
+  if (!item) return;
+  const campos = tirar ? { lembreteEm: '', lembreteRepetir: '', lembreteCargos: [] } : lerLembrete('lc');
+  if (!campos) return toast('Data ou horário inválido');
+  if (!tirar && !campos.lembreteEm) return toast('Escolha a data do lembrete');
+  fecharModal('modal-acomp');
+  toast(tirar ? 'Lembrete tirado' : '⏰ Lembrete marcado');
+  salvarAcomp(origem, item, campos);
+}
 
 export const API_ACOMP = '/api/acompanhamentos';
 export let filAcomp = 'abertos';
@@ -53,6 +142,7 @@ export function listaAcompanhamentos() {
 export function renderAcompanhamentos() {
   const el = document.getElementById('lista-acomp');
   if (!el) return;
+  renderAvisoLembretes();
   const busca = (document.getElementById('busca-acomp')?.value || '').toLowerCase();
   const todos = listaAcompanhamentos();
 
@@ -100,10 +190,12 @@ export function renderAcompanhamentos() {
           <div style="font-size:11.5px;color:var(--text2);margin-top:3px">
             ${a.assunto ? esc(a.assunto) : ''}${a.responsavel ? ` · 👤 ${esc(a.responsavel)}` : ''}${a.data ? ` · 📅 ${formatarData(a.data)}` : ''}
           </div>
+          ${a.situacao !== 'concluido' && rotuloDoLembrete(a.ref) ? `<div class="acomp-lembrete">${esc(rotuloDoLembrete(a.ref))}</div>` : ''}
         </div>
         <div style="display:flex;gap:5px;flex-shrink:0">
           <button class="btn-secondary" style="font-size:11px;padding:4px 9px" data-act="registro" data-origem="${a.origem}" data-id="${a.id}">✚ Registro</button>
           <button class="btn-secondary" style="font-size:11px;padding:4px 9px" data-act="situacao" data-origem="${a.origem}" data-id="${a.id}">${a.situacao==='concluido'?'↩':'✓'}</button>
+          ${a.situacao !== 'concluido' ? `<button class="btn-secondary" title="Lembrete no celular" style="font-size:11px;padding:4px 9px${a.ref.lembreteEm ? ';--c:#fbbf24;border-color:#fbbf24' : ''}" data-act="lembrete" data-origem="${a.origem}" data-id="${a.id}">⏰</button>` : ''}
           <button class="btn-secondary" title="Assunto sigiloso" style="font-size:11px;padding:4px 9px${a.sigiloso?';--c:#e05555;border-color:#e05555':''}" data-act="sigilo" data-origem="${a.origem}" data-id="${a.id}">${a.sigiloso?'🔒':'🔓'}</button>
           ${a.origem === 'avulso' ? `<button class="btn-danger" data-act="excluir" data-id="${a.id}">🗑</button>` : ''}
         </div>
@@ -214,6 +306,10 @@ export function abrirModalAcomp() {
       <label>Primeiro registro (opcional)</label>
       <textarea class="form-input" id="ac-registro" rows="2" placeholder="O que foi conversado ou combinado…" style="resize:vertical"></textarea>
     </div>
+    <details class="lem-novo">
+      <summary>⏰ Lembrete no celular (opcional)</summary>
+      ${camposDoLembrete('ac', {}, USUARIO && CARGOS.includes(USUARIO) ? [USUARIO] : [])}
+    </details>
     <div class="form-group" style="background:rgba(255,255,255,.03);border-radius:10px;padding:10px 12px">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-corpo)">
         <input type="checkbox" id="ac-sigiloso" style="width:16px;height:16px;accent-color:#e05555">
@@ -228,7 +324,10 @@ export async function salvarNovoAcomp() {
   const titulo = document.getElementById('ac-titulo').value.trim();
   if (!titulo) return toast('Informe a pessoa ou a situação');
   const primeiro = document.getElementById('ac-registro').value.trim();
+  const lembrete = lerLembrete('ac');
+  if (!lembrete) return toast('Data ou horário do lembrete inválido');
   const item = {
+    ...lembrete,
     titulo,
     assunto: document.getElementById('ac-assunto').value.trim(),
     responsavel: document.getElementById('ac-resp').value,
@@ -269,6 +368,7 @@ function ligarAcompanhamento() {
       case 'situacao': alternarSituacaoAcomp(origem, id); break;
       case 'sigilo':   toggleSigiloAcomp(origem, id); break;
       case 'excluir':  excluirAcomp(id); break;
+      case 'lembrete': abrirLembreteAcomp(origem, id); break;
     }
   });
 
@@ -277,6 +377,8 @@ function ligarAcompanhamento() {
     if (!btn) return;
     if (btn.dataset.act === 'fechar') fecharModal('modal-acomp');
     else if (btn.dataset.act === 'salvar') salvarNovoAcomp();
+    else if (btn.dataset.act === 'lembrete-salvar') salvarLembreteAcomp(btn.dataset.origem, btn.dataset.id);
+    else if (btn.dataset.act === 'lembrete-tirar') salvarLembreteAcomp(btn.dataset.origem, btn.dataset.id, true);
   });
 }
 ligarAcompanhamento();

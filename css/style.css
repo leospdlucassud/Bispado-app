@@ -46,6 +46,19 @@
   [data-theme="light"] .selo-conf-reagendar { color:#9a6700; }
   .acomp-card { background:var(--bg2);border-radius:12px;padding:14px;margin-bottom:10px;border-left:3px solid #94a3b8; }
   [data-theme="light"] .acomp-card { background:var(--bg2);border:1px solid var(--border);border-left:3px solid #94a3b8; }
+  .acomp-lembrete { font-size:11.5px; color:#fbbf24; margin-top:4px; }
+  [data-theme="light"] .acomp-lembrete { color:#92400e; }
+  .acomp-lembretes { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; background:rgba(251,191,36,.07); border:1px solid rgba(251,191,36,.3); border-radius:12px; padding:10px 12px; margin-bottom:12px; font-size:12.5px; color:var(--text-corpo); line-height:1.5; }
+  .acomp-lembretes.ligado { background:rgba(52,211,153,.07); border-color:rgba(52,211,153,.3); }
+  .acomp-lembretes:empty { display:none; }
+  .acomp-lembretes-txt { flex:1 1 220px; }
+  .acomp-lembretes-acoes { display:flex; gap:6px; flex-wrap:wrap; }
+  .lem-cargos { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:13px; color:var(--text-corpo); }
+  .lem-cargos label { display:flex; align-items:center; gap:6px; cursor:pointer; min-height:32px; }
+  .lem-cargos input { width:16px; height:16px; accent-color:#fbbf24; }
+  .lem-novo { margin-bottom:12px; background:rgba(255,255,255,.03); border-radius:10px; padding:10px 12px; }
+  .lem-novo summary { cursor:pointer; font-size:13px; color:var(--text-corpo); }
+  .lem-novo[open] summary { margin-bottom:10px; }
   .acomp-registro { font-size:11.5px;color:var(--text-corpo);padding:6px 0 6px 12px;border-left:2px solid rgba(148,163,184,.35);margin-top:6px;line-height:1.6; }
   [data-theme="light"] .acomp-registro { color:var(--text2); }
 
