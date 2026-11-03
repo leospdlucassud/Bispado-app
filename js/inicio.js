@@ -5,7 +5,8 @@
 //
 // Sigilo: entrevistas vêm de resumoAgenda() e acompanhamentos de
 // listaAcompanhamentos(), que já aplicam podeVer. E mesmo para o bispo a
-// entrevista sigilosa aparece sem nome e sem tipo: é a tela que fica aberta.
+// entrevista (ou o acompanhamento) sigilosa aparece sem nome e sem assunto:
+// é a tela que fica aberta.
 //
 // Redesenha em seis pontos: boot e volta à aba (app.js), fim de cada carga
 // (api.js), troca de cargo (usuario.js), dos nomes dos chamados (chamados.js) e
@@ -15,7 +16,7 @@
 // Vamos crescer a Ala (dadosDoCrescimento, só números). O item só aparece com a
 // sessão de Bispo ou ADM: a lista por pessoa é a parte privada do servidor.
 // =============================================
-import { listaAcompanhamentos } from './acompanhamento.js';
+import { listaAcompanhamentos, rotuloDoLembrete } from './acompanhamento.js';
 import { aguardandoNovaData, precisaReenviarConvite, resumoAgenda, selosConfirmacao } from './agenda.js';
 import { switchTab } from './app.js';
 import { DIAS_SEMANA, EVENTOS_FIXOS, MESES } from './calendario.js';
@@ -28,19 +29,20 @@ import { dadosDoCrescimento, irParaSecao } from './crescimento.js';
 import { destaqueDoRumo, mesCurto } from './crescimento-lcr.js';
 import { nomeCurto, pendenciasDiscurso, registroDoDomingo, resumoDomingo } from './discursos-regras.js';
 import { barraDeMeta, fmt } from './graficos.js';
+import { tipoReuniao } from './reunioes.js';
 import { irParaDomingo } from './sacramental.js';
 import { papelDaSessao } from './sessao.js';
 import { USUARIO, abrirEscolhaCargo } from './usuario.js';
 import { corSegura, dataLocal, esc, formatarData } from './utils.js';
 
 const DIAS_LONGOS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-const MAX_ENTREVISTAS = 5, MAX_ATENCAO = 6, MAX_EVENTOS = 6;
+const MAX_ENTREVISTAS = 5, MAX_ATENCAO = 6, MAX_EVENTOS = 6, MAX_ACOMP = 6, MAX_ITENS_REUNIAO = 8;
 
 // Quais coleções já vieram do servidor nesta sessão. O app não guarda dados no
 // aparelho: sem conexão as listas ficam vazias, e sem este controle a tela
 // diria "nenhuma pendência" sem ter olhado nada.
 let cargaTerminou = false;
-const carregado = { agenda: false, designacoes: false, eventos: false, sacramentais: false, acomp: false };
+const carregado = { agenda: false, designacoes: false, eventos: false, sacramentais: false, acomp: false, reunioes: false };
 
 // Carga avulsa de uma coleção, fora do carregarTudo (a Sacramental recarrega
 // ao abrir a aba). Não redesenha: quem está na outra aba volta pelo switchTab.
@@ -135,6 +137,8 @@ export function renderInicio() {
   renderMeu(ag);
   renderEntrevistas(ag, d);
   renderAtencao(atencao);
+  renderAcompAbertos();
+  renderItensReunioes(d);
   renderRumo(cr);
   renderSemana(d);
 }
@@ -385,6 +389,61 @@ function renderAtencao({ itens, faltando }) {
   preencher('inicio-atencao', itens.slice(0, MAX_ATENCAO).join('')
     + (itens.length > MAX_ATENCAO ? mudo(`…e mais ${itens.length - MAX_ATENCAO}`) : '')
     + (aviso ? mudo('📡 ' + aviso) : ''));
+}
+
+// Os cards do Acompanhamento ainda em aberto: primeiro os com lembrete (o mais
+// próximo antes), depois os mais recentes. Os que vêm de entrevista dependem
+// também da agenda.
+function renderAcompAbertos() {
+  if (!cargaTerminou) return preencher('inicio-acomp', CARREGANDO);
+  if (!carregado.acomp && !carregado.agenda) return preencher('inicio-acomp', semServidor('Os acompanhamentos ainda não vieram do servidor'));
+  const ordem = a => [Date.parse(a.ref.lembreteEm || '') || Infinity, a.data || ''];
+  const abertos = listaAcompanhamentos().filter(a => a.situacao !== 'concluido').sort((a, b) => {
+    const [la, da] = ordem(a), [lb, db] = ordem(b);
+    return la !== lb ? la - lb : db.localeCompare(da);
+  });
+  let html = abertos.length
+    ? abertos.slice(0, MAX_ACOMP).map(a => {
+        const ultimo = [...a.registros].map(r => r.data || '').filter(dataValida).sort().pop();
+        return item({
+          cor: a.sigiloso ? '#e05555' : '#fbbf24', aba: 'acompanhamento',
+          titulo: a.sigiloso ? '🔒 Acompanhamento sigiloso' : esc(a.titulo),
+          sub: [
+            a.sigiloso ? '' : esc(a.assunto),
+            a.responsavel ? `👤 ${esc(a.responsavel)}` : '',
+            rotuloDoLembrete(a.ref) ? esc(rotuloDoLembrete(a.ref)) : '',
+            ultimo ? `último registro em ${esc(formatarData(ultimo))}` : 'sem registros ainda',
+          ].filter(Boolean).join(' · '),
+        });
+      }).join('')
+    : vazio('✅ Nenhum acompanhamento em aberto');
+  if (abertos.length > MAX_ACOMP) html += verMais(`Ver os ${abertos.length} no Acompanhamento`, 'acompanhamento');
+  if (!carregado.acomp || !carregado.agenda) html += mudo('📡 Parte dos acompanhamentos ainda não veio do servidor');
+  preencher('inicio-acomp', html);
+}
+
+// Os itens de ação das atas ainda não marcados como feitos, dos mais antigos
+// (os que esperam há mais tempo) para os mais novos
+function renderItensReunioes(d) {
+  if (!cargaTerminou) return preencher('inicio-reunioes', CARREGANDO);
+  if (!carregado.reunioes) return preencher('inicio-reunioes', semServidor('As reuniões ainda não vieram do servidor'));
+  const itens = (DADOS.reunioes || []).flatMap(r => (Array.isArray(r.itens) ? r.itens : [])
+    .filter(i => i && !i.feito && String(i.texto || '').trim())
+    .map(i => ({ r, texto: String(i.texto).trim() })))
+    .sort((a, b) => String(a.r.data || '').localeCompare(String(b.r.data || '')));
+  let html = itens.length
+    ? itens.slice(0, MAX_ITENS_REUNIAO).map(({ r, texto }) => {
+        const t = tipoReuniao(r.tipo);
+        return item({
+          cor: corSegura(t.c), aba: 'reuniao',
+          quando: dataValida(r.data) ? esc(rotuloDia(r.data, d)) : '',
+          titulo: esc(texto),
+          sub: esc(t.r),
+        });
+      }).join('')
+    : vazio('✅ Nenhum item de reunião em aberto');
+  if (itens.length > MAX_ITENS_REUNIAO) html += verMais(`Ver os ${itens.length} itens em Reuniões`, 'reuniao');
+  preencher('inicio-reunioes', html);
 }
 
 // "Rumo a duas alas" (aba Vamos crescer a Ala) em dois números que animam:

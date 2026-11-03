@@ -281,8 +281,8 @@ async function carregarTudo() {
   // A aba Vamos crescer a Ala também: o quadro (participantes, pirâmide), os
   // chamados (liderança) e as atas (a frequência da sacramental)
   renderCrescimento();
-  const [agenda, , designacoes, eventos, sacramentais, acomp] = r;
-  inicioAposCarga({ agenda, designacoes, eventos, sacramentais, acomp });
+  const [agenda, reunioes, designacoes, eventos, sacramentais, acomp] = r;
+  inicioAposCarga({ agenda, reunioes, designacoes, eventos, sacramentais, acomp });
   return okChamados && okMembros && okChamadosAla && okCrescimento && r.every(Boolean);
 }
 
