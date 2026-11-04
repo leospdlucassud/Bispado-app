@@ -6,7 +6,7 @@
 import { ALA, DADOS } from './config.js';
 import { estadoDaVaga, minutosDaVaga, nomeNatural, tipoDe } from './discursos-regras.js';
 import { tipoReuniao } from './reunioes.js';
-import { nomeArquivoAta, paragrafos, presentes, rotuloPresenca, valorParaPdf } from './reunioes-regras.js';
+import { nomeArquivoAta, paragrafos, presentes, rotuloPresenca, tituloPresenca, valorParaPdf } from './reunioes-regras.js';
 import { ATA_ORDEM, campoAta, formatDateSac, getSacPorData, hinoDispensado } from './sacramental.js';
 import { toast } from './usuario.js';
 import { carregarScript, dataLocal, formatarData } from './utils.js';
@@ -305,7 +305,7 @@ async function ataDeReuniao(id) {
     }))
     : [];
   if (chamados.length) {
-    titulo('Presença do bispado', alturaItem(chamados[0].partes));
+    titulo(tituloPresenca(r.tipo), alturaItem(chamados[0].partes));
     chamados.forEach(c => itemMarcado(c.partes, c.sim, !c.sim));
   }
 

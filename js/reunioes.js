@@ -3,20 +3,23 @@
 // =============================================
 // Tipos de reunião administrados pelo bispado — fonte única para filtros e formulário
 import { apiFetch, atualizarUltimaSinc, avisarPendente, idProvisorioDo, setSyncStatus } from './api.js';
+import { dadosDosChamados } from './chamados-ala.js';
+import { nomeCurto } from './chamados-lcr.js';
 import { nomeDoCargo } from './chamados.js';
 import { API_REUNIOES, CARGOS, DADOS } from './config.js';
 import { confirmar } from './dialogo.js';
 import { imprimirAtaPDF } from './pdf.js';
 import {
-  ataResolvida, montarPresenca, paragrafos, presencaParaFormulario, presentes, rotuloPresenca, textoDeBusca,
+  PRESIDENTES_ESTENDIDA, TIPO_ESTENDIDA, ataResolvida, cargosDaReuniao, montarPresenca, tituloPresenca, paragrafos, presencaParaFormulario, presentes, rotuloPresenca, textoDeBusca,
 } from './reunioes-regras.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
-import { dataLocal, esc, formatarData } from './utils.js';
+import { dataLocal, esc, formatarData, norm } from './utils.js';
 
 export const TIPOS_REUNIAO = [
   { k:'conselho',   r:'Conselho da Ala',              c:'#a78bfa' },
   { k:'bispado',    r:'Reunião do Bispado',           c:'#c9a84c' },
+  { k:TIPO_ESTENDIDA, r:'Reunião de Bispado Estendida', c:'#f59e0b' },
   { k:'jovens',     r:'Conselho de Jovens',           c:'#f472b6' },
   { k:'lideranca',  r:'Liderança do Sacerdócio',      c:'#5b9bd5' },
   { k:'correlacao', r:'Correlação Missionária',       c:'#34d399' },
@@ -102,9 +105,9 @@ const secaoCard = (rotulo, html) => `<div class="reuniao-secao"><div class="reun
 // Todos os chamados, na ordem gravada (a de CARGOS): quem faltou também consta,
 // apagado e com "ausente" escrito — a cor sozinha o leitor de tela não lê.
 // Ninguém marcado, ou ata antiga sem o campo: a seção não aparece (presentes()).
-function presencaCard(presenca) {
+function presencaCard(presenca, tipo) {
   if (!presentes(presenca).length) return '';
-  return secaoCard('Presença do bispado', `<ul class="reuniao-presenca">${presenca.filter(p => p && p.cargo).map(p => p.presente === true
+  return secaoCard(tituloPresenca(tipo), `<ul class="reuniao-presenca">${presenca.filter(p => p && p.cargo).map(p => p.presente === true
     ? `<li class="pres-sim"><span aria-hidden="true">✓</span> ${esc(rotuloPresenca(p))}<span class="so-leitor">, presente</span></li>`
     : `<li class="pres-nao">${esc(rotuloPresenca(p))} <span class="pres-ausente">ausente</span></li>`).join('')}</ul>`);
 }
@@ -140,7 +143,7 @@ function cardReuniao(r, { arquivada = false } = {}) {
           <button type="button" class="btn-danger" data-act="excluir" data-id="${id}" aria-label="Excluir reunião" title="Excluir">🗑</button>
         </div>
       </div>
-      ${presencaCard(r.presenca)}
+      ${presencaCard(r.presenca, r.tipo)}
       ${partes.length ? linhaCard('Participantes', esc(partes.join(', '))) : ''}
       ${oracaoIni ? linhaCard('Oração inicial', esc(oracaoIni)) : ''}
       ${pauta ? secaoCard('Pauta / Anotações', `<div class="reuniao-pauta">${pauta}</div>`) : ''}
@@ -180,6 +183,30 @@ export async function toggleItem(reuniaoId, itemIdx) {
   }
 }
 
+// Quem ocupa o chamado hoje: o bispado vem de "Editar os nomes dos chamados";
+// os presidentes da estendida, do relatório de chamados do LCR (aba Chamados)
+function nomeAtual(cargo) {
+  if (!PRESIDENTES_ESTENDIDA.includes(cargo)) return nomeDoCargo(cargo);
+  const c = (dadosDosChamados().chamados || []).find(x => x && x.nome && norm(x.chamado) === norm(cargo));
+  return c ? nomeCurto(c.nome) : '';
+}
+
+// A lista de presença do formulário. Troca com o tipo (a estendida tem os dois
+// presidentes); as marcações já feitas na tela continuam.
+function htmlPresenca(tipo, guardada, data, marcados = null) {
+  const lista = presencaParaFormulario(cargosDaReuniao(tipo, CARGOS), nomeAtual, guardada, { data, hoje: dataLocal() });
+  return `<legend>${esc(tituloPresenca(tipo))}</legend>
+      <div class="re-presenca-lista">
+        ${lista.map(p => `
+          <label class="re-presenca-op">
+            <input type="checkbox" data-cargo="${esc(p.cargo)}" ${(marcados ? marcados.has(p.cargo) : p.presente) ? 'checked' : ''}>
+            <span>${esc(rotuloPresenca(p))}</span>
+          </label>`).join('')}
+      </div>
+      ${tipo === TIPO_ESTENDIDA && PRESIDENTES_ESTENDIDA.some(c => !nomeAtual(c)) && !guardada
+        ? '<p class="ficha-dica">Os nomes dos presidentes vêm do relatório de chamados (aba Chamados). Sem ele, aparece só o chamado.</p>' : ''}`;
+}
+
 export function abrirModalReuniao(id) {
   const r = id ? DADOS.reunioes.find(x=>x.id===id) : null;
   const itensVal = r?.itens?.map(i=>i.texto).join('\n') || '';
@@ -188,7 +215,6 @@ export function abrirModalReuniao(id) {
   // nomes dos chamados" (janela "Quem está usando?"). Ao editar ata de reunião
   // que já passou, vale o nome que ela gravou: mostra quem ocupava o chamado
   // naquele dia. Até o dia da reunião, o nome atual (presencaParaFormulario).
-  const presenca = presencaParaFormulario(CARGOS, nomeDoCargo, r?.presenca, { data: r?.data, hoje: dataLocal() });
   // Mesmo formulário para Nova e Editar, na ordem do card e do PDF
   document.getElementById('modal-reuniao-content').innerHTML = `
     <h3>${r?'✏️ Editar':'➕ Nova'} Reunião <button class="modal-close" data-act="fechar" aria-label="Fechar">✕</button></h3>
@@ -204,15 +230,8 @@ export function abrirModalReuniao(id) {
         </select>
       </div>
     </div>
-    <fieldset class="re-presenca">
-      <legend>Presença do bispado</legend>
-      <div class="re-presenca-lista">
-        ${presenca.map(p => `
-          <label class="re-presenca-op">
-            <input type="checkbox" data-cargo="${esc(p.cargo)}" ${p.presente ? 'checked' : ''}>
-            <span>${esc(rotuloPresenca(p))}</span>
-          </label>`).join('')}
-      </div>
+    <fieldset class="re-presenca" id="re-presenca">
+      ${htmlPresenca(r?.tipo || TIPOS_REUNIAO[0].k, r?.presenca, r?.data)}
     </fieldset>
     <div class="form-group">
       <label for="re-partic">Participantes (separados por vírgula)</label>
@@ -246,13 +265,14 @@ export async function salvarReuniao(id) {
   const itensTexto = document.getElementById('re-itens').value.split('\n').map(s=>s.trim()).filter(Boolean);
   const itensAntigos = anterior?.itens || [];
   const marcados = [...document.querySelectorAll('#modal-reuniao-content input[data-cargo]:checked')].map(c => c.dataset.cargo);
+  const tipo = document.getElementById('re-tipo').value;
   const payload = {
     data,
-    tipo: document.getElementById('re-tipo').value,
+    tipo,
     // todos os chamados, marcados ou não, com o nome gravado como fotografia
     // (montarPresenca): trocar quem ocupa o chamado depois da reunião não
     // reescreve a ata; antes dela, a ata acompanha o nome atual
-    presenca: montarPresenca(CARGOS, nomeDoCargo, anterior?.presenca, marcados, { data, hoje: dataLocal() }),
+    presenca: montarPresenca(cargosDaReuniao(tipo, CARGOS), nomeAtual, anterior?.presenca, marcados, { data, hoje: dataLocal() }),
     participantes: document.getElementById('re-partic').value.split(',').map(s=>s.trim()).filter(Boolean),
     oracaoInicial: document.getElementById('re-oracao-ini').value.trim(),
     pauta: document.getElementById('re-pauta').value,
@@ -315,6 +335,17 @@ function ligarReunioes() {
     if (!btn) return;
     if (btn.dataset.act === 'fechar') fecharModal('modal-reuniao');
     else if (btn.dataset.act === 'salvar') salvarReuniao(btn.dataset.id);
+  });
+
+  // trocou o tipo: a lista de presença ganha (ou perde) os presidentes da estendida
+  document.getElementById('modal-reuniao')?.addEventListener('change', e => {
+    if (e.target.id !== 're-tipo') return;
+    const caixa = document.getElementById('re-presenca');
+    if (!caixa) return;
+    const marcados = new Set([...caixa.querySelectorAll('input[data-cargo]:checked')].map(c => c.dataset.cargo));
+    const id = document.querySelector('#modal-reuniao-content [data-act="salvar"]')?.dataset.id;
+    const r = id ? DADOS.reunioes.find(x => x.id === id) : null;
+    caixa.innerHTML = htmlPresenca(e.target.value, r?.presenca, document.getElementById('re-data')?.value, marcados);
   });
 }
 ligarReunioes();

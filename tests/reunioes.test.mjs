@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  ataResolvida,
+  PRESIDENTES_ESTENDIDA, TIPO_ESTENDIDA, ataResolvida, cargosDaReuniao, tituloPresenca,
   montarPresenca, nomeArquivoAta, paragrafos, presencaParaFormulario, presentes, rotuloPresenca, textoDeBusca,
   textoParaPdf, valorParaPdf,
 } from '../js/reunioes-regras.js';
@@ -242,4 +242,19 @@ test('ata resolvida: já passou e não tem item em aberto — vai para o histór
   assert.equal(ataResolvida({ data: '2026-11-01', itens: [] }, hoje), false, 'a futura fica na tela');
   assert.equal(ataResolvida({ itens: [] }, hoje), false, 'sem data: não some');
   assert.equal(ataResolvida(null, hoje), false);
+});
+
+test('bispado estendida: o bispado e os dois presidentes, com o nome da fotografia', () => {
+  assert.deepEqual(cargosDaReuniao('bispado', CARGOS), CARGOS);
+  assert.deepEqual(cargosDaReuniao(TIPO_ESTENDIDA, CARGOS), [...CARGOS, 'Presidente do Quórum de Élderes', 'Presidente da Sociedade de Socorro']);
+  assert.equal(tituloPresenca('conselho'), 'Presença do bispado');
+  assert.equal(tituloPresenca(TIPO_ESTENDIDA), 'Presença do bispado e dos presidentes');
+  const nomes = { ...NOMES, 'Presidente do Quórum de Élderes': 'Davi Exemplo', 'Presidente da Sociedade de Socorro': 'Eva Fictícia' };
+  const quando = { data: '2026-11-04', hoje: '2026-11-04' };
+  const p = montarPresenca(cargosDaReuniao(TIPO_ESTENDIDA, CARGOS), c => nomes[c] || '', null, ['Bispo', PRESIDENTES_ESTENDIDA[1]], quando);
+  assert.equal(p.length, 7);
+  assert.deepEqual(presentes(p).map(rotuloPresenca), ['Bispo Ana Ribeiro', 'Presidente da Sociedade de Socorro Eva Fictícia']);
+  // reunião passada: os presidentes também ficam como foram gravados
+  const depois = presencaParaFormulario(cargosDaReuniao(TIPO_ESTENDIDA, CARGOS), () => 'Outro Nome', p, { data: '2026-11-04', hoje: '2026-12-01' });
+  assert.equal(depois.find(x => x.cargo === PRESIDENTES_ESTENDIDA[0]).nome, 'Davi Exemplo');
 });

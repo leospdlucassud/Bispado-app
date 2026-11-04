@@ -17,6 +17,16 @@
 
 const limpo = v => (typeof v === 'string' ? v.trim() : '');
 
+// Reunião de bispado estendida: o bispado mais o presidente do Quórum de
+// Élderes e a presidente da Sociedade de Socorro. Os nomes deles vêm do
+// relatório de chamados do LCR (aba Chamados).
+export const TIPO_ESTENDIDA = 'bispado-estendida';
+export const PRESIDENTES_ESTENDIDA = ['Presidente do Quórum de Élderes', 'Presidente da Sociedade de Socorro'];
+// os chamados da lista de presença daquele tipo de reunião
+export const cargosDaReuniao = (tipo, cargos) =>
+  [...(Array.isArray(cargos) ? cargos : []), ...(tipo === TIPO_ESTENDIDA ? PRESIDENTES_ESTENDIDA : [])];
+export const tituloPresenca = tipo => (tipo === TIPO_ESTENDIDA ? 'Presença do bispado e dos presidentes' : 'Presença do bispado');
+
 // "Secretário Executivo Ana Ribeiro"; só "Secretário Executivo" com o chamado sem nome.
 // Chamado antes do nome, como no crachá do topo (comNome, de chamados.js).
 export const rotuloPresenca = ({ cargo, nome } = {}) => `${limpo(cargo)} ${limpo(nome)}`.trim();
