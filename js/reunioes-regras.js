@@ -17,15 +17,94 @@
 
 const limpo = v => (typeof v === 'string' ? v.trim() : '');
 
-// Reunião de bispado estendida: o bispado mais o presidente do Quórum de
-// Élderes e a presidente da Sociedade de Socorro. Os nomes deles vêm do
-// relatório de chamados do LCR (aba Chamados).
+// =============================================
+// QUEM PARTICIPA DE CADA REUNIÃO — a lista de presença do formulário
+// Pelo Manual Geral: reunião do bispado (29.2.4), conselho da ala (29.2.5),
+// conselho de jovens da ala (29.2.6) e coordenação missionária (23.4). A
+// estendida é a reunião do bispado com os dois presidentes que o 29.2.4 cita
+// como convidados. "Liderança do Sacerdócio" e "Bem-Estar" não têm lista no
+// Manual atual — ficou como o bispado da ala definiu (04/11/2026):
+//   Liderança: todos os líderes portadores do sacerdócio (maior ou menor):
+//     o bispado, os secretários e as presidências dos quóruns;
+//   Bem-Estar: só o bispado e os presidentes do QE e da SS.
+// Na coordenação missionária, além do 23.4, o conselheiro do bispado que cuida
+// da obra missionária na ala.
+//   bispado: 'todo' (bispado, secretário e secretário executivo — CARGOS),
+//            'bispado' (bispo e conselheiros) ou 'nenhum'
+// Os nomes dos que não são do bispado vêm do relatório de chamados do LCR (aba
+// Chamados); papéis de várias pessoas (os missionários) ficam sem nome.
+// =============================================
 export const TIPO_ESTENDIDA = 'bispado-estendida';
-export const PRESIDENTES_ESTENDIDA = ['Presidente do Quórum de Élderes', 'Presidente da Sociedade de Socorro'];
-// os chamados da lista de presença daquele tipo de reunião
-export const cargosDaReuniao = (tipo, cargos) =>
-  [...(Array.isArray(cargos) ? cargos : []), ...(tipo === TIPO_ESTENDIDA ? PRESIDENTES_ESTENDIDA : [])];
-export const tituloPresenca = tipo => (tipo === TIPO_ESTENDIDA ? 'Presença do bispado e dos presidentes' : 'Presença do bispado');
+const PQE = 'Presidente do Quórum de Élderes', PSS = 'Presidente da Sociedade de Socorro';
+const ASSISTENTE = 'Assistente do Bispo no Quórum dos Sacerdotes';
+export const PRESIDENTES_ESTENDIDA = [PQE, PSS];
+// A presidência de um quórum: presidente, conselheiros e secretário
+const presidencia = q => [`Presidente do Quórum ${q}`, `1º Conselheiro do Quórum ${q}`, `2º Conselheiro do Quórum ${q}`, `Secretário do Quórum ${q}`];
+const LIDERES_DO_SACERDOCIO = [
+  ...presidencia('de Élderes'),
+  // o quórum dos sacerdotes é presidido pelo bispo: os assistentes no lugar dos conselheiros
+  '1º Assistente do Bispo no Quórum dos Sacerdotes', '2º Assistente do Bispo no Quórum dos Sacerdotes', 'Secretário do Quórum dos Sacerdotes',
+  ...presidencia('dos Mestres'),
+  ...presidencia('dos Diáconos'),
+];
+export const PRESENCA_POR_TIPO = {
+  conselho: { bispado: 'todo', outros: [PQE, PSS, 'Presidente das Moças', 'Presidente da Primária', 'Presidente da Escola Dominical'], ref: '29.2.5', titulo: 'Presença do conselho da ala' },
+  bispado: { bispado: 'todo', outros: [], ref: '29.2.4', titulo: 'Presença do bispado' },
+  [TIPO_ESTENDIDA]: { bispado: 'todo', outros: [PQE, PSS], ref: '29.2.4', titulo: 'Presença do bispado e dos presidentes' },
+  jovens: { bispado: 'bispado', outros: [ASSISTENTE, 'Presidente do Quórum dos Diáconos', 'Presidente do Quórum dos Mestres', 'Presidentes dos grupos etários das Moças', 'Presidente das Moças'], ref: '29.2.6', titulo: 'Presença do conselho de jovens' },
+  correlacao: { bispado: 'nenhum', outros: ['Líder de Missão da Ala', 'Conselheiro do bispado responsável pela obra missionária',
+    'Conselheiro do Quórum de Élderes responsável pela obra missionária', 'Conselheira da Sociedade de Socorro responsável pela obra missionária',
+    'Presidência da Primária (membro designado)', 'Missionários de ala', ASSISTENTE, 'Presidência das Guardiãs da Luz (membro designado)',
+    'Missionários de tempo integral'], ref: '23.4', titulo: 'Presença na coordenação missionária' },
+  lideranca: { bispado: 'todo', outros: LIDERES_DO_SACERDOCIO, ref: '', titulo: 'Presença dos líderes do sacerdócio' },
+  bemestar: { bispado: 'bispado', outros: [PQE, PSS], ref: '', titulo: 'Presença' },
+  outro: { bispado: 'todo', outros: [], ref: '', titulo: 'Presença do bispado' },
+};
+const BISPO_E_CONSELHEIROS = ['Bispo', '1º Conselheiro', '2º Conselheiro'];
+const regraDe = tipo => (Object.hasOwn(PRESENCA_POR_TIPO, tipo) ? PRESENCA_POR_TIPO[tipo] : PRESENCA_POR_TIPO.outro);
+
+// os chamados da lista de presença daquele tipo de reunião, na ordem: o
+// bispado (de `cargos`, a lista CARGOS) e depois os outros
+export function cargosDaReuniao(tipo, cargos) {
+  const r = regraDe(tipo);
+  const base = Array.isArray(cargos) ? cargos : [];
+  const doBispado = r.bispado === 'nenhum' ? [] : r.bispado === 'bispado' ? base.filter(c => BISPO_E_CONSELHEIROS.includes(c)) : base;
+  return [...doBispado, ...r.outros];
+}
+export const tituloPresenca = tipo => regraDe(tipo).titulo;
+export const referenciaDaPresenca = tipo => regraDe(tipo).ref;
+
+// O chamado como o LCR escreve, para achar o nome no relatório de chamados
+const semAcento = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  .replace(/\(a\)/g, '').replace(/\s+/g, ' ').trim();
+// os quóruns como o LCR escreve: "de Élderes", "de Diáconos" ou "dos Diáconos"
+const QUORUNS = { 'de Élderes': 'elderes', 'dos Mestres': 'mestres', 'dos Diáconos': 'diaconos', 'dos Sacerdotes': 'sacerdotes' };
+const doQuorum = q => `quorum d(e|os) ${QUORUNS[q]}`;
+const NO_LCR = {
+  ...Object.fromEntries(Object.keys(QUORUNS).flatMap(q => [
+    [`Presidente do Quórum ${q}`, new RegExp(`^presidente do ${doQuorum(q)}$`)],
+    [`1º Conselheiro do Quórum ${q}`, new RegExp(`^primeiro conselheiro .*${doQuorum(q)}$`)],
+    [`2º Conselheiro do Quórum ${q}`, new RegExp(`^segundo conselheiro .*${doQuorum(q)}$`)],
+    [`Secretário do Quórum ${q}`, new RegExp(`^secretario (do|da presidencia do) ${doQuorum(q)}$`)],
+  ])),
+  '1º Assistente do Bispo no Quórum dos Sacerdotes': /^primeiro assistente .*quorum d(e|os) sacerdotes$/,
+  '2º Assistente do Bispo no Quórum dos Sacerdotes': /^segundo assistente .*quorum d(e|os) sacerdotes$/,
+  [PQE]: /^presidente do quorum de elderes$/,
+  [PSS]: /^presidente da sociedade de socorro$/,
+  'Presidente das Moças': /^presidente das mocas$/,
+  'Presidente da Primária': /^presidente da primaria$/,
+  'Presidente da Escola Dominical': /^presidente da escola dominical$/,
+  'Líder de Missão da Ala': /^lider (de missao|da obra missionaria) da ala$/,
+  [ASSISTENTE]: /^(primeiro )?assistente .*quorum d(e|os) sacerdotes$/,
+};
+// O nome de quem tem aquele chamado no relatório (o primeiro), ou ''.
+// `formatar`: "Sobrenome, Nome" → como o app mostra (nomeCurto, chamados-lcr.js)
+export function nomeNoRelatorio(chamados, cargo, formatar = n => n) {
+  const re = NO_LCR[cargo];
+  if (!re) return '';
+  const c = (Array.isArray(chamados) ? chamados : []).find(x => x && x.nome && re.test(semAcento(x.chamado)));
+  return c ? formatar(c.nome) : '';
+}
 
 // "Secretário Executivo Ana Ribeiro"; só "Secretário Executivo" com o chamado sem nome.
 // Chamado antes do nome, como no crachá do topo (comNome, de chamados.js).

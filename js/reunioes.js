@@ -10,11 +10,12 @@ import { API_REUNIOES, CARGOS, DADOS } from './config.js';
 import { confirmar } from './dialogo.js';
 import { imprimirAtaPDF } from './pdf.js';
 import {
-  PRESIDENTES_ESTENDIDA, TIPO_ESTENDIDA, ataResolvida, cargosDaReuniao, montarPresenca, tituloPresenca, paragrafos, presencaParaFormulario, presentes, rotuloPresenca, textoDeBusca,
+  TIPO_ESTENDIDA, ataResolvida, cargosDaReuniao, montarPresenca, nomeNoRelatorio, paragrafos, presencaParaFormulario,
+  presentes, referenciaDaPresenca, rotuloPresenca, textoDeBusca, tituloPresenca,
 } from './reunioes-regras.js';
 import { abrirModal, fecharModal } from './ui.js';
 import { toast } from './usuario.js';
-import { dataLocal, esc, formatarData, norm } from './utils.js';
+import { dataLocal, esc, formatarData } from './utils.js';
 
 export const TIPOS_REUNIAO = [
   { k:'conselho',   r:'Conselho da Ala',              c:'#a78bfa' },
@@ -184,18 +185,19 @@ export async function toggleItem(reuniaoId, itemIdx) {
 }
 
 // Quem ocupa o chamado hoje: o bispado vem de "Editar os nomes dos chamados";
-// os presidentes da estendida, do relatório de chamados do LCR (aba Chamados)
+// os demais, do relatório de chamados do LCR (aba Chamados)
 function nomeAtual(cargo) {
-  if (!PRESIDENTES_ESTENDIDA.includes(cargo)) return nomeDoCargo(cargo);
-  const c = (dadosDosChamados().chamados || []).find(x => x && x.nome && norm(x.chamado) === norm(cargo));
-  return c ? nomeCurto(c.nome) : '';
+  return CARGOS.includes(cargo) ? nomeDoCargo(cargo) : nomeNoRelatorio(dadosDosChamados().chamados, cargo, nomeCurto);
 }
 
-// A lista de presença do formulário. Troca com o tipo (a estendida tem os dois
-// presidentes); as marcações já feitas na tela continuam.
+// A lista de presença do formulário: quem o Manual Geral põe naquele tipo de
+// reunião (PRESENCA_POR_TIPO). Troca com o tipo; as marcações já feitas na
+// tela continuam.
 function htmlPresenca(tipo, guardada, data, marcados = null) {
-  const lista = presencaParaFormulario(cargosDaReuniao(tipo, CARGOS), nomeAtual, guardada, { data, hoje: dataLocal() });
-  return `<legend>${esc(tituloPresenca(tipo))}</legend>
+  const cargos = cargosDaReuniao(tipo, CARGOS);
+  const lista = presencaParaFormulario(cargos, nomeAtual, guardada, { data, hoje: dataLocal() });
+  const ref = referenciaDaPresenca(tipo);
+  return `<legend>${esc(tituloPresenca(tipo))}${ref ? ` <span class="re-presenca-ref">Manual Geral ${esc(ref)}</span>` : ''}</legend>
       <div class="re-presenca-lista">
         ${lista.map(p => `
           <label class="re-presenca-op">
@@ -203,8 +205,8 @@ function htmlPresenca(tipo, guardada, data, marcados = null) {
             <span>${esc(rotuloPresenca(p))}</span>
           </label>`).join('')}
       </div>
-      ${tipo === TIPO_ESTENDIDA && PRESIDENTES_ESTENDIDA.some(c => !nomeAtual(c)) && !guardada
-        ? '<p class="ficha-dica">Os nomes dos presidentes vêm do relatório de chamados (aba Chamados). Sem ele, aparece só o chamado.</p>' : ''}`;
+      ${!guardada && cargos.some(c => !CARGOS.includes(c) && !nomeAtual(c))
+        ? '<p class="ficha-dica">Os nomes de quem não é do bispado vêm do relatório de chamados (aba Chamados); sem ele, ou num papel de várias pessoas, aparece só o chamado.</p>' : ''}`;
 }
 
 export function abrirModalReuniao(id) {
@@ -235,7 +237,7 @@ export function abrirModalReuniao(id) {
     </fieldset>
     <div class="form-group">
       <label for="re-partic">Participantes (separados por vírgula)</label>
-      <input type="text" class="form-input" id="re-partic" value="${esc(partsVal)}" placeholder="Outros participantes: presidentes das organizações, missionários…">
+      <input type="text" class="form-input" id="re-partic" value="${esc(partsVal)}" placeholder="Outros participantes: convidados, consultores…">
     </div>
     <div class="form-group">
       <label for="re-oracao-ini">Oração inicial</label>

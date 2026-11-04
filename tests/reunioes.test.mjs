@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  PRESIDENTES_ESTENDIDA, TIPO_ESTENDIDA, ataResolvida, cargosDaReuniao, tituloPresenca,
+  PRESENCA_POR_TIPO, PRESIDENTES_ESTENDIDA, TIPO_ESTENDIDA, ataResolvida, cargosDaReuniao, nomeNoRelatorio, tituloPresenca,
   montarPresenca, nomeArquivoAta, paragrafos, presencaParaFormulario, presentes, rotuloPresenca, textoDeBusca,
   textoParaPdf, valorParaPdf,
 } from '../js/reunioes-regras.js';
@@ -247,7 +247,7 @@ test('ata resolvida: já passou e não tem item em aberto — vai para o histór
 test('bispado estendida: o bispado e os dois presidentes, com o nome da fotografia', () => {
   assert.deepEqual(cargosDaReuniao('bispado', CARGOS), CARGOS);
   assert.deepEqual(cargosDaReuniao(TIPO_ESTENDIDA, CARGOS), [...CARGOS, 'Presidente do Quórum de Élderes', 'Presidente da Sociedade de Socorro']);
-  assert.equal(tituloPresenca('conselho'), 'Presença do bispado');
+  assert.equal(tituloPresenca('bispado'), 'Presença do bispado');
   assert.equal(tituloPresenca(TIPO_ESTENDIDA), 'Presença do bispado e dos presidentes');
   const nomes = { ...NOMES, 'Presidente do Quórum de Élderes': 'Davi Exemplo', 'Presidente da Sociedade de Socorro': 'Eva Fictícia' };
   const quando = { data: '2026-11-04', hoje: '2026-11-04' };
@@ -257,4 +257,69 @@ test('bispado estendida: o bispado e os dois presidentes, com o nome da fotograf
   // reunião passada: os presidentes também ficam como foram gravados
   const depois = presencaParaFormulario(cargosDaReuniao(TIPO_ESTENDIDA, CARGOS), () => 'Outro Nome', p, { data: '2026-11-04', hoje: '2026-12-01' });
   assert.equal(depois.find(x => x.cargo === PRESIDENTES_ESTENDIDA[0]).nome, 'Davi Exemplo');
+});
+
+test('presença de cada reunião, pelo Manual Geral', () => {
+  // 29.2.5: bispado, secretários e os cinco presidentes
+  assert.deepEqual(cargosDaReuniao('conselho', CARGOS), [...CARGOS, 'Presidente do Quórum de Élderes', 'Presidente da Sociedade de Socorro',
+    'Presidente das Moças', 'Presidente da Primária', 'Presidente da Escola Dominical']);
+  // 29.2.4: bispado, secretário e secretário executivo
+  assert.deepEqual(cargosDaReuniao('bispado', CARGOS), CARGOS);
+  // 29.2.6: o bispado (sem os secretários) e os jovens líderes
+  const jovens = cargosDaReuniao('jovens', CARGOS);
+  assert.deepEqual(jovens.slice(0, 3), ['Bispo', '1º Conselheiro', '2º Conselheiro']);
+  assert.ok(!jovens.includes('Secretário') && jovens.includes('Presidente das Moças') && jovens.includes('Presidente do Quórum dos Diáconos'));
+  // 23.4: quem dirige é o líder de missão; o bispado não está na lista
+  const missao = cargosDaReuniao('correlacao', CARGOS);
+  assert.equal(missao[0], 'Líder de Missão da Ala');
+  assert.ok(!missao.includes('Bispo') && missao.includes('Missionários de tempo integral'));
+  // tipo desconhecido (ata antiga com tipo digitado): o bispado
+  assert.deepEqual(cargosDaReuniao('inventado', CARGOS), CARGOS);
+  for (const t of Object.keys(PRESENCA_POR_TIPO)) assert.ok(tituloPresenca(t).startsWith('Presença'), t);
+});
+
+test('nome no relatório de chamados do LCR: pelo chamado, com ou sem acento e (a)', () => {
+  const ch = [
+    { chamado: 'Presidente do Quórum de Élderes', nome: 'Exemplo, Davi' },
+    { chamado: 'Líder da Obra Missionária da Ala', nome: 'Ficticio, Gil' },
+    { chamado: 'Presidente do Quorum de Diaconos', nome: 'Jovem, Leo' },
+    { chamado: 'Primeiro Assistente do Bispo no Quórum de Sacerdotes', nome: 'Jovem, Rui' },
+    { chamado: 'Presidente da Primária', nome: '' },
+  ];
+  const curto = n => n.split(',').reverse().join(' ').trim();
+  assert.equal(nomeNoRelatorio(ch, 'Presidente do Quórum de Élderes', curto), 'Davi Exemplo');
+  assert.equal(nomeNoRelatorio(ch, 'Líder de Missão da Ala', curto), 'Gil Ficticio');
+  assert.equal(nomeNoRelatorio(ch, 'Presidente do Quórum dos Diáconos', curto), 'Leo Jovem');
+  assert.equal(nomeNoRelatorio(ch, 'Assistente do Bispo no Quórum dos Sacerdotes', curto), 'Rui Jovem');
+  assert.equal(nomeNoRelatorio(ch, 'Presidente da Primária', curto), '', 'chamado vago');
+  assert.equal(nomeNoRelatorio(ch, 'Missionários de tempo integral', curto), '', 'papel de várias pessoas');
+  assert.equal(nomeNoRelatorio(null, 'Presidente da Primária'), '');
+});
+
+test('liderança do sacerdócio, bem-estar e o conselheiro do bispado na correlação (como a ala definiu)', () => {
+  const lid = cargosDaReuniao('lideranca', CARGOS);
+  assert.deepEqual(lid.slice(0, 5), CARGOS);
+  for (const c of ['Presidente do Quórum de Élderes', '2º Conselheiro do Quórum de Élderes', 'Secretário do Quórum de Élderes',
+    '1º Assistente do Bispo no Quórum dos Sacerdotes', 'Secretário do Quórum dos Sacerdotes',
+    'Presidente do Quórum dos Mestres', '1º Conselheiro do Quórum dos Diáconos', 'Secretário do Quórum dos Diáconos']) {
+    assert.ok(lid.includes(c), c);
+  }
+  assert.ok(!lid.includes('Presidente da Sociedade de Socorro') && !lid.includes('Presidente das Moças'));
+  assert.deepEqual(cargosDaReuniao('bemestar', CARGOS),
+    ['Bispo', '1º Conselheiro', '2º Conselheiro', 'Presidente do Quórum de Élderes', 'Presidente da Sociedade de Socorro']);
+  const missao = cargosDaReuniao('correlacao', CARGOS);
+  assert.ok(missao.includes('Conselheiro do bispado responsável pela obra missionária'));
+  assert.ok(missao.includes('Conselheiro do Quórum de Élderes responsável pela obra missionária'));
+  assert.ok(missao.includes('Conselheira da Sociedade de Socorro responsável pela obra missionária'));
+  // as presidências dos quóruns, pelo nome do LCR
+  const ch = [
+    { chamado: 'Primeiro Conselheiro na Presidência do Quórum de Élderes', nome: 'Exemplo, Davi' },
+    { chamado: 'Secretário do Quórum de Diáconos', nome: 'Jovem, Leo' },
+    { chamado: 'Segundo Assistente do Bispo no Quórum de Sacerdotes', nome: 'Jovem, Rui' },
+    { chamado: 'Secretário Executivo da Ala', nome: 'Ficticio, Gil' },
+  ];
+  assert.equal(nomeNoRelatorio(ch, '1º Conselheiro do Quórum de Élderes'), 'Exemplo, Davi');
+  assert.equal(nomeNoRelatorio(ch, 'Secretário do Quórum dos Diáconos'), 'Jovem, Leo');
+  assert.equal(nomeNoRelatorio(ch, '2º Assistente do Bispo no Quórum dos Sacerdotes'), 'Jovem, Rui');
+  assert.equal(nomeNoRelatorio(ch, 'Secretário do Quórum de Élderes'), '', 'o secretário executivo não é do quórum');
 });
