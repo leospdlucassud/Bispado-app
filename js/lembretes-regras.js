@@ -111,3 +111,10 @@ export function inscricaoValida(sub) {
 }
 
 export const MAX_INSCRICOES = 60;
+
+// Os aparelhos de um cargo (o responsável pela entrevista). Sigiloso, só os que
+// entraram como Bispo/ADM e a sessão ainda vale. Sem cargo, ninguém.
+export function inscricoesDoCargo(inscricoes, cargo, sigiloso, agoraMs) {
+  if (!cargo) return [];
+  return destinatarios({ lembreteCargos: [cargo], sigiloso: !!sigiloso }, inscricoes, agoraMs);
+}

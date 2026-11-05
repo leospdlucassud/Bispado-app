@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createDecipheriv, createECDH, createHmac, createPublicKey, createVerify, generateKeyPairSync, randomBytes } from 'node:crypto';
 import { test } from 'node:test';
 import {
-  camposAposToque, destinatarios, endpointValido, inscricaoValida, lembreteVencido, proximoToque, textoDoLembrete,
+  camposAposToque, destinatarios, endpointValido, inscricaoValida, inscricoesDoCargo, lembreteVencido, proximoToque, textoDoLembrete,
 } from '../js/lembretes-regras.js';
 import { cifrar, enviarPush, tokenVapid } from '../netlify/functions/_webpush.js';
 
@@ -149,4 +149,13 @@ test('a chave pública do aparelho certa é a que o servidor usa (createPublicKe
   const raw = Buffer.from(env.VAPID_PUBLICA, 'base64url');
   assert.equal(raw.length, 65);
   assert.ok(createPublicKey({ key: { kty: 'EC', crv: 'P-256', x: b64(raw.subarray(1, 33)), y: b64(raw.subarray(33)) }, format: 'jwk' }));
+});
+
+test('os aparelhos do responsável pela entrevista: só o cargo dele; sigilosa só com a sessão', () => {
+  const i = (cargo, sigiloAte = 0) => ({ endpoint: 'https://fcm.googleapis.com/x/' + cargo + sigiloAte, cargo, sigiloAte });
+  const aparelhos = [i('Bispo', AGORA + 1000), i('Bispo'), i('1º Conselheiro'), i('Secretário Executivo')];
+  assert.equal(inscricoesDoCargo(aparelhos, 'Bispo', false, AGORA).length, 2);
+  assert.equal(inscricoesDoCargo(aparelhos, 'Bispo', true, AGORA).length, 1);
+  assert.equal(inscricoesDoCargo(aparelhos, '1º Conselheiro', false, AGORA).length, 1);
+  assert.equal(inscricoesDoCargo(aparelhos, '', false, AGORA).length, 0, 'sem responsável, ninguém (e não todos)');
 });

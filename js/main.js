@@ -10,6 +10,7 @@
 // redirecionar-convite.js (script clássico do <head>); esses só vão no ASSETS.
 // =============================================
 import './dados-membros.js';
+import './cargos.js';
 import './config.js';
 import './convite-regras.js';
 import './utils.js';

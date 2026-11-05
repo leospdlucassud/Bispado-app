@@ -234,6 +234,50 @@ export function camposDaResposta(atual, resposta, sugestao, agora) {
   return campos;
 }
 
+// O aviso no celular de quem é responsável pela entrevista, quando o membro
+// responde pelo link (netlify/functions/convite.js). Aparece na tela
+// bloqueada: a sigilosa não diz o nome nem o tipo.
+const diaMes = d => (DATA.test(d || '') ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : '');
+const quandoCurto = (d, h) => [diaMes(d), h && HORA.test(h) ? `às ${h}` : ''].filter(Boolean).join(' ');
+export function avisoDaResposta(e, resposta) {
+  const base = { url: '/#agenda', tag: 'conv-' + e.id };
+  if (e.sigiloso) {
+    return { ...base, titulo: '🔒 Resposta a uma entrevista sigilosa', corpo: 'O membro respondeu ao convite. Abra a Agenda.' };
+  }
+  // 'Sobrenome, Nome' → 'Nome Sobrenome'
+  const nome = String(e.membro || '').split(',').map(p => p.trim()).filter(Boolean).reverse().join(' ') || 'O membro';
+  if (resposta === 'confirmado') {
+    const q = quandoCurto(e.data, e.hora);
+    return { ...base, titulo: '✅ Entrevista confirmada', corpo: `${nome} confirmou${q ? ` para ${q}` : ''} · ${e.tipo || 'entrevista'}` };
+  }
+  const pedido = quandoCurto(e.sugestaoData, e.sugestaoHora);
+  return { ...base, titulo: '🔄 Pediu outra data', corpo: `${nome} não pode${pedido ? ` e sugeriu ${pedido}` : ''} · ${e.tipo || 'entrevista'}. Defina a nova data na Agenda.` };
+}
+
+// Outra pessoa do bispado reagendou a entrevista no app (/api/avisos): o aviso
+// para quem é responsável por ela. `por`: o cargo de quem reagendou.
+export function avisoDoReagendamento(e, por) {
+  const base = { url: '/#agenda', tag: 'reag-' + e.id };
+  const quem = por ? ` por ${por}` : '';
+  if (e.sigiloso) return { ...base, titulo: '🔒 Entrevista sigilosa reagendada', corpo: `Uma entrevista sigilosa mudou de data${quem}. Abra a Agenda.` };
+  const nome = String(e.membro || '').split(',').map(p => p.trim()).filter(Boolean).reverse().join(' ') || 'Entrevista';
+  const q = quandoCurto(e.data, e.hora);
+  return { ...base, titulo: '📅 Entrevista reagendada', corpo: `${nome}${q ? ` — nova data ${q}` : ''}${quem} · ${e.tipo || 'entrevista'}` };
+}
+
+// O pedido de aviso de reagendamento vale só logo depois do reagendamento, e
+// uma vez por reagendamento: o último `reagendadoEm` tem de ter até 10 minutos
+// e ainda não ter sido avisado (`avisoReagendado`). Devolve o reagendadoEm a
+// marcar, ou '' (não avisar).
+export const JANELA_AVISO_MS = 10 * 60 * 1000;
+export function reagendamentoParaAvisar(e, agoraMs) {
+  const ultimo = (Array.isArray(e?.reagendamentos) ? e.reagendamentos : []).at(-1)?.reagendadoEm || '';
+  const t = Date.parse(ultimo);
+  if (!Number.isFinite(t) || agoraMs - t > JANELA_AVISO_MS || t > agoraMs + 60e3) return '';
+  if (encerrada(e) || e.avisoReagendado === ultimo) return '';
+  return ultimo;
+}
+
 // Só o que a tela do membro precisa — nunca o registro inteiro, que tem as
 // observações do bispado, os registros de acompanhamento e o tipo real.
 export function conviteParaMembro(e) {

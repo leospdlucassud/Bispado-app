@@ -1,5 +1,6 @@
 import { abrirStore, alterar, lerColecao } from "./_crud.js";
-import { enviarPush, configurado } from "./_webpush.js";
+import { enviarAvisos, lerInscricoes } from "./_avisos.js";
+import { configurado } from "./_webpush.js";
 import { camposAposToque, destinatarios, lembreteVencido, textoDoLembrete } from "../../js/lembretes-regras.js";
 
 // Os lembretes do Acompanhamento — roda sozinho a cada 15 minutos (função
@@ -12,14 +13,13 @@ const COLECOES = [
   { chave: "acompanhamentos", origem: "avulso" },
   { chave: "agenda", origem: "entrevista" },
 ];
-const INSCRICOES = "push-inscricoes";
 
 export default async (req) => {
   const env = { ...process.env, URL: process.env.URL || (req?.url ? new URL(req.url).origin : "") };
   if (!configurado(env)) return new Response("sem chaves VAPID");
   const store = abrirStore();
   const agora = Date.now();
-  const inscricoes = (await lerColecao(store, INSCRICOES)).data;
+  const inscricoes = await lerInscricoes(store);
   if (!inscricoes.length) return new Response("nenhum aparelho");
 
   const tocar = [];
@@ -41,20 +41,12 @@ export default async (req) => {
     if (!falhou) tocar.push(...vencidos);
   }
 
-  const expiradas = new Set();
-  let enviados = 0;
-  for (const { item, origem } of tocar) {
+  const envios = tocar.flatMap(({ item, origem }) => {
     const { titulo, corpo } = textoDoLembrete(item, origem);
-    for (const sub of destinatarios(item, inscricoes, agora)) {
-      if (expiradas.has(sub.endpoint)) continue;
-      const r = await enviarPush(sub, { titulo, corpo, url: "/#acompanhamento", tag: "acomp-" + item.id }, env);
-      if (r === "expirada") expiradas.add(sub.endpoint);
-      if (r === "ok") enviados++;
-    }
-  }
-  if (expiradas.size) {
-    await alterar(store, INSCRICOES, data => ({ data: data.filter(i => !expiradas.has(i.endpoint)), resposta: () => null }));
-  }
+    const dados = { titulo, corpo, url: "/#acompanhamento", tag: "acomp-" + item.id };
+    return destinatarios(item, inscricoes, agora).map(sub => ({ sub, dados }));
+  });
+  const enviados = await enviarAvisos(store, envios, env);
   return new Response(`${tocar.length} lembrete(s), ${enviados} notificação(ões)`);
 };
 

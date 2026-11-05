@@ -1,9 +1,12 @@
 // =============================================
-// LEMBRETES NO CELULAR (Web Push)
-// Cada aparelho liga os lembretes uma vez (o navegador pede a permissão). A
-// inscrição vai para /api/push com o cargo de quem usa; o servidor
-// (netlify/functions/lembretes.js) manda os lembretes vencidos dos cards do
-// Acompanhamento para os aparelhos dos cargos escolhidos no card.
+// AVISOS NO CELULAR (Web Push)
+// Cada aparelho liga os avisos uma vez (o navegador pede a permissão). A
+// inscrição vai para /api/push com o cargo de quem usa. O servidor manda:
+//  - os lembretes vencidos dos cards do Acompanhamento, para os cargos
+//    escolhidos no card (netlify/functions/lembretes.js);
+//  - a resposta do membro ao convite (confirmou / pediu outra data) e o
+//    reagendamento feito por outra pessoa do bispado, para o cargo responsável
+//    pela entrevista (netlify/functions/convite.js e avisos.js).
 // No iPhone, só funciona com o app instalado na tela de início (iOS 16.4+).
 // =============================================
 import { switchTab } from './app.js';
@@ -61,19 +64,19 @@ export async function estadoDoAparelho() {
 export async function ligarLembretes() {
   try {
     const chave = await lerChave();
-    if (!chave) return toast('Os lembretes ainda não foram configurados no servidor');
+    if (!chave) return toast('Os avisos ainda não foram configurados no servidor');
     if (await window.Notification.requestPermission() !== 'granted') {
       await renderAvisoLembretes();
-      return toast('Sem a permissão de notificações, o lembrete não chega');
+      return toast('Sem a permissão de notificações, os avisos não chegam');
     }
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription()
       || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: paraBytes(chave) });
     toast(await enviarInscricao(sub, { teste: true })
-      ? '🔔 Lembretes ligados — mandamos um de teste'
+      ? '🔔 Avisos ligados — mandamos um de teste'
       : 'Ligado neste aparelho, mas o servidor não respondeu. Tente "Testar" depois.');
   } catch {
-    toast('Não deu para ligar os lembretes neste aparelho');
+    toast('Não deu para ligar os avisos neste aparelho');
   }
   renderAvisoLembretes();
 }
@@ -93,7 +96,7 @@ export async function desligarLembretes() {
     } catch { /* o servidor tira sozinho quando o envio falhar */ }
     await sub.unsubscribe().catch(() => {});
   }
-  toast('Lembretes desligados neste aparelho');
+  toast('Avisos desligados neste aparelho');
   renderAvisoLembretes();
 }
 
@@ -108,17 +111,19 @@ export async function atualizarInscricao() {
 }
 
 const TEXTO = {
-  'sem-suporte': ['🔕', 'Este navegador não recebe lembretes. No Android, use o Chrome; no iPhone, o app instalado na tela de início.'],
-  instalar: ['📲', 'No iPhone, os lembretes só chegam com o app instalado: no Safari, toque em Compartilhar → "Adicionar à Tela de Início" e abra por lá.'],
-  'sem-servidor': ['🔕', 'Os lembretes ainda não foram configurados no servidor (faltam as chaves VAPID no Netlify).'],
+  'sem-suporte': ['🔕', 'Este navegador não recebe avisos. No Android, use o Chrome; no iPhone, o app instalado na tela de início.'],
+  instalar: ['📲', 'No iPhone, os avisos só chegam com o app instalado: no Safari, toque em Compartilhar → "Adicionar à Tela de Início" e abra por lá.'],
+  'sem-servidor': ['🔕', 'Os avisos ainda não foram configurados no servidor (faltam as chaves VAPID no Netlify).'],
   bloqueado: ['🔕', 'As notificações deste app estão bloqueadas no aparelho. Libere nas configurações do navegador (ou do app) e volte aqui.'],
-  desligado: ['🔔', 'Ligue os lembretes para o celular avisar na hora marcada em cada card.'],
-  ligado: ['🔔', 'Lembretes ligados neste aparelho.'],
+  desligado: ['🔔', 'Ligue os avisos para o celular avisar dos lembretes do Acompanhamento e das respostas e reagendamentos das suas entrevistas.'],
+  ligado: ['🔔', 'Avisos ligados neste aparelho.'],
 };
 
+// A caixa aparece em duas abas: Acompanhamento e Agenda
+const CAIXAS = ['acomp-lembretes', 'agenda-lembretes'];
 export async function renderAvisoLembretes() {
-  const el = document.getElementById('acomp-lembretes');
-  if (!el) return;
+  const caixas = CAIXAS.map(id => document.getElementById(id)).filter(Boolean);
+  if (!caixas.length) return;
   const est = await estadoDoAparelho();
   const [ico, txt] = TEXTO[est];
   const botoes = est === 'desligado'
@@ -127,13 +132,15 @@ export async function renderAvisoLembretes() {
       ? `<button type="button" class="btn-secondary" data-act="lembretes-testar">Testar</button>
          <button type="button" class="btn-secondary" data-act="lembretes-desligar">Desligar</button>`
       : '';
-  el.className = 'acomp-lembretes' + (est === 'ligado' ? ' ligado' : '');
-  el.innerHTML = `<span class="acomp-lembretes-txt">${ico} ${esc(txt)}${est === 'ligado' && USUARIO ? ` Recebe os de <strong>${esc(USUARIO)}</strong>.` : ''}</span>
-    ${botoes ? `<span class="acomp-lembretes-acoes">${botoes}</span>` : ''}`;
+  for (const el of caixas) {
+    el.className = 'acomp-lembretes' + (est === 'ligado' ? ' ligado' : '');
+    el.innerHTML = `<span class="acomp-lembretes-txt">${ico} ${esc(txt)}${est === 'ligado' && USUARIO ? ` Recebe os de <strong>${esc(USUARIO)}</strong>.` : ''}</span>
+      ${botoes ? `<span class="acomp-lembretes-acoes">${botoes}</span>` : ''}`;
+  }
 }
 
 function ligarAvisoLembretes() {
-  document.getElementById('acomp-lembretes')?.addEventListener('click', e => {
+  for (const id of CAIXAS) document.getElementById(id)?.addEventListener('click', e => {
     const act = e.target.closest('[data-act]')?.dataset.act;
     if (act === 'lembretes-ligar') ligarLembretes();
     else if (act === 'lembretes-testar') testarLembretes();

@@ -1,5 +1,6 @@
 import { H, abrirStore, alterar } from "./_crud.js";
 import { verificar } from "./_sessao.js";
+import { INSCRICOES } from "./_avisos.js";
 import { configurado, enviarPush } from "./_webpush.js";
 import { MAX_INSCRICOES, inscricaoValida } from "../../js/lembretes-regras.js";
 
@@ -11,8 +12,8 @@ import { MAX_INSCRICOES, inscricaoValida } from "../../js/lembretes-regras.js";
 // Quem entrou como Bispo/ADM fica marcado até a sessão vencer (`sigiloAte`):
 // só esses recebem lembrete de card sigiloso (sem o nome, mesmo assim).
 
-// a mesma chave que o lembretes.js (o agendado) lê
-const COLECAO = "push-inscricoes";
+// a mesma chave que os avisos leem (_avisos.js)
+const COLECAO = INSCRICOES;
 const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: H });
 
 export default async (req) => {
@@ -49,8 +50,8 @@ export default async (req) => {
   if (!resp.ok || !new URL(req.url).searchParams.has("teste")) return resp;
 
   const r = await enviarPush(sub, {
-    titulo: "🔔 Lembretes ligados",
-    corpo: "É assim que o lembrete do acompanhamento vai aparecer neste aparelho.",
+    titulo: "🔔 Avisos ligados",
+    corpo: "É assim que os lembretes e as respostas às entrevistas vão aparecer neste aparelho.",
     url: "/#acompanhamento",
   }, env);
   if (r === "expirada") await alterar(store, COLECAO, data => ({ data: data.filter(i => i.endpoint !== sub.endpoint), resposta: () => null }));

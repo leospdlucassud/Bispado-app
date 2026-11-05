@@ -28,25 +28,9 @@ export const API_CONVITE   = '/api/convite';
 // o convite para instalar o app no celular de quem só veio responder.
 export const MODO_CONVITE = new URLSearchParams(location.search).has('confirmar');
 
-// =============================================
-// CARGOS DO BISPADO — a tabela única (genérica, serve a qualquer ala)
-// Antes, nome, código, cor e ícone estavam copiados em 6 arquivos, e cada cópia
-// tinha a sua falha. `cod` é o que a entrevista grava em `responsavel`;
-// designações e acompanhamentos gravam o nome. `entrevista`: aparece como
-// responsável no formulário da entrevista.
-// =============================================
-export const CARGOS_INFO = [
-  { cod: 'bispo', nome: 'Bispo',                icone: '⚜️', cor: '#c9a84c', entrevista: true },
-  { cod: 'c1',    nome: '1º Conselheiro',       icone: '🔵', cor: '#5b9bd5', entrevista: true },
-  { cod: 'c2',    nome: '2º Conselheiro',       icone: '🟢', cor: '#6dbf8c', entrevista: true },
-  { cod: 'sec',   nome: 'Secretário',           icone: '📝', cor: '#e8b040', entrevista: true },
-  { cod: 'se',    nome: 'Secretário Executivo', icone: '🗓️', cor: '#e86848', entrevista: false },
-];
-export const CARGOS = CARGOS_INFO.map(c => c.nome);
-// aceita o código ('c1') ou o nome ('1º Conselheiro')
-export const cargoInfo = x => CARGOS_INFO.find(c => c.cod === x || c.nome === x) || null;
-export const nomeDoResponsavel = x => cargoInfo(x)?.nome || x || '';
-export const corDoCargo = x => cargoInfo(x)?.cor || '#8eacc8';
+// Os cargos do bispado moram em cargos.js (sem DOM: o servidor também usa)
+import { CARGOS, CARGOS_INFO, cargoInfo, corDoCargo, nomeDoResponsavel } from './cargos.js';
+export { CARGOS, CARGOS_INFO, cargoInfo, corDoCargo, nomeDoResponsavel };
 
 // Cor de cada status da entrevista (borda do card, itens do Início): tokens
 // --st-* do style.css, que têm a sua versão no tema claro.
@@ -64,7 +48,7 @@ export let DADOS = { agenda:[], reunioes:[], designacoes:[], eventos_extras:[], 
 // (o que esta publicado) para o app instalado se atualizar sozinho.
 // Nao editar a mao: `node scripts/versao.mjs patch|minor|major` atualiza este,
 // o version.json, o CACHE do sw.js e o package.json juntos.
-export const VERSAO = '5.39.1';
+export const VERSAO = '5.40.0';
 
 // =============================================
 // NOME DA ALA

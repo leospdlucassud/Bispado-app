@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  ESTADOS, TIPO_DESIGNACAO, avisarAceite, avisarMudancaDeComo, fraseDoComo, modalidadeDe, camposDaNovaData, camposDaResposta, camposDoEnvio, comoNoConvite,
+  ESTADOS, JANELA_AVISO_MS, TIPO_DESIGNACAO, avisarAceite, avisoDaResposta, avisoDoReagendamento, reagendamentoParaAvisar, avisarMudancaDeComo, fraseDoComo, modalidadeDe, camposDaNovaData, camposDaResposta, camposDoEnvio, comoNoConvite,
   conviteJaRespondido, conviteParaMembro, estadoDaEntrevista, naoRealizadaPelaData, precisaReenviarConvite,
   primeiroNome, rotuloDoEstado, tipoNoConvite,
 } from '../js/convite-regras.js';
@@ -220,4 +220,36 @@ test('mudou presencial/online depois do convite: avisar até o convite (ou a con
   assert.equal(avisarMudancaDeComo({ ...e, confirmacaoEnviadaEm: '2026-10-30T12:00:00Z' }), false);
   assert.equal(avisarMudancaDeComo({ ...e, status: 'realizada' }), false);
   assert.equal(avisarMudancaDeComo({ status: 'aberta' }), false);
+});
+
+// ---------- avisos ao responsável pela entrevista ----------
+test('aviso da resposta do membro: confirmou ou pediu outra data; sigilosa sem nome', () => {
+  const e = { id: 'a1', membro: 'Exemplo, Ana', tipo: 'Renovação de Recomendação para o Templo', data: '2026-11-10', hora: '19:00' };
+  const c = avisoDaResposta(e, 'confirmado');
+  assert.equal(c.titulo, '✅ Entrevista confirmada');
+  assert.equal(c.corpo, 'Ana Exemplo confirmou para 10/11 às 19:00 · Renovação de Recomendação para o Templo');
+  assert.equal(c.url, '/#agenda');
+  const r = avisoDaResposta({ ...e, sugestaoData: '2026-11-12', sugestaoHora: '20:00' }, 'reagendar');
+  assert.equal(r.titulo, '🔄 Pediu outra data');
+  assert.match(r.corpo, /^Ana Exemplo não pode e sugeriu 12\/11 às 20:00/);
+  const sig = avisoDaResposta({ ...e, sigiloso: true }, 'confirmado');
+  assert.ok(!JSON.stringify(sig).includes('Ana') && !JSON.stringify(sig).includes('Renovação'));
+});
+
+test('aviso de reagendamento: quem reagendou e a nova data; sigilosa sem nome', () => {
+  const e = { id: 'a2', membro: 'Exemplo, Bruno', tipo: 'Orientação Espiritual', data: '2026-11-15', hora: '' };
+  assert.equal(avisoDoReagendamento(e, 'Secretário Executivo').corpo, 'Bruno Exemplo — nova data 15/11 por Secretário Executivo · Orientação Espiritual');
+  const sig = avisoDoReagendamento({ ...e, sigiloso: true }, 'Secretário Executivo');
+  assert.ok(!JSON.stringify(sig).includes('Bruno') && !JSON.stringify(sig).includes('Orientação'));
+});
+
+test('o aviso de reagendamento só vale logo depois dele, e uma vez', () => {
+  const agora = Date.parse('2026-11-05T15:00:00Z');
+  const recente = new Date(agora - 60e3).toISOString();
+  const e = { status: 'aberta', reagendamentos: [{ reagendadoEm: '2026-10-01T10:00:00Z' }, { reagendadoEm: recente }] };
+  assert.equal(reagendamentoParaAvisar(e, agora), recente);
+  assert.equal(reagendamentoParaAvisar({ ...e, avisoReagendado: recente }, agora), '', 'já avisado');
+  assert.equal(reagendamentoParaAvisar(e, agora + JANELA_AVISO_MS + 1), '', 'passou da janela');
+  assert.equal(reagendamentoParaAvisar({ status: 'aberta', reagendamentos: [] }, agora), '', 'nunca reagendada');
+  assert.equal(reagendamentoParaAvisar({ ...e, status: 'realizada' }, agora), '');
 });

@@ -11,11 +11,9 @@ import { chamadoDeLideranca,
   limparDocumentoChamados, membroDoQuadro, membrosSemChamado, nomeCurto, nomesAposImportar, nomesDoBispado,
   obsDaDesignacao, ordemNatural, parsearPdfChamados, resumoChamados, resumoDesignacoes, tipoDePdf, tiposDePdf,
 } from '../js/chamados-lcr.js';
+// a lista de cargos do app (cargos.js não depende do navegador)
+import { CARGOS } from '../js/cargos.js';
 import { TIPO_DESIGNACAO } from '../js/convite-regras.js';
-
-// CARGOS de js/config.js, lidos do texto (config.js lê location e não abre no Node)
-const CARGOS = [...readFileSync(new URL('../js/config.js', import.meta.url), 'utf8')
-  .match(/CARGOS_INFO = \[([\s\S]*?)\];/)[1].matchAll(/nome: '([^']+)'/g)].map(m => m[1]);
 
 // ---------- gerador do relatório sintético ----------
 // Medidas do relatório de 2026 (pdf.js, A4, y cresce para cima): moldura em

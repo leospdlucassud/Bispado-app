@@ -16,7 +16,8 @@ import { renderCrescimento } from './crescimento.js';
 import { MEMBROS } from './dados-membros.js';
 import { confirmar, pedirTexto } from './dialogo.js';
 import { abrirModal, fecharModal } from './ui.js';
-import { podeVer, toast } from './usuario.js';
+import { renderAvisoLembretes } from './lembretes.js';
+import { USUARIO, podeVer, toast } from './usuario.js';
 import { dataLocal, digitosTelefone, esc, formatarData, ico, norm } from './utils.js';
 
 // as regras do status moram em convite-regras.js (o servidor também usa);
@@ -98,6 +99,7 @@ const PRIO_EMOJI = { alta: '🔴', media: '🟡', normal: '🟢' };
 export function renderAgenda() {
   const el = document.getElementById('lista-agenda');
   if (!el) return;
+  renderAvisoLembretes();
   const busca = (document.getElementById('busca-membro')?.value || '').toLowerCase();
 
   // Painel de resumo
@@ -637,6 +639,8 @@ export async function salvarEntrevista(id) {
       // pode estar até 30s atrasado, e reescrevia por cima da resposta do membro.
       const atualizado = await apiFetch(`${API_AGENDA}?id=${id}`, 'PUT', payload);
       DADOS.agenda = DADOS.agenda.map(x => x.id === id ? atualizado : x);
+      // a data mudou (efeitosDaEdicao gravou um reagendamento)
+      if (payload.reagendamentos) avisarReagendamento(atualizado);
     } else {
       const criado = await apiFetch(API_AGENDA, 'POST', { ...payload, status: 'aberta', reagendamentos: [] });
       DADOS.agenda.push(criado);
@@ -722,6 +726,18 @@ export async function naoRealizada(id) {
   renderAgenda();
 }
 
+// Reagendou a entrevista de outra pessoa do bispado: o celular dela recebe o
+// aviso (/api/avisos, só depois que o servidor gravou). Sem rede, ou sem os
+// avisos ligados no celular dela, não acontece nada — o card já mostra a data nova.
+export const API_AVISOS = '/api/avisos';
+function avisarReagendamento(e) {
+  if (!e?.id || nomeDoResponsavel(e.responsavel) === USUARIO) return;
+  fetch(API_AVISOS, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: e.id, por: USUARIO || '' }),
+  }).catch(() => {});
+}
+
 export async function reagendarEntrevista(id) {
   const atual = DADOS.agenda.find(e => e.id === id) || {};
   // Se o membro pediu outra data pelo link do convite, o formulário já abre com
@@ -739,6 +755,7 @@ export async function reagendarEntrevista(id) {
     const atualizado = await apiFetch(`${API_AGENDA}?id=${id}`, 'PUT', campos);
     DADOS.agenda = DADOS.agenda.map(e => e.id===id ? atualizado : e);
     atualizarUltimaSinc(); setSyncStatus('ok');
+    avisarReagendamento(atualizado);
   } catch(e) {
     DADOS.agenda = DADOS.agenda.map(e => e.id===id ? {...e, ...campos} : e);
     avisarPendente('remarcação');
