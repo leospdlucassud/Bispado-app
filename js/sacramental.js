@@ -16,6 +16,7 @@ import {
   marcaVaga, minutosDaVaga, nomeCurto, nomeNatural, partesData, proximoDomingo, proximosDomingos, registroDoDomingo,
   semVagasOcultas, tipoDe, tipoTemOradores,
 } from './discursos-regras.js';
+import { HINOS, completarHino, rotuloHino } from './hinos.js';
 import { inicioColecaoCarregada, renderInicio } from './inicio.js';
 import { imprimirAtaSacramental } from './pdf.js';
 import {
@@ -257,12 +258,14 @@ export function abrirModalSac(dataKey) {
     ...MEMBROS.map(m => nomeNatural(m.name)),
     ...(DADOS.oradores || []).map(o => o.nome),
   ])].filter(Boolean);
-  const datalist = `<datalist id="dl-nomes">${nomes.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>`;
+  const datalist = `<datalist id="dl-nomes">${nomes.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>`
+    // os dois hinários (hinos.js): digitar o número ou parte do título sugere o hino
+    + `<datalist id="dl-hinos">${HINOS.map(h => `<option value="${esc(rotuloHino(h))}">`).join('')}</datalist>`;
 
   const campo = (c) => {
     const v = esc(campoAta(sac, c.k));
-    const ph = c.ph || (c.hino ? 'Nº e título do hino' : '');
-    const lista = (!c.area && !c.hino) ? ' list="dl-nomes"' : '';
+    const ph = c.ph || (c.hino ? 'Número ou título do hino' : '');
+    const lista = c.area ? '' : c.hino ? ' list="dl-hinos" autocomplete="off"' : ' list="dl-nomes"';
     return c.area
       ? `<div style="margin-bottom:10px">
            <label style="color:var(--text2);font-size:11px">${c.r}</label>
@@ -434,7 +437,8 @@ export function lerFormularioAta() {
   if (naoConta) obj.frequenciaConta = naoConta.checked ? 'nao' : 'sim';
   ATA_ORDEM.forEach(c => {
     if (!c.k) return;
-    obj[c.k] = v('ata-' + c.k);
+    // hino digitado só pelo número ("62") vira "62 — título"
+    obj[c.k] = c.hino ? completarHino(v('ata-' + c.k)) : v('ata-' + c.k);
     const sem = document.getElementById('ata-sem-' + c.k);
     if (c.hino && sem) obj[c.k + 'Sem'] = sem.checked ? 'sim' : 'nao';
   });
@@ -696,6 +700,8 @@ function ligarSacramental() {
   // o conteúdo do modal é recriado a cada ata aberta: a escuta fica no modal
   document.getElementById('modal-sacramental')?.addEventListener('change', e => {
     if (e.target.id === 'ata-tipo') mostrarVagasDaAta();
+    // saiu do campo do hino com só o número: já mostra o título
+    if (e.target.getAttribute?.('list') === 'dl-hinos') e.target.value = completarHino(e.target.value);
     // "Sem este discurso": os campos do orador somem; "Sem este hino": o campo trava
     const vaga = e.target.dataset?.semVaga;
     if (vaga) { const c = document.querySelector(`#modal-sacramental-content [data-vaga="${vaga}"] .ata-vaga-campos`); if (c) c.hidden = e.target.checked; }

@@ -40,6 +40,7 @@ import './acompanhamento.js';
 import './reunioes.js';
 import './designacoes.js';
 import './calendario.js';
+import './hinos.js';
 import './sacramental.js';
 import './discurso-base.js';
 import './rodizio.js';
