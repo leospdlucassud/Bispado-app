@@ -310,7 +310,8 @@ function listaAntiga(pessoas, { ala = 'Ala Exemplo 9 (000009)', contagem = null 
     if (p.idade) item(p.idade, 226, y);
     if (p.nasc) item(p.nasc, 262, y);
     if (p.tel) item(p.tel, 352, y);
-    if (p.email) item(p.email, 452, y);
+    // e-mail quebrado: o começo na linha de cima, o fim na de baixo (como o nome)
+    if (p.email) (Array.isArray(p.email) ? p.email : [p.email]).forEach((e, i, l) => item(e, 452, y + 6.5 * (l.length - 1) - 13 * i));
     y -= 32;
   }
   if (contagem != null) item(`Contagem: ${contagem}`, 40, y + 18);   // 14 pt abaixo do último registro
@@ -344,4 +345,23 @@ test('formato antigo com "Contagem" no fim: lida, e fora do nome do último', ()
   const leitura = lerPdfMembros(paginas);
   assert.deepEqual(leitura.membros.map(m => m.name), ['Exemplar, Fábio', 'Jovem, Kauã']);
   assert.equal(leitura.contagem, 2);
+});
+
+test('formato antigo: o fim do e-mail quebrado ("M") não vira pessoa, e o sobrenome Nascimento fica', () => {
+  // nov/2026: "…@EXEMPLO.CO" + "M" na linha de baixo — o M sozinho na coluna do
+  // e-mail virava um membro a mais ("Araújo De", M, 0 anos); e "Nascimento",
+  // sozinho na última linha do nome, era tirado como rótulo do cabeçalho
+  const paginas = listaAntiga([
+    { nome: ['Exemplo, Luiz Otávio', 'Araújo De'], sexo: 'M', idade: '18', nasc: '8 ago 2008', tel: '(63) 90000-0007', email: ['EXEMPLO.LUIZ@EXEMPLO.CO', 'M'] },
+    { nome: ['Teste, Carlos Alberto', 'Nascimento'], sexo: 'M', idade: '35', nasc: '28 out 1991', tel: '', email: '' },
+    { nome: 'Novo, Igor', sexo: 'M', idade: '25', nasc: '5 mai 2001', tel: '', email: '' },
+  ], { contagem: 3 });
+  const leitura = lerPdfMembros(paginas);
+  assert.deepEqual(leitura.membros.map(m => [m.name, m.gender, m.age]), [
+    ['Exemplo, Luiz Otávio Araújo De', 'M', 18],
+    ['Teste, Carlos Alberto Nascimento', 'M', 35],
+    ['Novo, Igor', 'M', 25],
+  ]);
+  assert.equal(leitura.membros[0].email, 'EXEMPLO.LUIZ@EXEMPLO.COM');
+  assert.equal(leitura.membros.length, leitura.contagem);
 });

@@ -915,6 +915,13 @@
 .cham-info { font-size:11px; color:var(--text2); margin-bottom:12px; line-height:1.5; }
 .cham-info:empty { display:none; }
 .cham-conta { font-size:11px; color:var(--text3); margin-bottom:8px; }
+.cham-dica-freq { font-size:11.5px; color:var(--text2); line-height:1.5; margin:-2px 0 10px; }
+.cham-grupo-freq { font-size:12px; font-weight:700; color:var(--text2); margin:4px 0 6px; }
+.cham-freq { color:#34d399; font-weight:600; }
+[data-theme="light"] .cham-freq { color:#047857; }
+.cham-sem-freq { margin-top:10px; }
+.cham-sem-freq summary { cursor:pointer; font-size:12px; font-weight:700; color:var(--text2); margin-bottom:6px; }
+.membro-card.sem-freq { opacity:.75; }
 .cham-vazia-dica { font-size:12px; opacity:.8; }
 
 /* uma organização: recolhível; o resumo (nome + contas) quebra no celular */

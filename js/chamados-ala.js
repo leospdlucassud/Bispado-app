@@ -16,12 +16,14 @@ import { NOMES_CARGOS, carregarChamados, nomesCarregados, salvarChamados } from 
 import {
   FILTROS_CHAMADOS, aDesignar, agruparPorOrganizacao, compararBispado, compararChamados, designacaoNaAgenda,
   cargoDoChamado, editarOcupante, filtrarChamados, membroDoQuadro, membrosSemChamado, nomeCurto, nomesAposImportar,
-  obsDaDesignacao, ordemNatural, parsearPdfChamados, resumoChamados,
+  obsDaDesignacao, ordemNatural, parsearPdfChamados, resumoChamados, semChamadoPorFrequencia,
 } from './chamados-lcr.js';
 import { ALA, API_CHAMADOS, DADOS } from './config.js';
 import { TIPO_DESIGNACAO } from './convite-regras.js';
+import { atividadePorPessoa } from './crescimento.js';
 import { NOMES_DOS_PDFS, abaDoPdf, tipoDePdfLcr } from './crescimento-lcr.js';
 import { MEMBROS } from './dados-membros.js';
+import { chavePessoa } from './discursos-regras.js';
 import { confirmar } from './dialogo.js';
 import { renderInicio } from './inicio.js';
 import { carregarPdfJs } from './membros-import.js';
@@ -355,24 +357,36 @@ export function agendarDesignacao(c) {
 }
 
 // Adultos do quadro sem nenhum chamado no relatório — quem o bispado pode
-// considerar ao preencher os vagos
+// considerar ao preencher os vagos. Com a frequência por pessoa (Bispo/ADM e o
+// relatório "Frequência à classe e ao quórum" importado na aba Vamos crescer a
+// Ala), os que mais vêm às classes e organizações vêm primeiro: não adianta
+// chamar quem não está vindo.
 function renderSemChamado(el, busca) {
   if (!CHAMADOS_ALA.length) {
     el.innerHTML = vazia('📭 Nenhum chamado importado', 'Importe o relatório para ver quem está sem chamado');
     return;
   }
-  const lista = membrosSemChamado(ativos(), CHAMADOS_ALA, { busca })
-    .map(m => ({ m, nome: ordemNatural(m.name) }))
-    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  const atividade = atividadePorPessoa();
+  const lista = semChamadoPorFrequencia(membrosSemChamado(ativos(), CHAMADOS_ALA, { busca }), atividade, chavePessoa);
   if (!lista.length) { el.innerHTML = vazia(busca.trim() ? '🔍 Ninguém com esse nome' : '🎉 Todos os adultos ativos têm chamado'); return; }
   const data = RELATORIO_CHAMADOS?.data ? ` de ${dataParaExibir(RELATORIO_CHAMADOS.data)}` : '';
-  el.innerHTML = `<div class="cham-conta">${plural(lista.length, 'membro ativo', 'membros ativos')}, de 18 anos ou mais, sem chamado no relatório${esc(data)}</div>`
-    + lista.map(({ m, nome }) => `<div class="membro-card">
+  const card = ({ m, nome, presencas }) => `<div class="membro-card${presencas === 0 ? ' sem-freq' : ''}">
         <div>
           <div class="membro-nome">${esc(nome)}</div>
-          <div class="membro-info">${m.gender === 'M' ? '♂ · ' : m.gender === 'F' ? '♀ · ' : ''}${esc(m.age)} anos</div>
+          <div class="membro-info">${m.gender === 'M' ? '♂ · ' : m.gender === 'F' ? '♀ · ' : ''}${esc(m.age)} anos${presencas ? ` · <span class="cham-freq">veio em ${presencas} de ${atividade.semanas} domingos</span>` : ''}</div>
         </div>
-      </div>`).join('');
+      </div>`;
+  const topo = `<div class="cham-conta">${plural(lista.length, 'membro ativo', 'membros ativos')}, de 18 anos ou mais, sem chamado no relatório${esc(data)}</div>`;
+  if (!atividade) {
+    el.innerHTML = topo + '<div class="cham-dica-freq">Para ver primeiro quem mais vem às classes e organizações, entre como Bispo e importe o relatório <strong>Frequência à classe e ao quórum</strong> na aba Vamos crescer a Ala.</div>'
+      + lista.map(card).join('');
+    return;
+  }
+  const vem = lista.filter(x => x.presencas > 0), naoVem = lista.filter(x => !x.presencas);
+  el.innerHTML = topo
+    + `<div class="cham-dica-freq">Em ordem de frequência às classes e organizações nos últimos ${atividade.semanas} domingos com presença marcada no LCR. Quem não aparece como presente pode só não ter sido marcado.</div>`
+    + (vem.length ? `<div class="cham-grupo-freq">Vêm às reuniões (${vem.length})</div>` + vem.map(card).join('') : '')
+    + (naoVem.length ? `<details class="cham-sem-freq"><summary>Sem presença marcada nesses domingos (${naoVem.length})</summary>${naoVem.map(card).join('')}</details>` : '');
 }
 
 // ---------- importação do PDF ----------

@@ -19,9 +19,11 @@
 // devolvem contagens; só a lista de recomendações (nome, sexo, idade, situação,
 // validade) sai por pessoa — para o "Renovações a agendar" e a conta dos
 // participantes —, e ela vai para a parte do documento que só a sessão de Bispo
-// ou ADM recebe (privado). A frequência às classes é contada direto dos ícones,
-// sem passar por nomes; a página 2 do Trimestral ("Detalhes sobre o Converso",
-// com nomes) é pulada inteira.
+// ou ADM recebe (privado). A frequência às classes é contada direto dos ícones;
+// por pessoa, ela sai só como "os domingos em que veio" (porPessoa), para a aba
+// Chamados pôr primeiro, entre quem está sem chamado, quem mais frequenta — e
+// também vai para o privado. A página 2 do Trimestral ("Detalhes sobre o
+// Converso", com nomes) é pulada inteira.
 //
 // Geometria (pdf.js, A4 595×842, y para cima), medida nos PDFs de out/2026:
 //   Trimestral, corpo 7,5: "Relatório Trimestral | <Ala> (<n>) | Trimestre T - AAAA"
@@ -717,13 +719,19 @@ export function formaDoIcone(c) {
 //           icones: { presentes, ausentes, ignorados, semRotulo },
 //           rotulosOutros: { rótulo: matrículas } (classes que não caíram em grupo nenhum),
 //           classes: [{ rotulo, grupo, matriculados }] (a prévia mostra o que caiu em cada grupo),
-//           avisos }.
+//           porPessoa: [{ nome, presentes: [datas] }] (os domingos em que a pessoa
+//             teve presença em alguma classe), avisos }.
+// Por pessoa: a linha dela é a do M/F na coluna Sexo, com o nome à esquerda; os
+// ícones dela ficam logo abaixo (uma fileira por classe), até a linha da
+// pessoa seguinte. No alto da página, antes da 1ª pessoa, continua a última
+// pessoa da página anterior (a quebra de página parte o bloco). Medido nos
+// relatórios de jul a nov/2026: todo bloco fechou em 1, 2 ou 3 fileiras inteiras.
 // `registrada`: houve ao menos uma presença marcada no domingo — o domingo que
 // ainda não chegou (o relatório traz o mês inteiro) vem todo vazio, e não é 0%.
 export function lerFrequenciaClasses(paginas, icones = [], { hoje = dataLocal() } = {}) {
   const trechos = (paginas || []).map(trechosDaPagina);
   const linhas = trechos.map(agruparLinhas);
-  const out = { ala: '', unidade: '', mes: '', pessoas: 0, semanas: [], icones: { presentes: 0, ausentes: 0, ignorados: 0, semRotulo: 0 }, rotulosOutros: {}, classes: [], avisos: [] };
+  const out = { ala: '', unidade: '', mes: '', pessoas: 0, semanas: [], icones: { presentes: 0, ausentes: 0, ignorados: 0, semRotulo: 0 }, rotulosOutros: {}, classes: [], porPessoa: [], avisos: [] };
   Object.assign(out, alaDoPdf(linhas[0] || []));
 
   // o cabeçalho: "Nome | Sexo | 4 Out | 11 Out …" (a fileira de botões acima,
@@ -841,10 +849,46 @@ export function lerFrequenciaClasses(paginas, icones = [], { hoje = dataLocal() 
   out.classes = [...classes].map(([rotulo, c]) => ({ rotulo, grupo: c.grupo, matriculados: Math.max(...c.porDomingo) }))
     .sort((a, b) => CHAVES_GRUPO.indexOf(a.grupo) - CHAVES_GRUPO.indexOf(b.grupo) || b.matriculados - a.matriculados);
 
-  // as pessoas: um M/F na coluna Sexo (conferência para a prévia)
-  trechos.forEach((ts, p) => {
-    for (const t of ts) if (/^[MF]$/.test(t.s.trim()) && Math.abs(t.x - cab.xSexo) <= cab.f * 0.4 && ehConteudo(p, t, rodapes[p] ?? -Infinity)) out.pessoas++;
+  // as pessoas: um M/F na coluna Sexo (conferência para a prévia) — a linha
+  // de cada uma, com o nome. O nome fica CENTRALIZADO na linha do M/F e quebra
+  // para cima e para baixo (linhas a ~1,4 corpo); entre uma pessoa e a outra a
+  // folga é maior (≥ 2,6 corpo). Então: as linhas do nome em blocos, pela folga,
+  // e cada bloco com a linha M/F na mesma ordem da página — medido em ago, out
+  // e nov/2026, toda página tem tantos blocos quanto linhas (o nome não parte na
+  // quebra de página; a "Contagem" do fim da página fica fora). Se um dia não
+  // bater, o bloco vai para a linha mais perto do meio dele.
+  const linhasPessoa = trechos.map((ts, p) => {
+    const ls = ts.filter(t => /^[MF]$/.test(t.s.trim()) && Math.abs(t.x - cab.xSexo) <= cab.f * 0.4 && ehConteudo(p, t, rodapes[p] ?? -Infinity))
+      .map(t => ({ y: t.y, nome: '', presentes: new Set() })).sort((a, b) => b.y - a.y);
+    const doNome = ts.filter(t => t.x < cab.xSexo - cab.f * 0.4 && ehConteudo(p, t, rodapes[p] ?? -Infinity)
+      && !altos[p].some(y => Math.abs(y - t.y) < 1) && !RE_CONTAGEM.test(t.s.trim()));
+    const blocos = [];
+    for (const l of agruparLinhas(doNome).filter(l => !RE_CONTAGEM.test(l.texto))) {
+      const b = blocos.at(-1);
+      if (b && b.at(-1).y - l.y < cab.f * 2.2) b.push(l); else blocos.push([l]);
+    }
+    const meio = b => (b[0].y + b.at(-1).y) / 2;
+    blocos.forEach((b, i) => {
+      const alvo = blocos.length === ls.length ? ls[i]
+        : ls.reduce((m, l) => (!m || Math.abs(l.y - meio(b)) < Math.abs(m.y - meio(b)) ? l : m), null);
+      if (alvo) alvo.nome = [alvo.nome, ...b.map(l => l.texto)].join(' ').replace(/\s+/g, ' ').trim();
+    });
+    return ls;
   });
+  out.pessoas = linhasPessoa.reduce((n, ls) => n + ls.length, 0);
+  // os ícones de presença de cada pessoa: os da fileira logo abaixo da linha
+  // dela (folga de meio ícone: o ícone pode subir um pouco acima do nome)
+  let ultima = null;
+  linhasPessoa.forEach((ls, p) => {
+    for (const c of validos[p] || []) {
+      if (c.forma !== 'presente' || !c.rotulo.length) continue;
+      const acima = ls.filter(l => l.y + lado * 0.5 >= c.yc);
+      const dono = acima.length ? acima[acima.length - 1] : ultima;
+      dono?.presentes.add(datas[c.col]);
+    }
+    if (ls.length) ultima = ls[ls.length - 1];
+  });
+  out.porPessoa = linhasPessoa.flat().map(l => ({ nome: l.nome, presentes: [...l.presentes].filter(Boolean).sort() })).filter(x => x.nome);
   if (soltos) out.avisos.push(`${soltos} pedaço(s) de rótulo de classe ficaram sem ícone.`);
   if (!validos.flat().length) out.avisos.push('Nenhum ícone de presença foi encontrado.');
   return out;
@@ -1104,6 +1148,8 @@ export const MAX_PESSOAS = 2000;
 export const MAX_SEMANAS_CLASSES = 160;   // ~3 anos de domingos
 export const MAX_TRIMESTRES = 40;         // 10 anos
 export const MAX_LINHAS_TRIMESTRAL = 60;
+// a frequência por pessoa guarda o último ano de domingos (a aba Chamados olha os mais recentes)
+export const MAX_SEMANAS_PESSOAS = 53;
 
 const vazioPublico = () => ({
   trimestral: {}, estatisticas: null, recomendacoes: { adultos: null, jovens: null },
@@ -1111,7 +1157,8 @@ const vazioPublico = () => ({
 });
 const vazioPrivado = () => ({
   recomendacoesPessoas: { adultos: [], jovens: [] }, portadoresAtivosDizimistas: null,
-  participantes: { adultos: null, jovens: null }, importadoEm: {}, atualizadoEm: null,
+  participantes: { adultos: null, jovens: null }, frequenciaPessoas: { semanas: [], pessoas: [] },
+  importadoEm: {}, atualizadoEm: null,
 });
 export const docCrescimentoVazio = () => ({ publico: vazioPublico(), privado: vazioPrivado() });
 
@@ -1221,6 +1268,74 @@ function limparResumoRecomendacoes(r, tipo, onde) {
   } };
 }
 
+// A frequência por pessoa (privado): { semanas: [datas com presença marcada
+// no relatório], pessoas: [{ chave, presentes: [datas] }] }. Só a chave do nome
+// (chavePessoa) e os domingos em que veio — nada mais da pessoa.
+function limparFrequenciaPessoas(f, onde) {
+  if (!ehObjeto(f) || !Array.isArray(f.semanas) || !Array.isArray(f.pessoas)) return { erro: `${onde}: { semanas, pessoas }` };
+  if (f.semanas.length > MAX_SEMANAS_CLASSES || !f.semanas.every(d => typeof d === 'string' && RE_DIA.test(d))) return { erro: `${onde}.semanas: lista de datas` };
+  if (f.pessoas.length > MAX_PESSOAS) return { erro: `${onde}.pessoas: lista de até ${MAX_PESSOAS}` };
+  const semanas = new Set(f.semanas);
+  const pessoas = [];
+  for (const [i, p] of f.pessoas.entries()) {
+    if (!ehObjeto(p) || typeof p.chave !== 'string' || !p.chave.trim() || p.chave.length > 200 || !Array.isArray(p.presentes) || p.presentes.length > MAX_SEMANAS_CLASSES) {
+      return { erro: `${onde}.pessoas[${i}]: { chave, presentes }` };
+    }
+    if (!p.presentes.every(d => typeof d === 'string' && semanas.has(d))) return { erro: `${onde}.pessoas[${i}].presentes: datas das semanas` };
+    pessoas.push({ chave: p.chave.trim(), presentes: [...new Set(p.presentes)].sort() });
+  }
+  return { v: { semanas: [...semanas].sort(), pessoas } };
+}
+
+// Junta um mês novo ao que já está guardado: os domingos do novo trocam os
+// mesmos domingos do antigo (para todo mundo); os outros ficam. Guarda o último
+// ano e só quem veio pelo menos uma vez (ausente em tudo não precisa de linha).
+export function juntarFrequenciaPessoas(antiga, nova) {
+  const velhas = ehObjeto(antiga) ? antiga : { semanas: [], pessoas: [] };
+  const novas = new Set(nova.semanas);
+  const semanas = [...new Set([...(velhas.semanas || []), ...nova.semanas])].sort().slice(-MAX_SEMANAS_PESSOAS);
+  const ficam = new Set(semanas);
+  const porChave = new Map();
+  for (const p of velhas.pessoas || []) porChave.set(p.chave, new Set((p.presentes || []).filter(d => !novas.has(d) && ficam.has(d))));
+  for (const p of nova.pessoas) {
+    const c = porChave.get(p.chave) || new Set();
+    for (const d of p.presentes) if (ficam.has(d)) c.add(d);
+    porChave.set(p.chave, c);
+  }
+  const pessoas = [...porChave].filter(([, c]) => c.size).map(([chave, c]) => ({ chave, presentes: [...c].sort() }))
+    .sort((a, b) => a.chave.localeCompare(b.chave));
+  return { semanas, pessoas };
+}
+
+// A chave do nome do relatório de frequência no quadro de membros. O relatório
+// às vezes traz o nome com um sobrenome a mais, ou com um complemento depois de
+// " - " (medido em out/2026: 17 de 436). Ordem: a chave igual; sem o
+// complemento; e, por fim, o ÚNICO membro do quadro com todas as palavras
+// dentro do nome do relatório (duas palavras ou mais). Sem nada disso, a chave
+// do próprio nome (não casa com ninguém e não pesa na aba Chamados).
+// chavesDoQuadro: Set das chaves (chavePessoa) dos nomes do quadro.
+export function chaveNoQuadro(nome, chavesDoQuadro) {
+  const direta = chavePessoa(nome);
+  if (!chavesDoQuadro?.size || chavesDoQuadro.has(direta)) return direta;
+  const semComplemento = chavePessoa(String(nome).split(/\s+-\s+/)[0]);
+  if (chavesDoQuadro.has(semComplemento)) return semComplemento;
+  const palavras = new Set(direta.split(' '));
+  const candidatos = [...chavesDoQuadro].filter(k => { const p = k.split(' '); return p.length >= 2 && p.every(w => palavras.has(w)); });
+  return candidatos.length === 1 ? candidatos[0] : direta;
+}
+
+// Quantos dos últimos `ultimas` domingos registrados cada pessoa veio.
+// → { semanas: N (os domingos olhados), porChave: Map(chave → presenças) }
+export function atividadeDosMembros(freq, { ultimas = 12 } = {}) {
+  const olhadas = new Set((freq?.semanas || []).slice(-ultimas));
+  const porChave = new Map();
+  for (const p of freq?.pessoas || []) {
+    const n = (p.presentes || []).filter(d => olhadas.has(d)).length;
+    if (n) porChave.set(p.chave, n);
+  }
+  return { semanas: olhadas.size, porChave };
+}
+
 function limparPessoas(lista, onde) {
   if (!Array.isArray(lista) || lista.length > MAX_PESSOAS) return { erro: `${onde}: lista de até ${MAX_PESSOAS}` };
   const v = [];
@@ -1265,7 +1380,8 @@ function limparSemanas(f, onde) {
 //   ({ adultos?, jovens? }: o resumo), publico.frequenciaClasses ({ semanas }),
 //   publico.historicoSacramental ({ AAAA: % ou null — null apaga o ano });
 //   privado.recomendacoesPessoas ({ adultos?, jovens? }), privado.portadoresAtivosDizimistas
-//   (número ou null), privado.participantes ({ adultos?, jovens? }: número ou null).
+//   (número ou null), privado.participantes ({ adultos?, jovens? }: número ou null),
+//   privado.frequenciaPessoas ({ semanas, pessoas: [{ chave, presentes }] }).
 // O resto é ignorado. Datas de gravação são de quem grava (o servidor).
 export function limparCorpoCrescimento(corpo) {
   if (!ehObjeto(corpo)) return { erro: 'corpo: objeto esperado' };
@@ -1320,6 +1436,11 @@ export function limparCorpoCrescimento(corpo) {
       parcial.privado.recomendacoesPessoas[tipo] = r.v;
     }
   }
+  if (pri?.frequenciaPessoas !== undefined) {
+    const r = limparFrequenciaPessoas(pri.frequenciaPessoas, 'privado.frequenciaPessoas');
+    if (r.erro) return r;
+    parcial.privado.frequenciaPessoas = r.v;
+  }
   if (pri?.portadoresAtivosDizimistas !== undefined) {
     const n = pri.portadoresAtivosDizimistas;
     if (!(n === null || inteiroOk(n, 10000))) return { erro: 'privado.portadoresAtivosDizimistas: inteiro ou null' };
@@ -1362,6 +1483,9 @@ export function normalizarDocCrescimento(data) {
   for (const k of ['trimestral', 'historicoSacramental', 'importadoEm']) if (!ehObjeto(pub[k])) pub[k] = {};
   pri.recomendacoesPessoas = { ...v.privado.recomendacoesPessoas, ...(ehObjeto(pri.recomendacoesPessoas) ? pri.recomendacoesPessoas : {}) };
   pri.participantes = { ...v.privado.participantes, ...(ehObjeto(pri.participantes) ? pri.participantes : {}) };
+  if (!ehObjeto(pri.frequenciaPessoas) || !Array.isArray(pri.frequenciaPessoas.semanas) || !Array.isArray(pri.frequenciaPessoas.pessoas)) {
+    pri.frequenciaPessoas = v.privado.frequenciaPessoas;
+  }
   if (!ehObjeto(pri.importadoEm)) pri.importadoEm = {};
   return { publico: pub, privado: pri };
 }
@@ -1402,6 +1526,10 @@ export function fundirCrescimento(atual, parcial, agora = new Date().toISOString
   if (q.recomendacoesPessoas) {
     pri.recomendacoesPessoas = { ...pri.recomendacoesPessoas };
     for (const tipo of Object.keys(q.recomendacoesPessoas)) { pri.recomendacoesPessoas[tipo] = q.recomendacoesPessoas[tipo]; marca(pri, 'recomendacoesPessoas-' + tipo); mudouPri = true; }
+  }
+  if (q.frequenciaPessoas) {
+    pri.frequenciaPessoas = juntarFrequenciaPessoas(pri.frequenciaPessoas, q.frequenciaPessoas);
+    marca(pri, 'frequenciaPessoas'); mudouPri = true;
   }
   if (q.portadoresAtivosDizimistas !== undefined) { pri.portadoresAtivosDizimistas = q.portadoresAtivosDizimistas; marca(pri, 'portadoresAtivosDizimistas'); mudouPri = true; }
   if (q.participantes) {

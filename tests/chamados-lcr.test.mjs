@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import { chamadoDeLideranca,
   CARGOS_DO_LCR, DOC_CHAMADOS_VAZIO, cargoDoChamado, editarOcupante, FILTROS_CHAMADOS, MAX_CHAMADOS, MAX_TEXTO_CHAMADO, aDesignar, agruparPorOrganizacao,
   chamadosDoMembro, compararBispado, compararChamados, dataLcr, designacaoNaAgenda, filtrarChamados, indicePorPessoa,
-  limparDocumentoChamados, membroDoQuadro, membrosSemChamado, nomeCurto, nomesAposImportar, nomesDoBispado,
+  limparDocumentoChamados, membroDoQuadro, membrosSemChamado, semChamadoPorFrequencia, nomeCurto, nomesAposImportar, nomesDoBispado,
   obsDaDesignacao, ordemNatural, parsearPdfChamados, resumoChamados, resumoDesignacoes, tipoDePdf, tiposDePdf,
 } from '../js/chamados-lcr.js';
 // a lista de cargos do app (cargos.js não depende do navegador)
@@ -787,4 +787,12 @@ test('chamadoDeLideranca: bispado, presidências e líderes da ala — sem secre
   const nao = ['Secretária da Sociedade de Socorro', 'Professor(a) da Primária', 'Recepcionista', '', 'Pianista'];
   for (const t of sim) assert.equal(chamadoDeLideranca(t), true, t);
   for (const t of nao) assert.equal(chamadoDeLideranca(t), false, t);
+});
+
+test('sem chamado: os mais frequentes primeiro; sem a frequência, pelo nome', () => {
+  const lista = [{ name: 'Teste, Carla', age: 30 }, { name: 'Exemplo, Ana', age: 40 }, { name: 'Modelo, Bruno', age: 25 }];
+  const chave = n => n.toLowerCase();
+  assert.deepEqual(semChamadoPorFrequencia(lista, null).map(x => [x.nome, x.presencas]), [['Ana Exemplo', null], ['Bruno Modelo', null], ['Carla Teste', null]]);
+  const atividade = { semanas: 8, porChave: new Map([['teste, carla', 6], ['modelo, bruno', 2]]) };
+  assert.deepEqual(semChamadoPorFrequencia(lista, atividade, chave).map(x => [x.nome, x.presencas]), [['Carla Teste', 6], ['Bruno Modelo', 2], ['Ana Exemplo', 0]]);
 });

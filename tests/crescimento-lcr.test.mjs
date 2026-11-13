@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  CHAVES_ESTATISTICAS, CHAVES_GRUPO, CRITERIOS, METAS_ALA, METAS_ESTACA, MAX_PESSOAS, MIN_SEMANAS_ANO, NOMES_DOS_PDFS, SECOES_TRIMESTRAL,
+  CHAVES_ESTATISTICAS, CHAVES_GRUPO, CRITERIOS, MAX_SEMANAS_PESSOAS, atividadeDosMembros, chaveNoQuadro, juntarFrequenciaPessoas, METAS_ALA, METAS_ESTACA, MAX_PESSOAS, MIN_SEMANAS_ANO, NOMES_DOS_PDFS, SECOES_TRIMESTRAL,
   anoDasSemanas, chaveTrimestre, domingosSemFrequencia, foraDaContagem, gradeFrequencia, mudancasDaGrade, comparacaoIndicador, dataDoLcr, docCrescimentoVazio, formaDoIcone, frequenciaSacramental,
   fundirCrescimento, grupoDaClasse, historicoDoIndicador, historicoSacramental, lerEstatisticas, lerFrequenciaClasses,
   lerRecomendacoes, lerTrimestral, liderancaChave, limparCorpoCrescimento, mesDoLcr, normalizarDocCrescimento,
@@ -382,7 +382,10 @@ const ICONE_AUSENTE = { curvas: 36, retas: 0, subcaminhos: 2, pintura: 'fill' };
 const ICONE_AUSENTE_1 = { curvas: 36, retas: 0, subcaminhos: 1, pintura: 'fill' };   // alguns anéis vêm num subcaminho só
 
 // pessoas: [{ nome, sexo, classes: [{ rotulo: [linhas], presencas: [bool por domingo], partir?: 'depois'|'antes' }] }]
-function frequencia(domingos, pessoas, { ala = 'Ala Exemplo 9 (000009)' } = {}) {
+// `nomeNoAlto`: como no relatório de verdade (medido em out/2026), a linha do
+// nome e do sexo fica ~1 ícone ACIMA da 1ª fileira de ícones da pessoa (e não no
+// meio do bloco) — é o desenho que a leitura por pessoa (porPessoa) segue
+function frequencia(domingos, pessoas, { ala = 'Ala Exemplo 9 (000009)', nomeNoAlto = false } = {}) {
   const D = DESENHOS[domingos.length] || DESENHOS[4];
   const paginas = [[]], icones = [[]];
   let p = 0, y = D.topo - 30;
@@ -441,7 +444,7 @@ function frequencia(domingos, pessoas, { ala = 'Ala Exemplo 9 (000009)' } = {}) 
       }
     });
     // nome e sexo no meio do bloco (na página em que ele começou, se partiu)
-    const meio = inicio.p === p ? (inicio.y + y) / 2 : inicio.y;
+    const meio = nomeNoAlto ? inicio.y + D.lado * 0.96 : inicio.p === p ? (inicio.y + y) / 2 : inicio.y;
     colados(paginas[inicio.p], [pessoa.nome], D.xNome, meio, D.f);
     trecho(paginas[inicio.p], pessoa.sexo, D.xSexo, meio - D.f * 0.3, D.f);
     icones[inicio.p].push({ x: D.col0 + D.colW * domingos.length + 2.4, y: meio - 5.6, w: D.lado * 0.848, h: D.lado * 0.904, curvas: 8, retas: 12, subcaminhos: 3, pintura: 'fill' });
@@ -493,8 +496,11 @@ test('frequência às classes: 4 domingos, conta por grupo pelos ícones, sem no
   assert.deepEqual(f.avisos, []);
   assert.deepEqual(f.classes.find(c => c.rotulo === 'Escola Dominical Curso 11'), { rotulo: 'Escola Dominical Curso 11', grupo: 'escolaDominicalJovens', matriculados: 1 });
   assert.equal(f.classes.find(c => c.rotulo === 'Escola Dominical para adultos').matriculados, 2);
-  const tudo = JSON.stringify(f);
-  for (const p of pessoas) assert.ok(!tudo.includes(p.nome.split(',')[1].trim()), 'nome na leitura da frequência');
+  // os nomes só saem em porPessoa (para a aba Chamados, pelo privado); as contas não têm nome
+  const { porPessoa, ...contas } = f;
+  const tudo = JSON.stringify(contas);
+  for (const p of pessoas) assert.ok(!tudo.includes(p.nome.split(',')[1].trim()), 'nome nas contas da frequência');
+  assert.equal(porPessoa.length, pessoas.length);
 });
 
 test('frequência às classes: mês de 5 domingos em escala menor, várias páginas', () => {
@@ -980,4 +986,75 @@ test('domingo que não conta: conferências e o marcado "não contabilizar" fica
   // e não cobra contagem dele (nem da conferência)
   assert.deepEqual(domingosSemFrequencia([{ data: '2026-10-11', frequenciaConta: 'nao' }, { data: '2026-10-04', tipo: 'conf-geral' }], { hoje: '2026-10-12', semanas: 2 }), []);
   assert.deepEqual(domingosSemFrequencia([], { hoje: '2026-10-12', semanas: 2 }), ['2026-10-04', '2026-10-11']);
+});
+
+// ---------- frequência por pessoa (a aba Chamados) ----------
+test('frequência por pessoa: os domingos em que cada um veio a alguma classe', () => {
+  const pessoas = pessoasDeExemplo();
+  const { paginas, icones } = frequencia(['4 Out', '11 Out', '18 Out', '25 Out'], pessoas, { nomeNoAlto: true });
+  const f = lerFrequenciaClasses(paginas, icones, { hoje: HOJE });
+  const datas = ['2026-10-04', '2026-10-11', '2026-10-18', '2026-10-25'];
+  const esperado = pessoas.map(p => ({
+    nome: p.nome,
+    presentes: datas.filter((_, k) => p.classes.some(c => c.presencas[k])),
+  }));
+  assert.deepEqual(f.porPessoa, esperado);
+});
+
+test('frequência por pessoa, várias páginas: o bloco partido continua da pessoa da página anterior', () => {
+  const muitas = [];
+  for (let i = 0; i < 30; i++) {
+    muitas.push({ nome: `Exemplo, Pessoa ${i}`, sexo: i % 2 ? 'M' : 'F', classes: [
+      { rotulo: ED_ADULTOS, presencas: [i % 3 === 0, false, i % 4 === 0, false, i % 5 === 0] },
+      { rotulo: i % 2 ? ELDERES : SOCORRO, presencas: [false, i % 2 === 0, false, i % 3 === 0, false] },
+    ] });
+  }
+  const { paginas, icones } = frequencia(['2 Ago', '9 Ago', '16 Ago', '23 Ago', '30 Ago'], muitas, { nomeNoAlto: true });
+  assert.ok(paginas.length >= 3);
+  const f = lerFrequenciaClasses(paginas, icones, { hoje: HOJE });
+  const datas = ['2026-08-02', '2026-08-09', '2026-08-16', '2026-08-23', '2026-08-30'];
+  assert.deepEqual(f.porPessoa.map(p => p.presentes), muitas.map(p => datas.filter((_, k) => p.classes.some(c => c.presencas[k]))));
+});
+
+test('juntar os meses: o mês novo troca os mesmos domingos; o ano fica; ausente em tudo sai', () => {
+  const set = { semanas: ['2026-09-06', '2026-09-13'], pessoas: [{ chave: 'ana exemplo', presentes: ['2026-09-06'] }, { chave: 'bruno exemplo', presentes: ['2026-09-13'] }] };
+  const out = { semanas: ['2026-10-04'], pessoas: [{ chave: 'ana exemplo', presentes: ['2026-10-04'] }] };
+  let j = juntarFrequenciaPessoas(null, set);
+  j = juntarFrequenciaPessoas(j, out);
+  assert.deepEqual(j.semanas, ['2026-09-06', '2026-09-13', '2026-10-04']);
+  assert.deepEqual(j.pessoas, [{ chave: 'ana exemplo', presentes: ['2026-09-06', '2026-10-04'] }, { chave: 'bruno exemplo', presentes: ['2026-09-13'] }]);
+  // reimportar setembro corrigido: os domingos de setembro trocam
+  j = juntarFrequenciaPessoas(j, { semanas: ['2026-09-06', '2026-09-13'], pessoas: [{ chave: 'ana exemplo', presentes: ['2026-09-13'] }] });
+  assert.deepEqual(j.pessoas, [{ chave: 'ana exemplo', presentes: ['2026-09-13', '2026-10-04'] }]);
+  // só o último ano
+  const muitas = Array.from({ length: MAX_SEMANAS_PESSOAS + 5 }, (_, i) => `2026-01-${String(1 + (i % 28)).padStart(2, '0')}`.replace(/01-(\d\d)$/, (m, d) => `${String(1 + Math.floor(i / 28)).padStart(2, '0')}-${d}`));
+  assert.ok(juntarFrequenciaPessoas(null, { semanas: muitas, pessoas: [] }).semanas.length <= MAX_SEMANAS_PESSOAS);
+});
+
+test('atividade: quantos dos últimos domingos registrados cada um veio', () => {
+  const freq = { semanas: ['2026-09-06', '2026-09-13', '2026-10-04'], pessoas: [{ chave: 'ana', presentes: ['2026-09-06', '2026-10-04'] }, { chave: 'bia', presentes: ['2026-09-06'] }] };
+  const a = atividadeDosMembros(freq, { ultimas: 2 });
+  assert.equal(a.semanas, 2);
+  assert.deepEqual([...a.porChave], [['ana', 1]]);
+  assert.equal(atividadeDosMembros(null).semanas, 0);
+});
+
+test('chave no quadro: nome igual, sem o complemento, ou o único com as palavras', () => {
+  const quadro = new Set(['ana clara exemplo', 'bruno teste', 'carla ficticia lima', 'carla ficticia souza']);
+  assert.equal(chaveNoQuadro('Exemplo, Ana Clara', quadro), 'ana clara exemplo');
+  assert.equal(chaveNoQuadro('Teste, Bruno - Pioneiro(a) de Exemplo', quadro), 'bruno teste');
+  assert.equal(chaveNoQuadro('Exemplo Modelo, Ana Clara', quadro), 'ana clara exemplo', 'sobrenome a mais');
+  assert.equal(chaveNoQuadro('Ficticia Lima Souza, Carla', quadro), 'carla ficticia lima souza', 'dois candidatos: fica o próprio');
+  assert.equal(chaveNoQuadro('Ninguém, Nenhum', quadro), 'nenhum ninguem');
+});
+
+test('o servidor guarda a frequência por pessoa só no privado, e recusa o que não for data das semanas', () => {
+  const ok = limparCorpoCrescimento({ privado: { frequenciaPessoas: { semanas: ['2026-10-04'], pessoas: [{ chave: 'ana exemplo', presentes: ['2026-10-04'] }] } } });
+  assert.ok(!ok.erro);
+  const doc = fundirCrescimento(docCrescimentoVazio(), ok.parcial, '2026-11-13T10:00:00Z');
+  assert.deepEqual(doc.privado.frequenciaPessoas.pessoas, [{ chave: 'ana exemplo', presentes: ['2026-10-04'] }]);
+  assert.ok(!JSON.stringify(respostaCrescimento(doc, false)).includes('ana exemplo'), 'sem a sessão, não sai');
+  assert.ok(JSON.stringify(respostaCrescimento(doc, true)).includes('ana exemplo'));
+  assert.ok(limparCorpoCrescimento({ privado: { frequenciaPessoas: { semanas: ['2026-10-04'], pessoas: [{ chave: 'x', presentes: ['2026-10-11'] }] } } }).erro);
+  assert.ok(limparCorpoCrescimento({ privado: { frequenciaPessoas: { semanas: ['ontem'], pessoas: [] } } }).erro);
 });

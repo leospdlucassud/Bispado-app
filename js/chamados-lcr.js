@@ -489,6 +489,21 @@ export function membrosSemChamado(membros, chamados, { idadeMin = 18, busca = ''
     && (!termos.length || casa(`${m.name} ${ordemNatural(m.name)}`, termos)));
 }
 
+// Quem está sem chamado, com os mais frequentes primeiro. `atividade`: o de
+// atividadeDosMembros (crescimento-lcr.js) — { semanas, porChave: Map(chave →
+// domingos em que veio) } — ou null (sem a frequência por pessoa: sem a sessão
+// de Bispo/ADM ou sem relatório importado), e aí fica a ordem do nome.
+// `chaveDe`: a chave com que a frequência foi gravada (chavePessoa de
+// discursos-regras.js, que este arquivo não importa: ela importa daqui).
+// → [{ m, nome, presencas (null sem a frequência) }]
+export function semChamadoPorFrequencia(lista, atividade = null, chaveDe = chavePessoa) {
+  const itens = (lista || []).map(m => ({
+    m, nome: ordemNatural(m.name),
+    presencas: atividade ? (atividade.porChave.get(chaveDe(m.name)) || 0) : null,
+  }));
+  return itens.sort((a, b) => (atividade ? b.presencas - a.presencas : 0) || a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
 // ---------- a designação na Agenda ----------
 // O "📅 Agendar designação" da aba Chamados cria na Agenda uma entrevista do
 // tipo TIPO_DESIGNACAO (convite-regras.js). Para um ocupante "a designar", o que

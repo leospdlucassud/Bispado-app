@@ -17,11 +17,11 @@
 import { abrirModalAgenda } from './agenda.js';
 import { agendaCarregada, apiFetch, atualizarUltimaSinc, avisarPendente, setSyncStatus } from './api.js';
 import { switchTab } from './app.js';
-import { dadosDosChamados, setFiltroChamados } from './chamados-ala.js';
+import { dadosDosChamados, renderChamadosAla, setFiltroChamados } from './chamados-ala.js';
 import { agruparPorOrganizacao, membroDoQuadro, membrosSemChamado, ordemNatural, resumoChamados } from './chamados-lcr.js';
 import { ALA, API_CRESCIMENTO, DADOS } from './config.js';
 import {
-  METAS_ALA, MIN_SEMANAS_ANO, NOMES_DOS_PDFS, SECOES_TRIMESTRAL, SITUACOES, TIPO_RENOVACAO, abaDoPdf, chaveTrimestre, comparacaoIndicador,
+  METAS_ALA, MIN_SEMANAS_ANO, NOMES_DOS_PDFS, SECOES_TRIMESTRAL, SITUACOES, TIPO_RENOVACAO, abaDoPdf, atividadeDosMembros, chaveNoQuadro, chaveTrimestre, comparacaoIndicador,
   docCrescimentoVazio, domingosSemFrequencia, frequenciaSacramental, fundirCrescimento, gradeFrequencia, gruposSemMarcacao,
   historicoDigitado, historicoDoIndicador, historicoSacramental, lerEstatisticas, lerFrequenciaClasses, lerRecomendacoes,
   lerTrimestral, liderancaChave, limparCorpoCrescimento, mesCurto, mudancasDaGrade, ultimoMesDaGrade, normalizarDocCrescimento,
@@ -30,7 +30,7 @@ import {
   tipoDePdfLcr, totalDeMembros, vencimentosPorMes,
 } from './crescimento-lcr.js';
 import { MEMBROS } from './dados-membros.js';
-import { somarDias, somarMeses } from './discursos-regras.js';
+import { chavePessoa, somarDias, somarMeses } from './discursos-regras.js';
 import { confirmar } from './dialogo.js';
 import {
   LARGURA_EIXO, anel, barraDeMeta, barraEmpilhada, colunas, faisca, figura, fmt, fmtPct, legenda, linhaTempo, medidor, mini, piramide, tabela,
@@ -74,6 +74,15 @@ export function dadosDoCrescimento() {
     publico: DOC.publico, carregado: crescimentoCarregado, pendente: gravacaoPendente,
     progresso: ctx.progresso, passos: ctx.passos, membros: ctx.membros, renovacoes,
   };
+}
+
+// Para a aba Chamados: quantos dos últimos domingos registrados cada pessoa
+// veio a alguma classe (Frequência à classe e ao quórum, importada aqui). null
+// sem a sessão de Bispo/ADM (é do privado) ou sem nenhum mês importado.
+export function atividadePorPessoa() {
+  const f = temSessao() ? DOC.privado?.frequenciaPessoas : null;
+  if (!f || !f.semanas?.length) return null;
+  return atividadeDosMembros(f);
 }
 
 // O privado só vale com a sessão aberta AGORA: a resposta de um pedido que
@@ -905,7 +914,9 @@ function seguirPasso(ds) {
 async function gravar(corpo, { ok, acao }) {
   const r = limparCorpoCrescimento(corpo);
   if (r.erro) { toast('Não foi possível gravar: ' + r.erro); return false; }
-  const comNomes = Object.values(r.parcial.privado?.recomendacoesPessoas || {}).some(l => l?.length);
+  // o que tem nomes (as recomendações, a frequência por pessoa) não espera na fila do aparelho
+  const comNomes = Object.values(r.parcial.privado?.recomendacoesPessoas || {}).some(l => l?.length)
+    || !!r.parcial.privado?.frequenciaPessoas?.pessoas?.length;
   const antes = DOC;
   const base = { publico: DOC.publico, privado: DOC.privado || docCrescimentoVazio().privado };
   const novo = fundirCrescimento(base, r.parcial, new Date().toISOString());
@@ -930,6 +941,8 @@ async function gravar(corpo, { ok, acao }) {
     return false;
   } finally {
     renderCrescimento();
+    // a aba Chamados ordena quem está sem chamado pela frequência (atividadePorPessoa)
+    renderChamadosAla();
   }
 }
 
@@ -1133,6 +1146,25 @@ function previaRecomendacoes(r, nPaginas) {
   });
 }
 
+// Do relatório lido para o privado: só os domingos com presença marcada (o que
+// ainda não chegou fica fora) e, por pessoa, a chave do nome (a do quadro de
+// membros, quando o nome do relatório vem com uma palavra a mais — chaveNoQuadro)
+// e os domingos em que veio
+function frequenciaPorPessoa(f) {
+  const semanas = f.semanas.filter(s => s.registrada).map(s => s.data);
+  const valem = new Set(semanas);
+  const doQuadro = new Set(ativos().map(m => chavePessoa(m.name)));
+  const porChave = new Map();
+  for (const p of f.porPessoa || []) {
+    const chave = chaveNoQuadro(p.nome, doQuadro);
+    if (!chave) continue;
+    const c = porChave.get(chave) || new Set();
+    for (const d of p.presentes) if (valem.has(d)) c.add(d);
+    porChave.set(chave, c);
+  }
+  return { semanas, pessoas: [...porChave].map(([chave, c]) => ({ chave, presentes: [...c].sort() })) };
+}
+
 function previaFrequencia(f, nPaginas) {
   const regs = f.semanas.filter(s => s.registrada);
   if (!f.semanas.length || !f.classes.length) {
@@ -1153,8 +1185,11 @@ function previaFrequencia(f, nPaginas) {
     ],
     resumo: `<strong>${f.pessoas}</strong> pessoas em ${plural(nPaginas, 'página', 'páginas')} · ${plural(regs.length, 'domingo com presença', 'domingos com presença')} de ${f.semanas.length} · ${fmt(f.icones.presentes)} presenças e ${fmt(f.icones.ausentes)} ausências`,
     corpo: lista('Classes em cada grupo (matriculados)', Object.entries(grupos).map(([g, cs]) => `<div><strong>${esc(rotuloGrupo(g))}</strong>: ${cs.map(c => `${esc(c.rotulo)} (${c.matriculados})`).join(', ')}</div>`)),
-    rodape: naoGuarda('Nenhum nome é lido nem guardado: só, por domingo, quantos vieram e quantos estão matriculados em cada grupo. Os outros meses importados ficam.'),
-    dados: { publico: { frequenciaClasses: { semanas: f.semanas.map(s => ({ data: s.data, porGrupo: s.porGrupo, registrada: s.registrada })) } } },
+    rodape: naoGuarda('Para todos: só, por domingo, quantos vieram e quantos estão matriculados em cada grupo. Na parte que só o Bispo e o ADM veem, os domingos em que cada pessoa veio — é o que põe primeiro, na aba Chamados, quem mais frequenta entre os que estão sem chamado. Os outros meses importados ficam.'),
+    dados: {
+      publico: { frequenciaClasses: { semanas: f.semanas.map(s => ({ data: s.data, porGrupo: s.porGrupo, registrada: s.registrada })) } },
+      privado: { frequenciaPessoas: frequenciaPorPessoa(f) },
+    },
     ok: `Frequência de ${mesCurto(f.mes)} importada`,
   });
 }

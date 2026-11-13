@@ -58,6 +58,9 @@ export function extrairLinhas(itens) {
 }
 
 export const RE_LIXO   = /lista de membros|somente para uso da igreja|intellectual reserve|direitos reservados|^nome$|^sexo$|^idade$|^data de$|^nascimento$|^n[úu]mero de$|^telefone$|^e-?mail$|^contagem:?\s*\d+$/i;
+// Com o cabeçalho da página achado (e tirado inteiro), fora dele só o título,
+// o rodapé e a Contagem são lixo: "Nascimento" ali é sobrenome
+export const RE_LIXO_FORA_DO_CABECALHO = /lista de membros|somente para uso da igreja|intellectual reserve|direitos reservados|^contagem:?\s*\d+$/i;
 
 // Acentos vêm como trechos separados. Sem width, estima-se a largura pelo corpo
 // da fonte para decidir se dois trechos vizinhos têm um espaço entre eles.
@@ -120,27 +123,38 @@ function lerPorFormato(paginas) {
   paginas.forEach(itens => {
     const linhas = extrairLinhas(itens);
 
-    // A coluna Sexo é a âncora: única com um M ou F isolado.
-    let xSexo = null;
-    for (const l of linhas) {
-      const p = l.partes.find(p => /^[MF]$/.test(p.txt.trim()));
-      if (p) { xSexo = p.x; break; }
-    }
-    if (xSexo == null) return;
+    // A coluna Sexo é a âncora: o x em que MAIS aparece um M ou F isolado. Não
+    // basta o primeiro: o e-mail também quebra ("…@G….CO" + "M"), e esse "M"
+    // sozinho na coluna do e-mail virava uma pessoa a mais (nov/2026: um pedaço
+    // de nome com "M, 0 anos", e a Contagem acusou 440 de 439).
+    const xsSexo = {};
+    for (const l of linhas) for (const p of l.partes) if (/^[MF]$/.test(p.txt.trim())) { const x = Math.round(p.x); xsSexo[x] = (xsSexo[x] || 0) + 1; }
+    const xMaisComum = Object.entries(xsSexo).sort((a, b) => b[1] - a[1])[0];
+    if (!xMaisComum) return;
+    const xSexo = +xMaisComum[0];
+    const ehSexo = p => /^[MF]$/.test(p.txt.trim()) && Math.abs(p.x - xSexo) <= 3;
+
+    // O cabeçalho (3 linhas em volta de "Nome | Sexo") sai inteiro; os rótulos
+    // dele só são lixo ali. Antes "Nascimento" era lixo em qualquer lugar, e o
+    // sobrenome Nascimento, sozinho na última linha do nome, sumia do quadro.
+    const cab = linhas.find(l => l.partes.some(p => /^nome$/i.test(p.txt.trim())) && l.partes.some(p => /^sexo$/i.test(p.txt.trim())));
+    const faixaCab = cab ? Math.max(...cab.partes.map(p => p.fs)) * ALTURA_CABECALHO : 0;
+    const lixo = cab ? RE_LIXO_FORA_DO_CABECALHO : RE_LIXO;
 
     const ancoras = [], soltas = [];
 
     linhas.forEach(l => {
-      const uteis = l.partes.filter(p => !RE_LIXO.test(p.txt.trim()));
+      if (cab && Math.abs(l.y - cab.y) <= faixaCab) return;
+      const uteis = l.partes.filter(p => !lixo.test(p.txt.trim()));
       if (!uteis.length) return;
       const esq = uteis.filter(p => p.x <  xSexo - 2);
       const dir = uteis.filter(p => p.x >= xSexo - 2);
 
-      if (dir.some(p => /^[MF]$/.test(p.txt.trim()))) {
+      if (dir.some(ehSexo)) {
         const campos = { sexo:'', idade:'', nasc:'', tel:'' }, resto = [];
         dir.forEach(p => {
           const t = p.txt.trim();
-          if      (/^[MF]$/.test(t))     campos.sexo  = t;
+          if      (ehSexo(p))            campos.sexo  = t;
           else if (/^\d{1,3}$/.test(t))  campos.idade = t;
           else if (RE_DATA.test(t))      campos.nasc  = t;
           else if (RE_TEL.test(t))       campos.tel   = t;
